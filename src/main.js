@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
@@ -45,6 +46,23 @@ ipcMain.handle('db-run', async (event, sql, params = []) => {
             } else {
                 // 'this' contains properties like 'lastID' and 'changes'
                 resolve({ lastID: this.lastID, changes: this.changes });
+            }
+        });
+    });
+});
+
+ipcMain.handle('save-pdf', async (event, pdfBytes, datapackId) => {
+    const documentsPath = app.getPath('documents');
+    const filePath = path.join(documentsPath, `register_${datapackId}.pdf`);
+
+    return new Promise((resolve, reject) => {
+        fs.writeFile(filePath, pdfBytes, (err) => {
+            if (err) {
+                console.error('Failed to save PDF:', err);
+                reject(err);
+            } else {
+                console.log('PDF saved successfully to:', filePath);
+                resolve(filePath);
             }
         });
     });

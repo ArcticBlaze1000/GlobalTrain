@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEvent } from '../context/EventContext';
+import RegisterPDFGenerator from './RegisterPDFGenerator';
 
 const CourseScreen = ({ user }) => {
     const [events, setEvents] = useState([]);
@@ -79,7 +80,7 @@ const CourseScreen = ({ user }) => {
                         <h2 className="text-xl font-bold text-gray-800">
                             Current Event: {activeEvent.courseName} — {activeEvent.startDate}
                         </h2>
-                        {/* More details will go here */}
+                        <RegisterPDFGenerator datapackId={activeEvent.id} />
                     </div>
                 ) : (
                     <div className="flex items-center justify-center h-full">

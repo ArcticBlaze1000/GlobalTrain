@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('db', {
   run: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
 });
 
+contextBridge.exposeInMainWorld('electron', {
+  savePdf: (pdfBytes, datapackId) => ipcRenderer.invoke('save-pdf', pdfBytes, datapackId)
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   const replaceText = (selector, text) => {
     const element = document.getElementById(selector)
