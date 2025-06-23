@@ -4,11 +4,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('db', {
   query: (sql, params) => ipcRenderer.invoke('db-query', sql, params),
-  run: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
+  run: (sql, params) => ipcRenderer.invoke('db-run', sql, params)
 });
 
 contextBridge.exposeInMainWorld('electron', {
-  savePdf: (pdfBytes, datapackId) => ipcRenderer.invoke('save-pdf', pdfBytes, datapackId)
+  generatePdfFromHtml: (htmlContent, datapackId) => ipcRenderer.invoke('generate-pdf-from-html', htmlContent, datapackId)
 });
 
 window.addEventListener('DOMContentLoaded', () => {

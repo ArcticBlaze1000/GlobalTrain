@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
+const puppeteer = require('puppeteer');
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
@@ -51,21 +52,37 @@ ipcMain.handle('db-run', async (event, sql, params = []) => {
     });
 });
 
-ipcMain.handle('save-pdf', async (event, pdfBytes, datapackId) => {
+ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) => {
     const documentsPath = app.getPath('documents');
     const filePath = path.join(documentsPath, `register_${datapackId}.pdf`);
 
-    return new Promise((resolve, reject) => {
-        fs.writeFile(filePath, pdfBytes, (err) => {
-            if (err) {
-                console.error('Failed to save PDF:', err);
-                reject(err);
-            } else {
-                console.log('PDF saved successfully to:', filePath);
-                resolve(filePath);
-            }
+    let browser;
+    try {
+        browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        
+        // It's crucial to use setContent and wait for the network to be idle
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+        // Generate PDF
+        await page.pdf({
+            path: filePath,
+            format: 'A4',
+            printBackground: true, // This is important for Tailwind background colors
+            landscape: true, // Match the document orientation
         });
-    });
+
+    } catch (error) {
+        console.error('Failed to generate PDF with Puppeteer:', error);
+        throw error; // Propagate error back to renderer
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+
+    console.log('PDF saved successfully to:', filePath);
+    return filePath;
 });
 
 app.whenReady().then(() => {
