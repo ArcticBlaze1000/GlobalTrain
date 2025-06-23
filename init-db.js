@@ -62,8 +62,6 @@ db.serialize(() => {
     const userSql = `INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)`;
     // Dev user
     db.run(userSql, ['Aditya', 'Chaubey', 'dev', 'aditya', 'chaubey']);
-    // Admin user
-    db.run(userSql, ['Stuart', 'Little', 'admin', 'stuart', 'little']);
     // Trainer user
     db.run(userSql, ['George', 'Penman', 'trainer', 'george', 'penman']);
     

@@ -37,6 +37,19 @@ ipcMain.handle('db-query', async (event, sql, params = []) => {
     });
 });
 
+ipcMain.handle('db-run', async (event, sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) { // Must use function() to get 'this' scope
+            if (err) {
+                reject(err);
+            } else {
+                // 'this' contains properties like 'lastID' and 'changes'
+                resolve({ lastID: this.lastID, changes: this.changes });
+            }
+        });
+    });
+});
+
 app.whenReady().then(() => {
   createWindow();
 
