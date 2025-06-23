@@ -102,7 +102,7 @@ const CreationScreen = () => {
                     value={courseId}
                     onChange={setCourseId}
                     options={courses}
-                    defaultOptionText="Select a course"
+                    placeholder="Select a course"
                 />
                 
                 <Dropdown
@@ -110,7 +110,7 @@ const CreationScreen = () => {
                     value={trainerId}
                     onChange={setTrainerId}
                     options={trainers}
-                    defaultOptionText="Select a trainer"
+                    placeholder="Select a trainer"
                 />
 
                 {/* Start Date */}
