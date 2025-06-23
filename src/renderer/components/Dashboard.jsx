@@ -29,14 +29,14 @@ const Dashboard = ({ user, onLogout }) => {
         <div className="flex justify-between items-center border-b bg-white shadow-sm p-2">
             {/* Tabs on the left */}
             <div className="flex">
-                {(user.role === 'dev' || user.role === 'admin') && (
-                    <TabButton name="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
-                )}
                 {user.role === 'dev' && (
                     <TabButton name="Creation" activeTab={activeTab} setActiveTab={setActiveTab} />
                 )}
                 <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton name="Candidate" activeTab={activeTab} setActiveTab={setActiveTab} />
+                {(user.role === 'dev' || user.role === 'admin') && (
+                    <TabButton name="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
+                )}
             </div>
 
             {/* User info and Logout button on the right */}
