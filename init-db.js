@@ -42,11 +42,11 @@ const traineesToSeed = [
     { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369' }
 ];
 const datapackToSeed = [
-    { course_id: 1, trainer_id: 1, start_date: '2025-08-01', duration: 10, total_trainee_count: 1, trainee_ids: '1' },
-    { course_id: 2, trainer_id: 2, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
-    { course_id: 3, trainer_id: 1, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
-    { course_id: 1, trainer_id: 2, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
-    { course_id: 3, trainer_id: 1, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
+    { course_id: 1, trainer_id: 2, start_date: '2025-08-01', duration: 10, total_trainee_count: 1, trainee_ids: '1' },
+    { course_id: 2, trainer_id: 3, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
+    { course_id: 3, trainer_id: 2, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
+    { course_id: 1, trainer_id: 3, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
+    { course_id: 3, trainer_id: 2, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
 ];
 
 db.serialize(() => {

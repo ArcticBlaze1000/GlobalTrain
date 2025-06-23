@@ -60,7 +60,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {user.role === 'dev' && activeTab === 'creation' && <CreationScreen />}
-                {activeTab === 'course' && <CourseScreen />}
+                {activeTab === 'course' && <CourseScreen user={user} />}
                 {activeTab === 'candidate' && <CandidateScreen />}
             </div>
         </div>

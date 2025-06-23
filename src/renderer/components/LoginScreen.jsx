@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const LoginScreen = ({ onLoginSuccess }) => {
+const LoginScreen = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
@@ -15,7 +15,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
             if (users.length > 0) {
                 const user = users[0];
                 // Pass the entire user object on successful login
-                onLoginSuccess({
+                onLogin({
                     id: user.id,
                     forename: user.forename,
                     surname: user.surname,
