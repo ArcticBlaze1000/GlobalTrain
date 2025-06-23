@@ -11,8 +11,12 @@ const CandidateScreen = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            setCandidates(await window.db.query('SELECT id, name FROM trainees'));
-            setCompetencies(await window.db.query('SELECT id, name FROM competencies'));
+            try {
+                setCandidates(await window.db.query("SELECT id, forename || ' ' || surname AS name FROM trainees"));
+                setCompetencies(await window.db.query('SELECT id, name FROM competencies'));
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+            }
         };
         fetchData();
     }, []);

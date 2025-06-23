@@ -27,7 +27,27 @@ const usersToSeed = [
     { forename: 'George', surname: 'Penman', role: 'trainer', username: 'george', password: 'penman' },
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
 ];
-const coursesToSeed = [{ name: 'PTS' }];
+const coursesToSeed = [{ name: 'PTS' }, { name: 'PTS Reset' }, { name: 'COSS Initial'}    
+];
+const traineesToSeed = [
+    { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
+    { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321' },
+    { forename: 'Jim', surname: 'Beam', sponsor: 'SWGR', sentry_number: '123456' },
+    { forename: 'Jim', surname: 'Brown', sponsor: 'SWGR', sentry_number: '123456' },
+    { forename: 'Alice', surname: 'Johnson', sponsor: 'Network Rail', sentry_number: '987654' },
+    { forename: 'Bob', surname: 'Williams', sponsor: 'Babcock', sentry_number: '456789' },
+    { forename: 'Eve', surname: 'Davis', sponsor: 'SWGR', sentry_number: '321654' },
+    { forename: 'Charlie', surname: 'Miller', sponsor: 'Siemens', sentry_number: '789123' },
+    { forename: 'Grace', surname: 'Taylor', sponsor: 'Amey', sentry_number: '147258' },
+    { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369' }
+];
+const datapackToSeed = [
+    { course_id: 1, trainer_id: 1, start_date: '2025-08-01', duration: 10, total_trainee_count: 1, trainee_ids: '1' },
+    { course_id: 2, trainer_id: 2, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
+    { course_id: 3, trainer_id: 1, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
+    { course_id: 1, trainer_id: 2, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
+    { course_id: 3, trainer_id: 1, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
+];
 
 db.serialize(() => {
     db.run('BEGIN TRANSACTION', (err) => {
@@ -52,7 +72,15 @@ db.serialize(() => {
     const courseStmt = db.prepare(`INSERT INTO courses (name) VALUES (?)`);
     coursesToSeed.forEach(course => courseStmt.run(course.name));
     courseStmt.finalize();
-    
+
+    const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)`);
+    traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));
+    traineeStmt.finalize();
+
+    const datapackStmt = db.prepare(`INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)`);
+    datapackToSeed.forEach(dp => datapackStmt.run(Object.values(dp)));
+    datapackStmt.finalize();
+
     db.run('COMMIT', (err) => {
         if (err) {
             console.error('Could not commit transaction:', err.message);
