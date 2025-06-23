@@ -20,9 +20,15 @@ db.serialize(() => {
     // Drop and recreate trainees and users to ensure schema is up-to-date
     db.run(`DROP TABLE IF EXISTS trainees`);
     db.run(`DROP TABLE IF EXISTS users`);
+    db.run(`DROP TABLE IF EXISTS courses`);
+    db.run(`DROP TABLE IF EXISTS competencies`);
+    db.run(`DROP TABLE IF EXISTS datapack`);
 
     // Recreate tables with the new schema
     console.log('Recreating tables with new schema...');
+    db.run(`CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT)`);
+    db.run(`CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)`);
+
     db.run(`CREATE TABLE trainees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         forename TEXT NOT NULL,
@@ -40,8 +46,19 @@ db.serialize(() => {
         password TEXT
     )`);
 
+    db.run(`CREATE TABLE datapack (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_id INTEGER,
+        trainer_id INTEGER,
+        start_date TEXT,
+        duration INTEGER,
+        total_trainee_count INTEGER,
+        trainee_ids TEXT
+    )`);
+
     // Seed data
     console.log('Seeding initial user data...');
+    db.run(`INSERT INTO courses (name) VALUES ('PTS')`);
     const userSql = `INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)`;
     // Dev user
     db.run(userSql, ['Aditya', 'Chaubey', 'dev', 'aditya', 'chaubey']);
