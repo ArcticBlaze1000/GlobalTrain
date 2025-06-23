@@ -4,15 +4,29 @@ const LoginScreen = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        // Hardcoded users
-        if (username === 'admin' && password === 'admin123') {
-            onLoginSuccess('Admin');
-        } else if (username === 'trainer' && password === 'trainer123') {
-            onLoginSuccess('Trainer');
-        } else {
-            alert('Invalid credentials');
+        try {
+            const users = await window.db.query(
+                'SELECT * FROM users WHERE username = ? AND password = ?',
+                [username, password]
+            );
+
+            if (users.length > 0) {
+                const user = users[0];
+                // Pass the entire user object on successful login
+                onLoginSuccess({
+                    id: user.id,
+                    forename: user.forename,
+                    surname: user.surname,
+                    role: user.role
+                });
+            } else {
+                alert('Invalid username or password.');
+            }
+        } catch (error) {
+            console.error('Login failed:', error);
+            alert('An error occurred during login.');
         }
     };
 

@@ -5,19 +5,19 @@ import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const [userRole, setUserRole] = useState(null);
+  const [user, setUser] = useState(null);
 
-  const handleLoginSuccess = (role) => {
-    setUserRole(role);
+  const handleLoginSuccess = (loggedInUser) => {
+    setUser(loggedInUser);
   };
 
   const handleLogout = () => {
-    setUserRole(null);
+    setUser(null);
   };
 
   return (
     <div>
-      {userRole ? <Dashboard userRole={userRole} onLogout={handleLogout} /> : <LoginScreen onLoginSuccess={handleLoginSuccess} />}
+      {user ? <Dashboard user={user} onLogout={handleLogout} /> : <LoginScreen onLoginSuccess={handleLoginSuccess} />}
     </div>
   );
 }
