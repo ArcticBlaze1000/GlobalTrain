@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Dropdown from './common/Dropdown';
 
 const CandidateScreen = () => {
     const [candidates, setCandidates] = useState([]);
@@ -24,34 +25,24 @@ const CandidateScreen = () => {
             <div className="w-1/5 bg-white p-6 shadow-md">
                 <h2 className="text-xl font-bold mb-6">Candidate Selections</h2>
                 
-                {/* Candidate Name Dropdown */}
-                <div className="mb-4">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Candidate Name</label>
-                    <select
-                        value={selectedCandidate}
-                        onChange={e => setSelectedCandidate(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                        <option value="">Select Candidate</option>
-                        {candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                </div>
+                <Dropdown
+                    label="Candidate Name"
+                    value={selectedCandidate}
+                    onChange={setSelectedCandidate}
+                    options={candidates}
+                    defaultOptionText="Select Candidate"
+                />
 
-                {/* Competency Dropdown */}
-                <div className="mb-4">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Competency</label>
-                    <select
-                        value={selectedCompetency}
-                        onChange={e => setSelectedCompetency(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                        <option value="">Select Competency</option>
-                        {competencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                </div>
+                <Dropdown
+                    label="Competency"
+                    value={selectedCompetency}
+                    onChange={setSelectedCompetency}
+                    options={competencies}
+                    defaultOptionText="Select Competency"
+                />
 
                 {/* Leaving Checkbox */}
-                <div className="flex items-center">
+                <div className="flex items-center mt-4">
                     <input
                         type="checkbox"
                         id="leaving-checkbox"

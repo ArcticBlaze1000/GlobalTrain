@@ -4,73 +4,66 @@ const path = require('path');
 const dbPath = path.resolve(__dirname, 'database.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
-        console.error(err.message);
+        console.error('Error connecting to database:', err.message);
+        return;
     }
     console.log('Connected to the SQLite database.');
 });
 
+// --- Schema Definition ---
+const tables = [
+    { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
+    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
+    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT)` },
+    { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)` },
+    { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
+    // Old tables to ensure they are dropped
+    { name: 'trainers' }, { name: 'admins' }, { name: 'devs' }
+];
+
+// --- Seed Data ---
+const usersToSeed = [
+    { forename: 'Aditya', surname: 'Chaubey', role: 'dev', username: 'aditya', password: 'chaubey' },
+    { forename: 'George', surname: 'Penman', role: 'trainer', username: 'george', password: 'penman' },
+    { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
+];
+const coursesToSeed = [{ name: 'PTS' }];
+
 db.serialize(() => {
-    // Drop all tables being modified to ensure a clean slate
-    console.log('Dropping old tables...');
-    // Drop role-specific tables that are no longer needed
-    db.run(`DROP TABLE IF EXISTS trainers`);
-    db.run(`DROP TABLE IF EXISTS admins`);
-    db.run(`DROP TABLE IF EXISTS devs`);
+    db.run('BEGIN TRANSACTION', (err) => {
+        if (err) return console.error('Could not begin transaction:', err.message);
+    });
+
+    console.log('Dropping all tables...');
+    tables.forEach(table => {
+        db.run(`DROP TABLE IF EXISTS ${table.name}`);
+    });
+
+    console.log('Creating tables...');
+    tables.forEach(table => {
+        if (table.schema) db.run(table.schema);
+    });
+
+    console.log('Seeding data...');
+    const userStmt = db.prepare(`INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)`);
+    usersToSeed.forEach(user => userStmt.run(Object.values(user)));
+    userStmt.finalize();
+
+    const courseStmt = db.prepare(`INSERT INTO courses (name) VALUES (?)`);
+    coursesToSeed.forEach(course => courseStmt.run(course.name));
+    courseStmt.finalize();
     
-    // Drop and recreate trainees and users to ensure schema is up-to-date
-    db.run(`DROP TABLE IF EXISTS trainees`);
-    db.run(`DROP TABLE IF EXISTS users`);
-    db.run(`DROP TABLE IF EXISTS courses`);
-    db.run(`DROP TABLE IF EXISTS competencies`);
-    db.run(`DROP TABLE IF EXISTS datapack`);
-
-    // Recreate tables with the new schema
-    console.log('Recreating tables with new schema...');
-    db.run(`CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT)`);
-    db.run(`CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)`);
-
-    db.run(`CREATE TABLE trainees (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        forename TEXT NOT NULL,
-        surname TEXT NOT NULL,
-        sponsor TEXT,
-        sentry_number TEXT
-    )`);
-
-    db.run(`CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        forename TEXT,
-        surname TEXT,
-        role TEXT,
-        username TEXT UNIQUE,
-        password TEXT
-    )`);
-
-    db.run(`CREATE TABLE datapack (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        course_id INTEGER,
-        trainer_id INTEGER,
-        start_date TEXT,
-        duration INTEGER,
-        total_trainee_count INTEGER,
-        trainee_ids TEXT
-    )`);
-
-    // Seed data
-    console.log('Seeding initial user data...');
-    db.run(`INSERT INTO courses (name) VALUES ('PTS')`);
-    const userSql = `INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)`;
-    // Dev user
-    db.run(userSql, ['Aditya', 'Chaubey', 'dev', 'aditya', 'chaubey']);
-    // Trainer user
-    db.run(userSql, ['George', 'Penman', 'trainer', 'george', 'penman']);
-    
-    console.log('Database schema and data updated successfully.');
+    db.run('COMMIT', (err) => {
+        if (err) {
+            console.error('Could not commit transaction:', err.message);
+            db.run('ROLLBACK');
+        } else {
+            console.log('Database initialization complete.');
+        }
+    });
 });
 
 db.close((err) => {
-    if (err) {
-        console.error(err.message);
-    }
-    console.log('Closed the database connection.');
+    if (err) console.error('Error closing database:', err.message);
+    else console.log('Database connection closed.');
 }); 

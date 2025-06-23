@@ -4,6 +4,19 @@ import CourseScreen from './CourseScreen';
 import CandidateScreen from './CandidateScreen';
 import UsersScreen from './UsersScreen';
 
+// A local component for rendering tab buttons to reduce repetition
+const TabButton = ({ name, activeTab, setActiveTab }) => {
+    const isActive = activeTab === name.toLowerCase();
+    return (
+        <button
+            className={`py-2 px-6 text-sm font-medium ${isActive ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+            onClick={() => setActiveTab(name.toLowerCase())}
+        >
+            {name}
+        </button>
+    );
+};
+
 const Dashboard = ({ user, onLogout }) => {
     // Set default tab based on role
     const getDefaultTab = () => {
@@ -17,33 +30,13 @@ const Dashboard = ({ user, onLogout }) => {
             {/* Tabs on the left */}
             <div className="flex">
                 {(user.role === 'dev' || user.role === 'admin') && (
-                    <button
-                        className={`py-2 px-6 text-sm font-medium ${activeTab === 'users' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
-                        onClick={() => setActiveTab('users')}
-                    >
-                        Users
-                    </button>
+                    <TabButton name="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
                 )}
                 {user.role === 'dev' && (
-                    <button
-                        className={`py-2 px-6 text-sm font-medium ${activeTab === 'creation' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
-                        onClick={() => setActiveTab('creation')}
-                    >
-                        Creation
-                    </button>
+                    <TabButton name="Creation" activeTab={activeTab} setActiveTab={setActiveTab} />
                 )}
-                <button
-                    className={`py-2 px-6 text-sm font-medium ${activeTab === 'course' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
-                    onClick={() => setActiveTab('course')}
-                >
-                    Course
-                </button>
-                <button
-                    className={`py-2 px-6 text-sm font-medium ${activeTab === 'candidate' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
-                    onClick={() => setActiveTab('candidate')}
-                >
-                    Candidate
-                </button>
+                <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton name="Candidate" activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* User info and Logout button on the right */}

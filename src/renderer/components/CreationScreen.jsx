@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Dropdown from './common/Dropdown';
 
 const CreationScreen = () => {
     // Component State
@@ -96,23 +97,21 @@ const CreationScreen = () => {
         <div className="p-8 h-full overflow-y-auto">
             <h2 className="text-2xl font-bold mb-6 text-gray-800">New Registration Form</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Course Dropdown */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Course Title</label>
-                    <select value={courseId} onChange={e => setCourseId(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        <option value="">Select a course</option>
-                        {courses.map(course => <option key={course.id} value={course.id}>{course.name}</option>)}
-                    </select>
-                </div>
-
-                {/* Trainer Dropdown */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Trainer</label>
-                    <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        <option value="">Select a trainer</option>
-                        {trainers.map(trainer => <option key={trainer.id} value={trainer.id}>{`${trainer.forename} ${trainer.surname}`}</option>)}
-                    </select>
-                </div>
+                <Dropdown
+                    label="Course Title"
+                    value={courseId}
+                    onChange={setCourseId}
+                    options={courses}
+                    defaultOptionText="Select a course"
+                />
+                
+                <Dropdown
+                    label="Trainer"
+                    value={trainerId}
+                    onChange={setTrainerId}
+                    options={trainers}
+                    defaultOptionText="Select a trainer"
+                />
 
                 {/* Start Date */}
                 <div>
