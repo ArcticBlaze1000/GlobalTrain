@@ -10,52 +10,62 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 db.serialize(() => {
-    // Drop existing tables for a clean seed (optional, good for development)
-    db.run(`DROP TABLE IF EXISTS users`);
+    // Drop all tables being modified to ensure a clean slate
+    console.log('Dropping old tables...');
     db.run(`DROP TABLE IF EXISTS trainers`);
-    db.run(`DROP TABLE IF EXISTS courses`);
     db.run(`DROP TABLE IF EXISTS trainees`);
-    db.run(`DROP TABLE IF EXISTS competencies`);
-    db.run(`DROP TABLE IF EXISTS selections`);
+    db.run(`DROP TABLE IF EXISTS users`);
+    db.run(`DROP TABLE IF EXISTS admins`);
+    db.run(`DROP TABLE IF EXISTS devs`);
+    
+    // Keep other tables like courses, competencies, datapack as they were not mentioned.
 
-    // Create tables
-    db.run(`CREATE TABLE IF NOT EXISTS users (
+    // Recreate tables with the new schema
+    console.log('Recreating tables with new schema...');
+    db.run(`CREATE TABLE trainers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL
+        forename TEXT,
+        surname TEXT
     )`);
 
-    db.run(`CREATE TABLE IF NOT EXISTS trainers (id INTEGER PRIMARY KEY, name TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY, name TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS trainees (id INTEGER PRIMARY KEY, name TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)`);
-    db.run(`CREATE TABLE IF NOT EXISTS selections (
+    db.run(`CREATE TABLE trainees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trainer_id INTEGER,
-        course_id INTEGER,
-        trainee_id INTEGER,
-        competency_id INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        forename TEXT,
+        surname TEXT,
+        sponsor TEXT,
+        sentry_number TEXT
+    )`);
+
+    db.run(`CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        forename TEXT,
+        surname TEXT,
+        role TEXT,
+        username TEXT UNIQUE,
+        password TEXT
+    )`);
+
+    db.run(`CREATE TABLE admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        forename TEXT,
+        surname TEXT
+    )`);
+
+    db.run(`CREATE TABLE devs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        forename TEXT,
+        surname TEXT
     )`);
 
     // Seed data
-    const trainers = ['John Doe', 'Jane Smith', 'Peter Jones'];
-    const courses = ['Introduction to React', 'Advanced Node.js', 'Database Management'];
-    const trainees = ['Alice', 'Bob', 'Charlie'];
-    const competencies = [
-        { name: 'Component Lifecycle', course_id: 1 },
-        { name: 'State and Props', course_id: 1 },
-        { name: 'Async/Await', course_id: 2 },
-        { name: 'SQL Queries', course_id: 3 },
-    ];
+    console.log('Seeding initial user data...');
+    const devSql = `INSERT INTO devs (forename, surname) VALUES (?, ?)`;
+    db.run(devSql, ['Aditya', 'Chaubey']);
 
-    trainers.forEach(name => db.run(`INSERT INTO trainers (name) VALUES (?)`, [name]));
-    courses.forEach(name => db.run(`INSERT INTO courses (name) VALUES (?)`, [name]));
-    trainees.forEach(name => db.run(`INSERT INTO trainees (name) VALUES (?)`, [name]));
-    competencies.forEach(c => db.run(`INSERT INTO competencies (name, course_id) VALUES (?, ?)`, [c.name, c.course_id]));
+    const userSql = `INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)`;
+    db.run(userSql, ['Aditya', 'Chaubey', 'dev', 'Aditya', 'Aditya']);
     
-    console.log('Database seeded successfully.');
+    console.log('Database schema and data updated successfully.');
 });
 
 db.close((err) => {
