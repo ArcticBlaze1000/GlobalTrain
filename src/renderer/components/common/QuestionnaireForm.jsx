@@ -39,6 +39,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
+    const [questionOptions, setQuestionOptions] = useState({});
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -55,6 +56,27 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 [documentId]
             );
             setQuestions(fetchedQuestions);
+
+            const dropdownQuestionFieldNames = fetchedQuestions
+                .filter(q => q.input_type === 'dropdown')
+                .map(q => q.field_name);
+
+            if (dropdownQuestionFieldNames.length > 0) {
+                const placeholders = dropdownQuestionFieldNames.map(() => '?').join(',');
+                const allOptions = await window.db.query(
+                    `SELECT question_field_name, option_value FROM questionnaire_options WHERE question_field_name IN (${placeholders})`,
+                    dropdownQuestionFieldNames
+                );
+
+                const options = allOptions.reduce((acc, opt) => {
+                    if (!acc[opt.question_field_name]) {
+                        acc[opt.question_field_name] = [];
+                    }
+                    acc[opt.question_field_name].push(opt.option_value);
+                    return acc;
+                }, {});
+                setQuestionOptions(options);
+            }
 
             const initialResponses = {};
             for (const q of fetchedQuestions) {
@@ -202,6 +224,28 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                                                     disabled={!isEditable}
                                                 />
+                                            )}
+                                            {q.input_type === 'number' && (
+                                                <input
+                                                    type="number"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-24 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'dropdown' && (
+                                                <select
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-48 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {(questionOptions[q.field_name] || []).map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
                                             )}
                                             {/* Render other input types if necessary, or leave blank */}
                                         </div>

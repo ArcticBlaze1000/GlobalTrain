@@ -64,7 +64,7 @@ ipcMain.handle('get-css-path', async () => {
     }
 });
 
-ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) => {
+ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, options = {}) => {
     // Save to a temporary directory to avoid cluttering the user's documents
     const tempPath = app.getPath('temp');
     // Use a unique filename to prevent conflicts
@@ -81,7 +81,7 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) 
             path: filePath,
             format: 'A4',
             printBackground: true,
-            landscape: false,
+            landscape: options.landscape || false,
         });
 
         // Open the generated PDF with the default system viewer

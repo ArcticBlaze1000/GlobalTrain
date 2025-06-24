@@ -2,9 +2,10 @@ import React from 'react';
 
 // This component is a template for the PDF. It's not meant to be rendered directly in the app.
 // It will be converted to an HTML string and sent to Puppeteer.
-const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
+const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) => {
     // Helper to create empty rows for the table
-    const emptyRows = Array.from({ length: Math.max(0, 8 - trainees.length) });
+    const emptyRows = Array.from({ length: Math.max(0, 8 - (trainees?.length || 0)) });
+    const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
 
     return (
         <html>
@@ -21,7 +22,10 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
                     {/* Header */}
                     <div className="flex justify-between items-start mb-4">
                         <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET</h1>
-                        <div className="text-2xl font-bold">GlobalTrain</div>
+                        <div className="text-2xl font-bold">
+                            <span className="text-red-600">Global</span>
+                            <span className="text-blue-600">Train</span>
+                        </div>
                     </div>
 
                     {/* Info Grid */}
@@ -36,30 +40,36 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
                                     <td className="p-1 font-bold border-r border-black w-1/3 bg-blue-100">COURSE DATES:</td>
                                     <td className="p-1">{new Date(datapack?.start_date).toLocaleDateString('en-GB')}</td>
                                 </tr>
-                                <tr>
+                                <tr className="border-b border-black">
                                     <td className="p-1 font-bold border-r border-black w-1/3 bg-blue-100">TRAINER:</td>
                                     <td className="p-1">{trainer?.forename} {trainer?.surname}</td>
                                 </tr>
+                                <tr>
+                                    <td className="p-1 font-bold border-r border-black w-1/3 bg-blue-100">NWR Toolkit No:</td>
+                                    <td className="p-1">{responses?.nwr_toolkit_no || ''}</td>
+                                </tr>
                             </tbody>
                         </table>
-                        <div className="border border-black">
-                            <div className="flex border-b border-black">
-                                <div className="p-1 w-2/3 font-bold border-r border-black bg-blue-100">TOTAL TRAINEES ATTENDED:</div>
-                                <div className="p-1 w-1/3">{datapack?.total_trainee_count}</div>
-                            </div>
-                             <div className="flex border-b border-black">
-                                <div className="p-1 w-2/3 font-bold border-r border-black bg-blue-100">TOTAL TRAINEES SUCCESSFUL:</div>
-                                <div className="p-1 w-1/3"></div>
-                            </div>
-                             <div className="flex border-b border-black">
-                                <div className="p-1 w-2/3 font-bold border-r border-black bg-blue-100">RESOURCES FIT FOR PURPOSE*:</div>
-                                <div className="p-1 w-1/3"></div>
-                            </div>
-                             <div className="flex">
-                                <div className="p-1 w-2/3 font-bold border-r border-black bg-blue-100">NWR Toolkit No:</div>
-                                <div className="p-1 w-1/3"></div>
-                            </div>
-                        </div>
+                        <table className="border-collapse border border-black w-full">
+                             <tbody>
+                                <tr className="border-b border-black">
+                                    <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">TOTAL TRAINEES ATTENDED:</td>
+                                    <td className="p-1">{datapack?.total_trainee_count}</td>
+                                </tr>
+                                <tr className="border-b border-black">
+                                    <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">TOTAL TRAINEES SUCCESSFUL:</td>
+                                    <td className="p-1"></td>
+                                </tr>
+                                <tr className="border-b border-black">
+                                    <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">RESOURCES FIT FOR PURPOSE*:</td>
+                                    <td className="p-1">{resourcesFit}</td>
+                                </tr>
+                                <tr>
+                                    <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">RESOURCES:</td>
+                                    <td className="p-1">{responses?.resources || ''}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                     
                     {/* Main Table */}
@@ -79,7 +89,7 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black">
-                            {trainees.map((trainee, index) => (
+                            {(trainees || []).map((trainee, index) => (
                                 <tr key={trainee.id} className="divide-x divide-black">
                                     <td className="p-1 text-center">{index + 1}</td>
                                     <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
@@ -90,7 +100,7 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
                             ))}
                             {emptyRows.map((_, index) => (
                                 <tr key={`empty-${index}`} className="divide-x divide-black">
-                                     <td className="p-1 text-center">{trainees.length + index + 1}</td>
+                                     <td className="p-1 text-center">{(trainees?.length || 0) + index + 1}</td>
                                      {[...Array(11)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
                                 </tr>
                             ))}
@@ -129,4 +139,4 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
     );
 };
 
-export default RegisterTemplate; 
+export default Template; 

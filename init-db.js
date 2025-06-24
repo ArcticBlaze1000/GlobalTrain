@@ -17,6 +17,7 @@ const tables = [
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
+    { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
@@ -43,11 +44,9 @@ const documentsToSeed = [
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
-    { document_id: 1, section: null, question_text: 'Trainer Full Name', input_type: 'text', field_name: 'trainer_name', access: 'trainer' },
-    { document_id: 1, section: null, question_text: 'Did all trainees attend?', input_type: 'checkbox', field_name: 'all_attended', access: 'trainer', has_comments: 'YES' },
-    { document_id: 1, section: null, question_text: 'Was equipment checked?', input_type: 'checkbox', field_name: 'equipment_check', access: 'trainer' },
-    { document_id: 1, section: null, question_text: 'Add final session notes', input_type: 'text', field_name: 'session_notes', access: 'trainer' },
-
+    { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },
+    { document_id: 1, section: 'HEADER', question_text: 'NWR Toolkit No', input_type: 'number', field_name: 'nwr_toolkit_no', access: 'trainer' },
+    { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
     { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'checkbox', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },
@@ -70,6 +69,13 @@ const questionnairesToSeed = [
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'checkbox', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES' },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'checkbox', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'checkbox', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' }
+];
+const questionnaireOptionsToSeed = [
+    { question_field_name: 'resources', option_value: 'KP' },
+    { question_field_name: 'resources', option_value: 'LB' },
+    { question_field_name: 'resources', option_value: 'PCO' },
+    { question_field_name: 'resources', option_value: 'SR' },
+    { question_field_name: 'resources', option_value: 'SHB' }
 ];
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
@@ -122,6 +128,10 @@ db.serialize(() => {
     const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
     questionnairesToSeed.forEach(q => questionnaireStmt.run([q.document_id, q.section, q.question_text, q.input_type, q.field_name, q.access, q.has_comments || 'NO']));
     questionnaireStmt.finalize();
+
+    const questionnaireOptionsStmt = db.prepare(`INSERT INTO questionnaire_options (question_field_name, option_value) VALUES (?, ?)`);
+    questionnaireOptionsToSeed.forEach(option => questionnaireOptionsStmt.run(Object.values(option)));
+    questionnaireOptionsStmt.finalize();
 
     const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)`);
     traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));

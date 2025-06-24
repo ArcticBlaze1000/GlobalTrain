@@ -21,7 +21,7 @@ const ChecklistSection = ({ title, items, comments, fieldNames }) => {
     );
 };
 
-const Template = ({ courseTitle, trainerName, courseDate, cssPath, comments }) => {
+const Template = ({ courseName, trainerName, courseDate, cssPath, comments }) => {
     const preCourseChecks = {
         items: [
             'Global Train Capability (Sentinel)',
@@ -77,7 +77,7 @@ const Template = ({ courseTitle, trainerName, courseDate, cssPath, comments }) =
                 </header>
 
                 <section className="grid grid-cols-3 gap-4 border p-2 my-4 text-center font-bold">
-                    <div>Course: {courseTitle}</div>
+                    <div>Course: {courseName}</div>
                     <div>Trainer: {trainerName}</div>
                     <div>Date: {courseDate}</div>
                 </section>
