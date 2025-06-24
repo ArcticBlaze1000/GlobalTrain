@@ -15,6 +15,16 @@ export const generateChecklistPdf = async (datapackId) => {
         const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [datapack.course_id]))[0];
         const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
         
+        const document = (await window.db.query('SELECT * FROM documents WHERE name = ?', ['TrainingCourseChecklist']))[0];
+        const responses = await window.db.query('SELECT field_name, additional_comments FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, document.id]);
+
+        const commentsMap = responses.reduce((acc, res) => {
+            if (res.additional_comments) {
+                acc[res.field_name] = res.additional_comments;
+            }
+            return acc;
+        }, {});
+
         // 2. Get the correct CSS path for styling
         const cssPath = await window.electron.getCssPath();
 
@@ -24,6 +34,7 @@ export const generateChecklistPdf = async (datapackId) => {
             trainerName: trainer ? `${trainer.forename} ${trainer.surname}` : 'N/A',
             courseDate: new Date(datapack.start_date).toLocaleDateString('en-GB'),
             cssPath: cssPath,
+            comments: commentsMap,
         };
 
         // 4. Render the React component to an HTML string
