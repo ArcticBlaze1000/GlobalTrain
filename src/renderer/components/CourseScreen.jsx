@@ -127,6 +127,7 @@ const CourseScreen = ({ user }) => {
         }
 
         const props = {
+            user: user,
             eventDetails: selectedEvent,
             documentDetails: selectedDoc,
             onProgressUpdate: handleProgressUpdate,

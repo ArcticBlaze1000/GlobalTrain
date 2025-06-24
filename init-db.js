@@ -16,7 +16,7 @@ const tables = [
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)` },
-    { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, FOREIGN KEY (document_id) REFERENCES documents(id))` },
+    { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
@@ -32,9 +32,9 @@ const usersToSeed = [
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1,2' }, 
+    { name: 'PTS', doc_ids: '1,2,3' }, 
     { name: 'PTS Reset', doc_ids: '1,2' }, 
-    { name: 'COSS Initial', doc_ids: '1,2,3' }
+    { name: 'COSS Initial', doc_ids: '1,2' }
 ];
 const documentsToSeed = [
     { name: 'Register' },
@@ -42,10 +42,34 @@ const documentsToSeed = [
     { name: 'TrainingAndWeldingTrackSafetyBreifing' }
 ];
 const questionnairesToSeed = [
-    { document_id: 1, question_text: 'Trainer Full Name', input_type: 'text', field_name: 'trainer_name' },
-    { document_id: 1, question_text: 'Did all trainees attend?', input_type: 'checkbox', field_name: 'all_attended' },
-    { document_id: 1, question_text: 'Was equipment checked?', input_type: 'checkbox', field_name: 'equipment_check' },
-    { document_id: 1, question_text: 'Add final session notes', input_type: 'text', field_name: 'session_notes' }
+    // Register Questions (document_id = 1)
+    { document_id: 1, section: null, question_text: 'Trainer Full Name', input_type: 'text', field_name: 'trainer_name', access: 'trainer' },
+    { document_id: 1, section: null, question_text: 'Did all trainees attend?', input_type: 'checkbox', field_name: 'all_attended', access: 'trainer' },
+    { document_id: 1, section: null, question_text: 'Was equipment checked?', input_type: 'checkbox', field_name: 'equipment_check', access: 'trainer' },
+    { document_id: 1, section: null, question_text: 'Add final session notes', input_type: 'text', field_name: 'session_notes', access: 'trainer' },
+
+    // TrainingCourseChecklist Questions (document_id = 2)
+    // -- PRE COURSE CHECKS --
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'checkbox', field_name: 'gtc_sentinel', access: 'admin' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Trainer Capability (Sentinel)', input_type: 'checkbox', field_name: 'tc_sentinel', access: 'admin' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Course Attendance Form (Ensure NWR Toolkit Red are completed)', input_type: 'checkbox', field_name: 'caf_nwr', access: 'trainer' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Progress Record', input_type: 'checkbox', field_name: 'progress_record', access: 'trainer' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval', input_type: 'checkbox', field_name: 'sponsorship_approval', access: 'trainer' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Booking Form', input_type: 'checkbox', field_name: 'booking_form', access: 'admin' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Joining Instructions', input_type: 'checkbox', field_name: 'joining_instructions', access: 'admin' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Practical Track Visit Briefing Forms and SWP', input_type: 'checkbox', field_name: 'track_visit_swp', access: 'trainer' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Notification Report', input_type: 'checkbox', field_name: 'sentinel_notification', access: 'admin' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Sepite in Reports', input_type: 'checkbox', field_name: 'sentinel_reports', access: 'trainer' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Issued/Updated log books', input_type: 'checkbox', field_name: 'log_books', access: 'trainer' },
+    // -- LEARNER PACKS --
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Delegate ID Form', input_type: 'checkbox', field_name: 'delegate_id', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Candidate Sentinel Printout', input_type: 'checkbox', field_name: 'candidate_sentinel', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Log books entries, electronic, paper', input_type: 'checkbox', field_name: 'log_book_entries', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Learner Questionnaire and Feedback Form', input_type: 'checkbox', field_name: 'feedback_form', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'checkbox', field_name: 'course_docs', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'checkbox', field_name: 'assessment_cycle', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'checkbox', field_name: 'cert_of_competence', access: 'trainer' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'checkbox', field_name: 'issued_certs', access: 'trainer' }
 ];
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
@@ -95,7 +119,7 @@ db.serialize(() => {
     documentsToSeed.forEach(doc => docStmt.run(doc.name));
     docStmt.finalize();
 
-    const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, question_text, input_type, field_name) VALUES (?, ?, ?, ?)`);
+    const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access) VALUES (?, ?, ?, ?, ?, ?)`);
     questionnairesToSeed.forEach(q => questionnaireStmt.run(Object.values(q)));
     questionnaireStmt.finalize();
 
