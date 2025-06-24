@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEvent } from '../context/EventContext';
-import RegisterPDFGenerator from './RegisterPDFGenerator';
+import RegisterPDFGenerator from './pdfgeneration/RegisterPDFGenerator';
 
 const CourseScreen = ({ user }) => {
     const [events, setEvents] = useState([]);

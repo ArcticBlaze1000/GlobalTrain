@@ -64,7 +64,7 @@ const RegisterTemplate = ({ course, trainer, datapack, trainees }) => {
                     
                     {/* Main Table */}
                     <table className="w-full mt-2 border-collapse border border-black text-[8px]">
-                        <thead className="divide-y divide-black">
+                        <thead className="border-b border-black">
                             <tr className="divide-x divide-black bg-blue-100">
                                 <th className="p-1">NO.</th>
                                 <th className="p-1">CANDIDATE NAME</th>

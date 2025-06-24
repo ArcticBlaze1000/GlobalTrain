@@ -20,7 +20,7 @@ const TabButton = ({ name, activeTab, setActiveTab }) => {
 const Dashboard = ({ user, onLogout }) => {
     // Set default tab based on role
     const getDefaultTab = () => {
-        if (user.role === 'dev' || user.role === 'admin') return 'users';
+        if (user.role === 'dev' || user.role === 'admin') return 'creation';
         return 'course';
     };
     const [activeTab, setActiveTab] = useState(getDefaultTab());
@@ -29,7 +29,7 @@ const Dashboard = ({ user, onLogout }) => {
         <div className="flex justify-between items-center border-b bg-white shadow-sm p-2">
             {/* Tabs on the left */}
             <div className="flex">
-                {user.role === 'dev' && (
+                {(user.role === 'dev' || user.role === 'admin') && (
                     <TabButton name="Creation" activeTab={activeTab} setActiveTab={setActiveTab} />
                 )}
                 <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -59,7 +59,7 @@ const Dashboard = ({ user, onLogout }) => {
             {renderHeader()}
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
-                {user.role === 'dev' && activeTab === 'creation' && <CreationScreen />}
+                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
                 {activeTab === 'course' && <CourseScreen user={user} />}
                 {activeTab === 'candidate' && <CandidateScreen />}
             </div>
@@ -67,4 +67,4 @@ const Dashboard = ({ user, onLogout }) => {
     );
 };
 
-export default Dashboard; 
+export default Dashboard;
