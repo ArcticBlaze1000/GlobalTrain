@@ -1,10 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import RegisterForm from './Register/Form';
+import TrainingCourseChecklistForm from './TrainingCourseChecklist/Form';
+import TrainingAndWeldingTrackSafetyBreifingForm from './TrainingAndWeldingTrackSafetyBreifing/Form';
 
 const CourseScreen = ({ user }) => {
     const [events, setEvents] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
+    const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
+
+    // Callback for the form to report its progress
+    const handleProgressUpdate = useCallback((documentId, percentage) => {
+        setDocProgress(prev => ({ ...prev, [documentId]: percentage }));
+    }, []);
 
     // Fetch all events for the current user (trainer)
     useEffect(() => {
@@ -30,7 +39,6 @@ const CourseScreen = ({ user }) => {
                 setDocuments([]);
                 return;
             }
-            // The course table holds the doc_ids
             const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [selectedEvent.course_id]);
             const docIds = course[0]?.doc_ids?.split(',');
 
@@ -44,6 +52,7 @@ const CourseScreen = ({ user }) => {
         };
         fetchDocuments();
         setSelectedDoc(null); // Reset doc selection when event changes
+        setDocProgress({}); // Reset progress on event change
     }, [selectedEvent]);
 
     const handleEventClick = (event) => {
@@ -56,61 +65,105 @@ const CourseScreen = ({ user }) => {
     
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
-    // Helper to render a list of items (for events and docs)
-    const renderList = (items, selectedItem, handler, titleKey, subtitleKey) => (
+    // Helper to render a list of items (for events)
+    const renderEventList = (items, selectedItem, handler) => (
         <div className="flex flex-col">
-            {items.length > 0 ? (
-                items.map((item) => {
-                    const isSelected = selectedItem?.id === item.id;
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => handler(item)}
-                            className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none ${
-                                isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
-                            }`}
-                        >
-                            <p className="font-semibold">{item[titleKey]}</p>
-                            {subtitleKey && <p className="text-sm text-gray-600">{formatDate(item[subtitleKey])}</p>}
-                        </button>
-                    );
-                })
-            ) : (
-                <p className="p-4 text-gray-500">No items found.</p>
-            )}
+            {items.map((item) => (
+                <button
+                    key={item.id}
+                    onClick={() => handler(item)}
+                    className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none ${
+                        selectedItem?.id === item.id ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
+                    }`}
+                >
+                    <p className="font-semibold">{item.courseName}</p>
+                    <p className="text-sm text-gray-600">{formatDate(item.start_date)}</p>
+                </button>
+            ))}
         </div>
     );
+
+    // Helper to render the document list with progress
+    const renderDocList = (items, selectedItem, handler) => (
+        <div className="flex flex-col">
+            {items.map((item) => {
+                const isSelected = selectedItem?.id === item.id;
+                const progress = docProgress[item.id] || 0;
+                return (
+                    <button
+                        key={item.id}
+                        onClick={() => handler(item)}
+                        className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none flex justify-between items-center ${
+                            isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
+                        }`}
+                    >
+                        <p className="font-semibold">{item.name}</p>
+                        {progress === 100 && <span className="text-green-500">✅</span>}
+                        {progress > 0 && progress < 100 && (
+                            <span className="text-sm text-blue-500 font-bold">{progress}%</span>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    const renderSelectedForm = () => {
+        if (!selectedDoc) {
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Select a document to begin.</p>
+                </div>
+            );
+        }
+
+        const props = {
+            eventDetails: selectedEvent,
+            documentDetails: selectedDoc,
+            onProgressUpdate: handleProgressUpdate,
+        };
+
+        switch (selectedDoc.name) {
+            case 'Register':
+                return <RegisterForm {...props} />;
+            case 'TrainingCourseChecklist':
+                return <TrainingCourseChecklistForm {...props} />;
+            case 'TrainingAndWeldingTrackSafetyBreifing':
+                return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
+            default:
+                return (
+                    <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-500">No form available for this document.</p>
+                    </div>
+                );
+        }
+    };
 
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Left Panel (15%) - Events */}
             <div className="w-[15%] border-r overflow-y-auto">
                 <div className="p-4 font-bold border-b bg-white sticky top-0">Available Events</div>
-                {renderList(events, selectedEvent, handleEventClick, 'courseName', 'start_date')}
+                {renderEventList(events, selectedEvent, handleEventClick)}
             </div>
 
             {/* Middle Panel (15%) - Documents */}
             <div className="w-[15%] border-r overflow-y-auto">
                 <div className="p-4 font-bold border-b bg-white sticky top-0">Required Docs</div>
                 {selectedEvent ? (
-                    renderList(documents, selectedDoc, handleDocClick, 'name')
+                    documents.length > 0 ? (
+                        renderDocList(documents, selectedDoc, handleDocClick)
+                    ) : (
+                        <p className="p-4 text-gray-500">No documents required.</p>
+                    )
                 ) : (
                     <p className="p-4 text-gray-500">Select an event first.</p>
                 )}
             </div>
 
             {/* Right Panel (70%) - Canvas */}
-            <div className="w-[70%] p-6">
-                {selectedDoc ? (
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">{selectedDoc.name}</h2>
-                        <p>Form UI will render here.</p>
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500">Select a document to begin.</p>
-                    </div>
-                )}
+            <div className="w-[70%] p-6 overflow-y-auto">
+                {renderSelectedForm()}
             </div>
         </div>
     );

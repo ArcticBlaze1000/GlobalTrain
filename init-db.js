@@ -16,6 +16,8 @@ const tables = [
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)` },
+    { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, FOREIGN KEY (document_id) REFERENCES documents(id))` },
+    { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
     // Old tables to ensure they are dropped
@@ -30,12 +32,20 @@ const usersToSeed = [
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1' }, 
-    { name: 'PTS Reset', doc_ids: '' }, 
-    { name: 'COSS Initial', doc_ids: '' }
+    { name: 'PTS', doc_ids: '1,2' }, 
+    { name: 'PTS Reset', doc_ids: '1,2' }, 
+    { name: 'COSS Initial', doc_ids: '1,2,3' }
 ];
 const documentsToSeed = [
-    { name: 'Register' }
+    { name: 'Register' },
+    { name: 'TrainingCourseChecklist' },
+    { name: 'TrainingAndWeldingTrackSafetyBreifing' }
+];
+const questionnairesToSeed = [
+    { document_id: 1, question_text: 'Trainer Full Name', input_type: 'text', field_name: 'trainer_name' },
+    { document_id: 1, question_text: 'Did all trainees attend?', input_type: 'checkbox', field_name: 'all_attended' },
+    { document_id: 1, question_text: 'Was equipment checked?', input_type: 'checkbox', field_name: 'equipment_check' },
+    { document_id: 1, question_text: 'Add final session notes', input_type: 'text', field_name: 'session_notes' }
 ];
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
@@ -84,6 +94,10 @@ db.serialize(() => {
     const docStmt = db.prepare(`INSERT INTO documents (name) VALUES (?)`);
     documentsToSeed.forEach(doc => docStmt.run(doc.name));
     docStmt.finalize();
+
+    const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, question_text, input_type, field_name) VALUES (?, ?, ?, ?)`);
+    questionnairesToSeed.forEach(q => questionnaireStmt.run(Object.values(q)));
+    questionnaireStmt.finalize();
 
     const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)`);
     traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));
