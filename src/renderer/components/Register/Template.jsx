@@ -81,7 +81,10 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                 <th className="p-1">SENTINEL NO.</th>
                                 <th className="p-1">SPONSOR</th>
                                 {[...Array(5)].map((_, i) => (
-                                    <th key={i} className="p-1 text-center">DAY {i+1}<br/>(SIGNATURE)</th>
+                                    <th key={i} className="p-1 text-center">
+                                        DAY {i+1}
+                                        {i === 0 && <><br/>(SIGNATURE)</>}
+                                    </th>
                                 ))}
                                 <th className="p-1 text-center">LEVEL OF SPOKEN<br/>ENGLISH ADEQUATE</th>
                                 <th className="p-1 text-center">PASS OR<br/>FAIL</th>
