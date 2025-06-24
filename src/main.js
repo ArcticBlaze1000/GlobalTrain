@@ -52,6 +52,18 @@ ipcMain.handle('db-run', async (event, sql, params = []) => {
     });
 });
 
+ipcMain.handle('get-css-path', async () => {
+    if (process.env.NODE_ENV !== 'production') {
+        // In development, point to the Vite server
+        return 'http://localhost:5173/src/renderer/index.css';
+    } else {
+        // In production, point to the bundled CSS file
+        // Note: The exact path might need adjustment based on your build output structure
+        const cssPath = path.join(app.getAppPath(), 'dist/index.css');
+        return `file://${cssPath}`;
+    }
+});
+
 ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) => {
     const documentsPath = app.getPath('documents');
     const filePath = path.join(documentsPath, `register_${datapackId}.pdf`);

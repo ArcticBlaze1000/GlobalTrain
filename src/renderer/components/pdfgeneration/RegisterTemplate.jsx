@@ -2,15 +2,15 @@ import React from 'react';
 
 // This component is a template for the PDF. It's not meant to be rendered directly in the app.
 // It will be converted to an HTML string and sent to Puppeteer.
-const RegisterTemplate = ({ course, trainer, datapack, trainees }) => {
+const RegisterTemplate = ({ course, trainer, datapack, trainees, cssPath }) => {
     // Helper to create empty rows for the table
     const emptyRows = Array.from({ length: Math.max(0, 8 - trainees.length) });
 
     return (
         <html>
             <head>
-                {/* We need to link to the compiled Tailwind CSS file */}
-                <link href="http://localhost:5173/src/renderer/index.css" rel="stylesheet" />
+                {/* Link to the stylesheet passed as a prop */}
+                <link href={cssPath} rel="stylesheet" />
                 <style>{`
                     /* A little extra CSS to ensure consistent printing */
                     body { -webkit-print-color-adjust: exact; }

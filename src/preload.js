@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld('db', {
 });
 
 contextBridge.exposeInMainWorld('electron', {
-  generatePdfFromHtml: (htmlContent, datapackId) => ipcRenderer.invoke('generate-pdf-from-html', htmlContent, datapackId)
+  generatePdfFromHtml: (htmlContent, datapackId) => ipcRenderer.invoke('generate-pdf-from-html', htmlContent, datapackId),
+  getCssPath: () => ipcRenderer.invoke('get-css-path')
 });
 
 window.addEventListener('DOMContentLoaded', () => {

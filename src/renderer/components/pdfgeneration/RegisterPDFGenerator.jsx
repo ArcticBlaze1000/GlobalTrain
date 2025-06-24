@@ -6,41 +6,36 @@ const RegisterPDFGenerator = ({ datapackId }) => {
 
     const handleGeneratePdf = async () => {
         if (!datapackId) {
-            alert('No event selected.');
+            alert("No datapack selected.");
             return;
         }
 
         try {
-            // 1. Fetch all data required for the template
-            const [datapackResult, courses, users] = await Promise.all([
-                window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]),
-                window.db.query('SELECT * FROM courses'),
-                window.db.query('SELECT * FROM users'),
-            ]);
-
-            if (!datapackResult.length) throw new Error('Datapack not found.');
-            const datapack = datapackResult[0];
-
-            const course = courses.find(c => c.id === datapack.course_id);
-            const trainer = users.find(u => u.id === datapack.trainer_id);
+            // Fetch all necessary data
+            const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+            const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [datapack.course_id]))[0];
+            const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
             
-            const traineeIds = datapack.trainee_ids.split(',').map(Number);
-            const placeholders = traineeIds.map(() => '?').join(',');
-            const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${placeholders})`, traineeIds);
+            const traineeIds = datapack.trainee_ids.split(',');
+            const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
 
-            // 2. Render React component to static HTML
+            // Get the correct CSS path from the main process
+            const cssPath = await window.electron.getCssPath();
+
+            // Render the React component to an HTML string
             const htmlContent = ReactDOMServer.renderToStaticMarkup(
                 <RegisterTemplate
                     course={course}
                     trainer={trainer}
                     datapack={datapack}
                     trainees={trainees}
+                    cssPath={cssPath}
                 />
             );
 
-            // 3. Send HTML to main process for PDF generation
-            const savedPath = await window.electron.generatePdfFromHtml(htmlContent, datapackId);
-            alert(`Register saved successfully to: ${savedPath}`);
+            // Send the HTML to the main process for PDF generation
+            await window.electron.generatePdfFromHtml(htmlContent, datapackId);
+            alert('PDF has been generated and saved to your Documents folder!');
 
         } catch (error) {
             console.error('Failed to generate PDF:', error);
