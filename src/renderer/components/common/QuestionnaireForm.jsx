@@ -20,6 +20,7 @@ const debounce = (func, delay) => {
 const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
+    const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -46,17 +47,18 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                 if (response.length === 0) {
                     await window.db.run(
-                        'INSERT INTO responses (datapack_id, document_id, field_name, response_data, completed) VALUES (?, ?, ?, ?, ?)',
-                        [datapackId, documentId, q.field_name, '', 0]
+                        'INSERT INTO responses (datapack_id, document_id, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?)',
+                        [datapackId, documentId, q.field_name, '', 0, '']
                     );
-                    response = [{ response_data: '', completed: 0 }];
+                    response = [{ response_data: '', completed: 0, additional_comments: '' }];
                 }
                 
                 const responseData = response[0].response_data;
                 const completed = !!response[0].completed;
+                const additionalComments = response[0].additional_comments || '';
                 const parsedData = q.input_type === 'checkbox' ? responseData === 'true' : responseData;
 
-                initialResponses[q.field_name] = { data: parsedData, completed: completed };
+                initialResponses[q.field_name] = { data: parsedData, completed: completed, comments: additionalComments };
             }
             setResponses(initialResponses);
         };
@@ -70,12 +72,29 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         );
     }, 500), [datapackId, documentId]);
 
+    const debouncedCommentSave = useCallback(debounce(async (fieldName, comments) => {
+        await window.db.run(
+            'UPDATE responses SET additional_comments = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [comments, datapackId, documentId, fieldName]
+        );
+    }, 500), [datapackId, documentId]);
+
     const handleInputChange = (fieldName, value, inputType) => {
         const isComplete = inputType === 'checkbox' ? value : !!value?.trim();
-        const newResponses = { ...responses, [fieldName]: { data: value, completed: isComplete } };
+        const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: value, completed: isComplete } };
         setResponses(newResponses);
         const valueToSave = inputType === 'checkbox' ? String(value) : value;
         debouncedSave(fieldName, valueToSave, isComplete);
+    };
+
+    const handleCommentChange = (fieldName, comments) => {
+        const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
+        setResponses(newResponses);
+        debouncedCommentSave(fieldName, comments);
+    };
+
+    const toggleComment = (fieldName) => {
+        setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
     };
     
     const completionPercentage = useMemo(() => {
@@ -119,37 +138,60 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             {Object.entries(groupedQuestions).map(([section, qs]) => (
                 <div key={section}>
                     {section !== 'General' && <h3 className="text-md font-bold text-gray-500 mb-2 mt-4">{section}</h3>}
-                    <div className="space-y-3">
+                    <div className="space-y-3 p-4">
+                        {/* Header Row */}
+                        <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
+                            <span className="w-3/5">Item</span>
+                            <span className="w-1/5 text-center">Completed</span>
+                            <span className="w-1/5 text-center">Yes/No</span>
+                        </div>
+                        
                         {qs.map((q) => {
                             const isEditable = canUserEdit(q.access, user.role);
+                            const commentOpen = !!openComments[q.field_name];
                             return (
-                                <div key={q.id} className={`flex items-center justify-between p-4 bg-white rounded-lg shadow-sm ${!isEditable ? 'opacity-60' : ''}`}>
-                                    <label className="text-gray-700 font-medium">{q.question_text}</label>
-                                    <div className="flex items-center space-x-4">
-                                        {q.input_type === 'text' && (
-                                            <input
-                                                type="text"
-                                                value={responses[q.field_name]?.data || ''}
-                                                onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
-                                                className="p-2 border rounded-md w-64 disabled:bg-gray-200 disabled:cursor-not-allowed"
-                                                disabled={!isEditable}
-                                            />
-                                        )}
-                                        {q.input_type === 'checkbox' && (
-                                            <input
-                                                type="checkbox"
-                                                checked={!!responses[q.field_name]?.data}
-                                                onChange={(e) => handleInputChange(q.field_name, e.target.checked, q.input_type)}
-                                                className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                                                disabled={!isEditable}
-                                            />
-                                        )}
-                                        <div className="w-6 h-6">
+                                <div key={q.id} className={`flex flex-col py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="w-3/5 flex items-center">
+                                            <span className="text-gray-700 font-medium">{q.question_text}</span>
+                                            {q.has_comments === 'YES' && isEditable && (
+                                                <button onClick={() => toggleComment(q.field_name)} className="ml-4 text-xs text-blue-500 hover:underline">
+                                                    {commentOpen ? 'Cancel' : 'Add Comment'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="w-1/5 flex justify-center">
                                             {!!responses[q.field_name]?.completed && (
                                                 <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                                             )}
                                         </div>
+
+                                        <div className="w-1/5 flex justify-center">
+                                            {q.input_type === 'checkbox' && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!responses[q.field_name]?.data}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.checked, q.input_type)}
+                                                    className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {/* Render other input types if necessary, or leave blank */}
+                                        </div>
                                     </div>
+                                    {q.has_comments === 'YES' && commentOpen && (
+                                        <div className="mt-3">
+                                            <textarea
+                                                value={responses[q.field_name]?.comments || ''}
+                                                onChange={(e) => handleCommentChange(q.field_name, e.target.value)}
+                                                placeholder="Add your comments here..."
+                                                className="w-full p-2 border rounded-md"
+                                                rows="2"
+                                                disabled={!isEditable}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
