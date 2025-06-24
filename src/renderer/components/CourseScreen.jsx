@@ -33,7 +33,7 @@ const CourseScreen = ({ user }) => {
                 params.push(user.id);
             }
 
-            query += ' ORDER BY d.start_date DESC';
+            query += ' ORDER BY d.start_date ASC';
 
             const datapacks = await window.db.query(query, params);
             setEvents(datapacks);
