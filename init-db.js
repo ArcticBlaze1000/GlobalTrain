@@ -14,7 +14,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
-    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT)` },
+    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT)` },
+    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT, course_id INTEGER)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
     // Old tables to ensure they are dropped
@@ -24,10 +25,17 @@ const tables = [
 // --- Seed Data ---
 const usersToSeed = [
     { forename: 'Aditya', surname: 'Chaubey', role: 'dev', username: 'aditya', password: 'chaubey' },
+    { forename: 'Mick', surname: 'Lamont', role: 'admin', username: 'mick', password: 'lamont' },
     { forename: 'George', surname: 'Penman', role: 'trainer', username: 'george', password: 'penman' },
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
 ];
-const coursesToSeed = [{ name: 'PTS' }, { name: 'PTS Reset' }, { name: 'COSS Initial'}    
+const coursesToSeed = [
+    { name: 'PTS', doc_ids: '1' }, 
+    { name: 'PTS Reset', doc_ids: '' }, 
+    { name: 'COSS Initial', doc_ids: '' }
+];
+const documentsToSeed = [
+    { name: 'Register' }
 ];
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
@@ -42,11 +50,11 @@ const traineesToSeed = [
     { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369' }
 ];
 const datapackToSeed = [
-    { course_id: 1, trainer_id: 2, start_date: '2025-08-01', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
-    { course_id: 2, trainer_id: 3, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
-    { course_id: 3, trainer_id: 2, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
-    { course_id: 1, trainer_id: 3, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
-    { course_id: 3, trainer_id: 2, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
+    { course_id: 1, trainer_id: 3, start_date: '2025-08-01', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
+    { course_id: 2, trainer_id: 4, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
+    { course_id: 1, trainer_id: 4, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
 ];
 
 db.serialize(() => {
@@ -69,9 +77,13 @@ db.serialize(() => {
     usersToSeed.forEach(user => userStmt.run(Object.values(user)));
     userStmt.finalize();
 
-    const courseStmt = db.prepare(`INSERT INTO courses (name) VALUES (?)`);
-    coursesToSeed.forEach(course => courseStmt.run(course.name));
+    const courseStmt = db.prepare(`INSERT INTO courses (name, doc_ids) VALUES (?, ?)`);
+    coursesToSeed.forEach(course => courseStmt.run([course.name, course.doc_ids]));
     courseStmt.finalize();
+
+    const docStmt = db.prepare(`INSERT INTO documents (name) VALUES (?)`);
+    documentsToSeed.forEach(doc => docStmt.run(doc.name));
+    docStmt.finalize();
 
     const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)`);
     traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));
