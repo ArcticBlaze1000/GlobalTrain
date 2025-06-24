@@ -11,10 +11,28 @@ const canUserEdit = (questionAccess, userRole) => {
 // Debounce function to delay database updates
 const debounce = (func, delay) => {
     let timeout;
-    return (...args) => {
+    let lastArgs;
+
+    const debounced = (...args) => {
+        lastArgs = args;
         clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), delay);
+        timeout = setTimeout(() => {
+            if (lastArgs) {
+                func(...lastArgs);
+                lastArgs = null;
+            }
+        }, delay);
     };
+
+    debounced.flush = () => {
+        clearTimeout(timeout);
+        if (lastArgs) {
+            func(...lastArgs);
+            lastArgs = null;
+        }
+    };
+
+    return debounced;
 };
 
 const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick }) => {
@@ -78,6 +96,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             [comments, datapackId, documentId, fieldName]
         );
     }, 500), [datapackId, documentId]);
+
+    // Effect to flush pending saves on unmount
+    useEffect(() => {
+        return () => {
+            debouncedSave.flush();
+            debouncedCommentSave.flush();
+        };
+    }, [debouncedSave, debouncedCommentSave]);
 
     const handleInputChange = (fieldName, value, inputType) => {
         const isComplete = inputType === 'checkbox' ? value : !!value?.trim();
