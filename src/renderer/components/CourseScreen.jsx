@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useEvent } from '../context/EventContext';
 import RegisterForm from './Register/Form';
 import TrainingCourseChecklistForm from './TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './TrainingAndWeldingTrackSafetyBreifing/Form';
 
 const CourseScreen = ({ user }) => {
     const [events, setEvents] = useState([]);
-    const [selectedEvent, setSelectedEvent] = useState(null);
+    const { activeEvent, setActiveEvent } = useEvent();
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
@@ -44,11 +45,11 @@ const CourseScreen = ({ user }) => {
     // When an event is selected, fetch its associated documents
     useEffect(() => {
         const fetchDocuments = async () => {
-            if (!selectedEvent) {
+            if (!activeEvent) {
                 setDocuments([]);
                 return;
             }
-            const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [selectedEvent.course_id]);
+            const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
             const docIds = course[0]?.doc_ids?.split(',');
 
             if (docIds && docIds[0] !== '') {
@@ -62,10 +63,10 @@ const CourseScreen = ({ user }) => {
         fetchDocuments();
         setSelectedDoc(null); // Reset doc selection when event changes
         setDocProgress({}); // Reset progress on event change
-    }, [selectedEvent]);
+    }, [activeEvent]);
 
     const handleEventClick = (event) => {
-        setSelectedEvent(event);
+        setActiveEvent(event);
     };
 
     const handleDocClick = (doc) => {
@@ -128,7 +129,7 @@ const CourseScreen = ({ user }) => {
 
         const props = {
             user: user,
-            eventDetails: selectedEvent,
+            eventDetails: activeEvent,
             documentDetails: selectedDoc,
             onProgressUpdate: handleProgressUpdate,
         };
@@ -154,13 +155,13 @@ const CourseScreen = ({ user }) => {
             {/* Left Panel (15%) - Events */}
             <div className="w-[15%] border-r overflow-y-auto">
                 <div className="p-4 font-bold border-b bg-white sticky top-0">Available Events</div>
-                {renderEventList(events, selectedEvent, handleEventClick)}
+                {renderEventList(events, activeEvent, handleEventClick)}
             </div>
 
             {/* Middle Panel (15%) - Documents */}
             <div className="w-[15%] border-r overflow-y-auto">
                 <div className="p-4 font-bold border-b bg-white sticky top-0">Required Docs</div>
-                {selectedEvent ? (
+                {activeEvent ? (
                     documents.length > 0 ? (
                         renderDocList(documents, selectedDoc, handleDocClick)
                     ) : (
