@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
@@ -65,27 +65,30 @@ ipcMain.handle('get-css-path', async () => {
 });
 
 ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) => {
-    const documentsPath = app.getPath('documents');
-    const filePath = path.join(documentsPath, `register_${datapackId}.pdf`);
+    // Save to a temporary directory to avoid cluttering the user's documents
+    const tempPath = app.getPath('temp');
+    // Use a unique filename to prevent conflicts
+    const filePath = path.join(tempPath, `globaltrain_doc_${datapackId}_${Date.now()}.pdf`);
 
     let browser;
     try {
         browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         
-        // It's crucial to use setContent and wait for the network to be idle
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-        // Generate PDF
         await page.pdf({
             path: filePath,
             format: 'A4',
-            printBackground: true, // This is important for Tailwind background colors
-            landscape: true, // Match the document orientation
+            printBackground: true,
+            landscape: false,
         });
 
+        // Open the generated PDF with the default system viewer
+        await shell.openPath(filePath);
+
     } catch (error) {
-        console.error('Failed to generate PDF with Puppeteer:', error);
+        console.error('Failed to generate or open PDF with Puppeteer:', error);
         throw error; // Propagate error back to renderer
     } finally {
         if (browser) {
@@ -93,8 +96,8 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId) 
         }
     }
 
-    console.log('PDF saved successfully to:', filePath);
-    return filePath;
+    // Return a success message instead of a file path
+    return 'PDF generated and opened successfully.';
 });
 
 app.whenReady().then(() => {

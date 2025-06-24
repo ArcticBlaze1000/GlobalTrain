@@ -15,18 +15,27 @@ const CourseScreen = ({ user }) => {
         setDocProgress(prev => ({ ...prev, [documentId]: percentage }));
     }, []);
 
-    // Fetch all events for the current user (trainer)
+    // Fetch events based on user role
     useEffect(() => {
         const fetchEvents = async () => {
             if (!user?.id) return;
-            const datapacks = await window.db.query(
-                `SELECT d.id, d.course_id, c.name AS courseName, d.start_date
-                 FROM datapack d
-                 JOIN courses c ON d.course_id = c.id
-                 WHERE d.trainer_id = ?
-                 ORDER BY d.start_date DESC`,
-                [user.id]
-            );
+
+            let query = `
+                SELECT d.id, d.course_id, c.name AS courseName, d.start_date
+                FROM datapack d
+                JOIN courses c ON d.course_id = c.id
+            `;
+            const params = [];
+
+            // If user is a trainer, only fetch their events. Admins/devs see all.
+            if (user.role === 'trainer') {
+                query += ' WHERE d.trainer_id = ?';
+                params.push(user.id);
+            }
+
+            query += ' ORDER BY d.start_date DESC';
+
+            const datapacks = await window.db.query(query, params);
             setEvents(datapacks);
         };
         fetchEvents();
