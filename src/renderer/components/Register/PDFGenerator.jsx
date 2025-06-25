@@ -29,6 +29,18 @@ export const generateRegisterPdf = async (datapackId) => {
             return acc;
         }, {});
 
+        // Calculate successful trainees
+        let successfulTraineesCount = 0;
+        const passOrFailResponse = responsesMap['pass_or_fail'];
+        if (passOrFailResponse) {
+            try {
+                const passOrFailData = JSON.parse(passOrFailResponse);
+                successfulTraineesCount = Object.values(passOrFailData).filter(status => status === 'Pass').length;
+            } catch (e) {
+                console.error('Failed to parse pass_or_fail data in PDFGenerator:', e);
+            }
+        }
+
         // 2. Get the correct CSS path for styling
         const cssPath = await window.electron.getCssPath();
 
@@ -41,6 +53,7 @@ export const generateRegisterPdf = async (datapackId) => {
             competencies: competencies,
             cssPath: cssPath,
             responses: responsesMap,
+            successfulTraineesCount: successfulTraineesCount,
         };
 
         // 4. Render the React component to an HTML string

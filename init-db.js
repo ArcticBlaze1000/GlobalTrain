@@ -55,13 +55,24 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },  
     { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
     
-    // Dynamically generate up to 14 days of attendance questions
-    ...Array.from({ length: 14 }, (_, i) => ({
+    // Day 1 attendance question
+    {
         document_id: 1,
         section: 'MAIN',
-        question_text: `Day ${i + 1}`,
+        question_text: 'Day 1',
+        input_type: 'signature_grid',
+        field_name: 'day_1_attendance',
+        access: 'trainer',
+        has_comments: 'NO'
+    },
+
+    // Dynamically generate from day 2 to 14 days of attendance questions
+    ...Array.from({ length: 13 }, (_, i) => ({
+        document_id: 1,
+        section: 'MAIN',
+        question_text: `Day ${i + 2}`,
         input_type: 'attendance_grid',
-        field_name: `day_${i + 1}_attendance`,
+        field_name: `day_${i + 2}_attendance`,
         access: 'trainer',
         has_comments: 'NO'
     })),

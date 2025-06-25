@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import SignatureModal from './SignatureModal';
 
 // Helper function to determine if the user can edit a specific question
 const canUserEdit = (questionAccess, userRole) => {
@@ -42,11 +43,27 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const [questionOptions, setQuestionOptions] = useState({});
     const [trainees, setTrainees] = useState([]);
     const [competencies, setCompetencies] = useState([]);
+    const [signatureModal, setSignatureModal] = useState({ isOpen: false, fieldName: null, traineeId: null });
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
         documentId: documentDetails?.id
     }), [eventDetails, documentDetails]);
+
+    // Create a ref for each signature pad
+    const signaturePads = useRef({});
+    useEffect(() => {
+        trainees.forEach(trainee => {
+            questions.forEach(question => {
+                if (question.input_type === 'signature_grid') {
+                    const key = `${question.field_name}-${trainee.id}`;
+                    if (!signaturePads.current[key]) {
+                        signaturePads.current[key] = React.createRef();
+                    }
+                }
+            });
+        });
+    }, [trainees, questions]);
 
     // Fetch questions and initialize responses
     useEffect(() => {
@@ -120,7 +137,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 let parsedData;
                 if (q.input_type === 'checkbox') {
                     parsedData = responseData === 'true';
-                } else if (q.input_type === 'attendance_grid' || q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid' || q.input_type === 'competency_grid' || q.input_type === 'trainee_yes_no_grid') {
+                } else if (q.input_type === 'attendance_grid' || q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid' || q.input_type === 'competency_grid' || q.input_type === 'trainee_yes_no_grid' || q.input_type === 'signature_grid') {
                     try {
                         parsedData = responseData ? JSON.parse(responseData) : {};
                     } catch (e) {
@@ -170,13 +187,16 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
         const currentGridData = responses[fieldName]?.data || {};
+    
         const updatedGridData = { ...currentGridData, [traineeId]: value };
-
-        // For grid types, 'completed' means every trainee has a non-empty value.
+        saveGridData(fieldName, updatedGridData, inputType);
+    };
+    
+    const saveGridData = (fieldName, updatedGridData, inputType) => {
         const isComplete = trainees.every(t => {
             const traineeValue = updatedGridData[t.id];
-            if (inputType === 'trainee_checkbox_grid') {
-                return traineeValue !== undefined; // For checkboxes, just existing is enough
+            if (inputType === 'trainee_checkbox_grid' || inputType === 'signature_grid') {
+                return traineeValue !== undefined && traineeValue !== '';
             }
             return traineeValue && String(traineeValue).trim() !== '';
         });
@@ -186,16 +206,17 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             [fieldName]: { ...responses[fieldName], data: updatedGridData, completed: isComplete }
         };
         setResponses(newResponses);
-
+    
         const valueToSave = JSON.stringify(updatedGridData);
         debouncedSave(fieldName, valueToSave, isComplete);
+        setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
     };
 
     const handleCommentChange = (fieldName, comments) => {
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
         setResponses(newResponses);
-        debouncedCommentSave(fieldName, comments);
-        setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
+        const valueToSave = JSON.stringify(updatedGridData);
+        debouncedSave(fieldName, valueToSave, isComplete);
     };
 
     const toggleComment = (fieldName) => {
@@ -204,7 +225,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     
     const completionPercentage = useMemo(() => {
         const relevantQuestions = questions.filter(q => {
-            if (q.input_type === 'attendance_grid') {
+            if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                 const dayNumber = parseInt(q.field_name.split('_')[1], 10);
                 return dayNumber <= (eventDetails?.duration || 0);
             }
@@ -223,6 +244,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     }, [completionPercentage, documentId, onProgressUpdate]);
 
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
+
+    const handleSaveSignature = (dataUrl) => {
+        const { fieldName, traineeId } = signatureModal;
+        if (fieldName && traineeId) {
+            handleGridInputChange(fieldName, traineeId, dataUrl, 'signature_grid');
+        }
+        setSignatureModal({ isOpen: false, fieldName: null, traineeId: null });
+    };
 
     const handleGenerateAndCache = () => {
         if (process.env.NODE_ENV !== 'production') {
@@ -262,6 +291,37 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         const valueToSave = JSON.stringify(updatedGridData);
         debouncedSave(fieldName, valueToSave, isComplete);
     };
+
+    // Effect to load existing signatures into the canvases
+    useEffect(() => {
+        if (trainees.length > 0 && questions.length > 0 && Object.keys(responses).length > 0) {
+            questions.forEach(question => {
+                if (question.input_type === 'signature_grid') {
+                    trainees.forEach(trainee => {
+                        const key = `${question.field_name}-${trainee.id}`;
+                        const sigPadRef = signaturePads.current[key];
+                        const signatureData = responses[question.field_name]?.data?.[trainee.id];
+
+                        if (sigPadRef && sigPadRef.current && signatureData && !sigPadRef.current.isEmpty()) {
+                            // This check prevents re-drawing over a freshly drawn signature
+                            // because the response state updates slightly after the onEnd event.
+                            // We only want to load from data URL on initial mount.
+                            const canvasElement = sigPadRef.current.getCanvas();
+                            if (canvasElement.toDataURL() !== signatureData) {
+                                sigPadRef.current.fromDataURL(signatureData);
+                            }
+                        } else if (sigPadRef && sigPadRef.current && signatureData) {
+                             setTimeout(() => {
+                                if (sigPadRef.current) { // Check ref still exists
+                                    sigPadRef.current.fromDataURL(signatureData);
+                                }
+                            }, 100);
+                        }
+                    });
+                }
+            });
+        }
+    }, [responses, trainees, questions]);
 
     return (
         <div className="space-y-6">
@@ -319,7 +379,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                         onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value)}
                                                         className="p-1 border rounded-md w-3/5 disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
                                                         disabled={!isEditable}
-                                                        placeholder={dayNumber === 1 ? 'Signature...' : 'Initials...'}
+                                                        placeholder={'Initials...'}
                                                     />
                                                 </div>
                                             ))}
@@ -420,6 +480,49 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                 )
                             }
 
+                            if (q.input_type === 'signature_grid') {
+                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
+                                    return null; // Don't render attendance days beyond the course duration
+                                }
+                                const isEditable = canUserEdit(q.access, user.role);
+                        
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => {
+                                                const signatureData = responses[q.field_name]?.data?.[trainee.id];
+                                                return (
+                                                    <div key={trainee.id} className="flex items-center">
+                                                        <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                            {trainee.forename} {trainee.surname}
+                                                        </label>
+                                                        <div 
+                                                            className="w-3/5 h-24 border rounded-md flex justify-center items-center cursor-pointer hover:bg-gray-100"
+                                                            onClick={() => isEditable && setSignatureModal({ isOpen: true, fieldName: q.field_name, traineeId: trainee.id })}
+                                                        >
+                                                            {signatureData ? (
+                                                                <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
+                                                            ) : (
+                                                                <span className="text-gray-500 text-sm">Click to Sign</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )
+                            }
+
                             const isEditable = canUserEdit(q.access, user.role);
                             const commentOpen = !!openComments[q.field_name];
                             return (
@@ -481,7 +584,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     ))}
                                                 </select>
                                             )}
-                                            {/* Render other input types if necessary, or leave blank */}
                                         </div>
                                     </div>
                                     {q.has_comments === 'YES' && commentOpen && (
@@ -514,6 +616,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     </button>
                 </div>
             )}
+            <SignatureModal 
+                show={signatureModal.isOpen}
+                onClose={() => setSignatureModal({ isOpen: false, fieldName: null, traineeId: null })}
+                onSave={handleSaveSignature}
+            />
         </div>
     );
 };

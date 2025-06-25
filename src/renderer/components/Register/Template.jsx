@@ -2,7 +2,7 @@ import React from 'react';
 
 // This component is a template for the PDF. It's not meant to be rendered directly in the app.
 // It will be converted to an HTML string and sent to Puppeteer.
-const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, responses }) => {
+const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, responses, successfulTraineesCount }) => {
     // Helper to create empty rows for the table
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
     const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
@@ -58,7 +58,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                 </tr>
                                 <tr className="border-b border-black">
                                     <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">TOTAL TRAINEES SUCCESSFUL:</td>
-                                    <td className="p-1"></td>
+                                    <td className="p-1">{successfulTraineesCount}</td>
                                 </tr>
                                 <tr className="border-b border-black">
                                     <td className="p-1 font-bold border-r border-black w-2/3 bg-blue-100">RESOURCES FIT FOR PURPOSE*:</td>
@@ -109,8 +109,18 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                                 console.error("Could not parse attendance JSON for PDF:", e);
                                             }
                                         }
-                                        const signature = attendanceData[trainee.id] || '';
-                                        return <td key={i} className="p-1 h-8 text-center text-[7px]">{signature}</td>;
+                                        const signatureOrInitial = attendanceData[trainee.id] || '';
+
+                                        // Day 1 is a signature image, other days are initials
+                                        if (i === 0 && signatureOrInitial) {
+                                            return (
+                                                <td key={i} className="p-1 h-8 text-center">
+                                                    <img src={signatureOrInitial} alt="Signature" style={{ height: '100%', maxHeight: '32px', display: 'block', margin: 'auto' }} />
+                                                </td>
+                                            );
+                                        }
+
+                                        return <td key={i} className="p-1 h-8 text-center text-[7px]">{signatureOrInitial}</td>;
                                     })}
                                     <td className="p-1 h-8 text-center">
                                         {(() => {
