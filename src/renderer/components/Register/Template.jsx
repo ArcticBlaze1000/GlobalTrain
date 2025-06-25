@@ -2,7 +2,7 @@ import React from 'react';
 
 // This component is a template for the PDF. It's not meant to be rendered directly in the app.
 // It will be converted to an HTML string and sent to Puppeteer.
-const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) => {
+const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, responses }) => {
     // Helper to create empty rows for the table
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
     const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
@@ -153,6 +153,42 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Competencies Section */}
+                    <div className="mt-4">
+                        <h2 className="text-lg font-bold mb-1">Competencies</h2>
+                        <table className="w-full border-collapse border border-black text-[8px]">
+                            <thead className="border-b border-black">
+                                <tr className="divide-x divide-black bg-blue-100">
+                                    <th className="p-1">CANDIDATE NAME</th>
+                                    {(competencies || []).map(comp => (
+                                        <th key={comp.id} className="p-1 text-center">{comp.name}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black">
+                                {(trainees || []).map(trainee => (
+                                    <tr key={trainee.id} className="divide-x divide-black">
+                                        <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
+                                        {(competencies || []).map(comp => {
+                                            const field_name = `competency_${comp.name.toLowerCase().replace(/\s/g, '_')}`;
+                                            const response = responses[field_name];
+                                            let competencyValue = '';
+                                            if (response) {
+                                                try {
+                                                    const competencyData = JSON.parse(response);
+                                                    competencyValue = competencyData[trainee.id] || '';
+                                                } catch (e) {
+                                                    console.error(`Could not parse competency JSON for ${field_name}:`, e);
+                                                }
+                                            }
+                                            return <td key={comp.id} className="p-1 h-8 text-center">{competencyValue}</td>;
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {/* Version footer is now empty */}
                 </div>

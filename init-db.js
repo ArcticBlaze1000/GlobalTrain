@@ -55,7 +55,7 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },  
     { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
     
-    // Dynamically generate 14 days of attendance questions
+    // Dynamically generate up to 14 days of attendance questions
     ...Array.from({ length: 14 }, (_, i) => ({
         document_id: 1,
         section: 'MAIN',
@@ -109,6 +109,25 @@ const questionnaireOptionsToSeed = [
     { question_field_name: 'pass_or_fail', option_value: 'Pass' },
     { question_field_name: 'pass_or_fail', option_value: 'Fail' },
 ];
+
+// Add competency questions dynamically
+competenciesToSeed.forEach(comp => {
+    const field_name = `competency_${comp.name.toLowerCase().replace(/\s/g, '_')}`;
+    questionnairesToSeed.push({
+        document_id: 1, // Register
+        section: 'COMPETENCIES',
+        question_text: comp.name,
+        input_type: 'trainee_yes_no_grid',
+        field_name: field_name,
+        access: 'trainer',
+        has_comments: 'NO'
+    });
+    questionnaireOptionsToSeed.push(
+        { question_field_name: field_name, option_value: 'Yes' },
+        { question_field_name: field_name, option_value: 'No' }
+    );
+});
+
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
     { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321' },

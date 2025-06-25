@@ -18,6 +18,9 @@ export const generateRegisterPdf = async (datapackId) => {
         const traineeIds = datapack.trainee_ids.split(',');
         const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
 
+        const competencyIds = course.competency_ids.split(',');
+        const competencies = await window.db.query(`SELECT * FROM competencies WHERE id IN (${competencyIds.map(() => '?').join(',')})`, competencyIds);
+
         const registerDoc = (await window.db.query('SELECT id FROM documents WHERE name = ?', ['Register']))[0];
         const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, registerDoc.id]);
         
@@ -35,6 +38,7 @@ export const generateRegisterPdf = async (datapackId) => {
             trainer: trainer,
             datapack: datapack,
             trainees: trainees,
+            competencies: competencies,
             cssPath: cssPath,
             responses: responsesMap,
         };
