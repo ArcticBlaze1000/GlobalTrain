@@ -47,8 +47,22 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'HEADER', question_text: 'NWR Toolkit No', input_type: 'number', field_name: 'nwr_toolkit_no', access: 'trainer' },
     { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },  
     { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
-    { document_id: 1, section: 'MAIN', question_text: 'Level of spoken English adequate', input_type: 'checkbox', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
-    { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified', input_type: 'date', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
+    
+    // Dynamically generate 14 days of attendance questions
+    ...Array.from({ length: 14 }, (_, i) => ({
+        document_id: 1,
+        section: 'MAIN',
+        question_text: `Day ${i + 1}`,
+        input_type: 'attendance_grid',
+        field_name: `day_${i + 1}_attendance`,
+        access: 'trainer',
+        has_comments: 'NO'
+    })),
+
+    { document_id: 1, section: 'MAIN', question_text: 'Level of spoken English adequate', input_type: 'trainee_dropdown_grid', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
+    { document_id: 1, section: 'MAIN', question_text: 'Pass or Fail', input_type: 'trainee_dropdown_grid', field_name: 'pass_or_fail', access: 'trainer', has_comments: 'NO' },
+    { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified Date', input_type: 'trainee_date_grid', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
+
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
     { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'checkbox', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },
@@ -72,12 +86,21 @@ const questionnairesToSeed = [
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'checkbox', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'checkbox', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' }
 ];
+
+const checklistQuestionFieldNames = questionnairesToSeed
+    .filter(q => q.document_id === 2)
+    .map(q => q.field_name);
+
 const questionnaireOptionsToSeed = [
     { question_field_name: 'resources', option_value: 'KP' },
     { question_field_name: 'resources', option_value: 'LB' },
     { question_field_name: 'resources', option_value: 'PCO' },
     { question_field_name: 'resources', option_value: 'SR' },
-    { question_field_name: 'resources', option_value: 'SHB' }
+    { question_field_name: 'resources', option_value: 'SHB' },
+    { question_field_name: 'level_of_spoken_english_adequate', option_value: 'Yes' },
+    { question_field_name: 'level_of_spoken_english_adequate', option_value: 'No' },
+    { question_field_name: 'pass_or_fail', option_value: 'Pass' },
+    { question_field_name: 'pass_or_fail', option_value: 'Fail' },
 ];
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 

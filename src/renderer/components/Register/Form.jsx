@@ -10,6 +10,7 @@ const Form = (props) => {
     return (
         <QuestionnaireForm
             {...props}
+            valueColumnHeader=""
             pdfButtonText="Generate Register PDF"
             onPdfButtonClick={() => generateRegisterPdf(props.eventDetails.id)}
         />

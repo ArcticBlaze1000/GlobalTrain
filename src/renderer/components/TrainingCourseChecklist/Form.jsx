@@ -7,6 +7,7 @@ const Form = (props) => {
     return (
         <QuestionnaireForm
             {...props}
+            valueColumnHeader="Checked"
             pdfButtonText="Generate Checklist PDF"
             onPdfButtonClick={() => generateChecklistPdf(props.eventDetails.id)}
         />

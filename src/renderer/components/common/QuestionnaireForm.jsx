@@ -35,11 +35,12 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No" }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
     const [questionOptions, setQuestionOptions] = useState({});
+    const [trainees, setTrainees] = useState([]);
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -51,6 +52,15 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         const initializeForm = async () => {
             if (!documentId || !datapackId) return;
 
+            // Fetch trainees if there's a datapack
+            if (eventDetails?.trainee_ids) {
+                const traineeIds = eventDetails.trainee_ids.split(',');
+                if (traineeIds.length > 0) {
+                    const fetchedTrainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+                    setTrainees(fetchedTrainees);
+                }
+            }
+
             const fetchedQuestions = await window.db.query(
                 'SELECT * FROM questionnaires WHERE document_id = ?',
                 [documentId]
@@ -58,7 +68,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             setQuestions(fetchedQuestions);
 
             const dropdownQuestionFieldNames = fetchedQuestions
-                .filter(q => q.input_type === 'dropdown')
+                .filter(q => q.input_type === 'dropdown' || q.input_type === 'trainee_dropdown_grid')
                 .map(q => q.field_name);
 
             if (dropdownQuestionFieldNames.length > 0) {
@@ -96,14 +106,27 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 const responseData = response[0].response_data;
                 const completed = !!response[0].completed;
                 const additionalComments = response[0].additional_comments || '';
-                const parsedData = q.input_type === 'checkbox' ? responseData === 'true' : responseData;
+                
+                let parsedData;
+                if (q.input_type === 'checkbox') {
+                    parsedData = responseData === 'true';
+                } else if (q.input_type === 'attendance_grid' || q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid') {
+                    try {
+                        parsedData = responseData ? JSON.parse(responseData) : {};
+                    } catch (e) {
+                        console.error(`Failed to parse attendance data for ${q.field_name}:`, e);
+                        parsedData = {};
+                    }
+                } else {
+                    parsedData = responseData;
+                }
 
                 initialResponses[q.field_name] = { data: parsedData, completed: completed, comments: additionalComments };
             }
             setResponses(initialResponses);
         };
         initializeForm();
-    }, [documentId, datapackId]);
+    }, [documentId, datapackId, eventDetails]);
     
     const debouncedSave = useCallback(debounce(async (fieldName, value, isComplete) => {
         await window.db.run(
@@ -128,10 +151,33 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     }, [debouncedSave, debouncedCommentSave]);
 
     const handleInputChange = (fieldName, value, inputType) => {
-        const isComplete = inputType === 'checkbox' ? value : !!value?.trim();
+        const isComplete = inputType === 'checkbox' ? value : !!String(value).trim();
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: value, completed: isComplete } };
         setResponses(newResponses);
         const valueToSave = inputType === 'checkbox' ? String(value) : value;
+        debouncedSave(fieldName, valueToSave, isComplete);
+    };
+
+    const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
+        const currentGridData = responses[fieldName]?.data || {};
+        const updatedGridData = { ...currentGridData, [traineeId]: value };
+
+        // For grid types, 'completed' means every trainee has a non-empty value.
+        const isComplete = trainees.every(t => {
+            const traineeValue = updatedGridData[t.id];
+            if (inputType === 'trainee_checkbox_grid') {
+                return traineeValue !== undefined; // For checkboxes, just existing is enough
+            }
+            return traineeValue && String(traineeValue).trim() !== '';
+        });
+
+        const newResponses = {
+            ...responses,
+            [fieldName]: { ...responses[fieldName], data: updatedGridData, completed: isComplete }
+        };
+        setResponses(newResponses);
+
+        const valueToSave = JSON.stringify(updatedGridData);
         debouncedSave(fieldName, valueToSave, isComplete);
     };
 
@@ -139,6 +185,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
         setResponses(newResponses);
         debouncedCommentSave(fieldName, comments);
+        setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
     };
 
     const toggleComment = (fieldName) => {
@@ -146,11 +193,20 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     };
     
     const completionPercentage = useMemo(() => {
-        const totalQuestions = questions.length;
-        if (totalQuestions === 0) return 100; // If no questions, it's complete
-        const completedCount = Object.values(responses).filter(r => r.completed).length;
-        return Math.round((completedCount / totalQuestions) * 100);
-    }, [responses, questions]);
+        const relevantQuestions = questions.filter(q => {
+            if (q.input_type === 'attendance_grid') {
+                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                return dayNumber <= (eventDetails?.duration || 0);
+            }
+            return true;
+        });
+
+        const totalQuestions = relevantQuestions.length;
+        if (totalQuestions === 0) return 100;
+
+        const relevantCompletedCount = relevantQuestions.filter(q => responses[q.field_name]?.completed).length;
+        return Math.round((relevantCompletedCount / totalQuestions) * 100);
+    }, [responses, questions, eventDetails]);
 
     useEffect(() => {
         if (documentId) onProgressUpdate(documentId, completionPercentage);
@@ -199,10 +255,104 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                         <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
                             <span className="w-3/5">Item</span>
                             <span className="w-1/5 text-center">Completed</span>
-                            <span className="w-1/5 text-center">Yes/No</span>
+                            <span className="w-1/5 text-center">{valueColumnHeader}</span>
                         </div>
                         
                         {qs.map((q) => {
+                            if (q.input_type === 'attendance_grid') {
+                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
+                                    return null; // Don't render attendance days beyond the course duration
+                                }
+                                const isEditable = canUserEdit(q.access, user.role);
+                        
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => (
+                                                <div key={trainee.id} className="flex items-center">
+                                                    <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                        {trainee.forename} {trainee.surname}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                        onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value)}
+                                                        className="p-1 border rounded-md w-3/5 disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                        disabled={!isEditable}
+                                                        placeholder={dayNumber === 1 ? 'Signature...' : 'Initials...'}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
+
+                            if (q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid') {
+                                const isEditable = canUserEdit(q.access, user.role);
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => (
+                                                <div key={trainee.id} className="flex items-center justify-between">
+                                                    <label className="w-auto text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                        {trainee.forename} {trainee.surname}
+                                                    </label>
+                                                    {q.input_type === 'trainee_checkbox_grid' && (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!responses[q.field_name]?.data?.[trainee.id]}
+                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.checked, q.input_type)}
+                                                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                                                            disabled={!isEditable}
+                                                        />
+                                                    )}
+                                                    {q.input_type === 'trainee_dropdown_grid' && (
+                                                        <select
+                                                            value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
+                                                            className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                            disabled={!isEditable}
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            {(questionOptions[q.field_name] || []).map(opt => (
+                                                                <option key={opt} value={opt}>{opt}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                    {q.input_type === 'trainee_date_grid' && (
+                                                         <input
+                                                            type="date"
+                                                            value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
+                                                            className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                            disabled={!isEditable}
+                                                        />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
+
                             const isEditable = canUserEdit(q.access, user.role);
                             const commentOpen = !!openComments[q.field_name];
                             return (
@@ -286,11 +436,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 </div>
             ))}
             
-            {showPdfButton && onPdfButtonClick && (
-                <div className="mt-6 text-center">
-                    <button
+            {showPdfButton && (
+                <div className="pt-4 flex justify-end">
+                    <button 
                         onClick={handleGenerateAndCache}
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg"
+                        className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        disabled={completionPercentage < 100}
                     >
                         {pdfButtonText}
                     </button>

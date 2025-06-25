@@ -30,7 +30,7 @@ export const generateChecklistPdf = async (datapackId) => {
 
         // 3. Prepare props for the template
         const templateProps = {
-            courseTitle: course?.name || 'N/A',
+            courseName: course?.name || 'N/A',
             trainerName: trainer ? `${trainer.forename} ${trainer.surname}` : 'N/A',
             courseDate: new Date(datapack.start_date).toLocaleDateString('en-GB'),
             cssPath: cssPath,

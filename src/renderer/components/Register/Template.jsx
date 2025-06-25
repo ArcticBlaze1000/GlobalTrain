@@ -98,13 +98,56 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                     <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
                                     <td className="p-1 h-8">{trainee.sentry_number}</td>
                                     <td className="p-1 h-8">{trainee.sponsor}</td>
-                                    {[...Array(courseDuration)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
+                                    {[...Array(courseDuration)].map((_, i) => {
+                                        const dayFieldName = `day_${i + 1}_attendance`;
+                                        const dayResponse = responses[dayFieldName];
+                                        let attendanceData = {};
+                                        if (dayResponse) {
+                                            try {
+                                                attendanceData = JSON.parse(dayResponse);
+                                            } catch (e) {
+                                                console.error("Could not parse attendance JSON for PDF:", e);
+                                            }
+                                        }
+                                        const signature = attendanceData[trainee.id] || '';
+                                        return <td key={i} className="p-1 h-8 text-center text-[7px]">{signature}</td>;
+                                    })}
                                     <td className="p-1 h-8 text-center">
-                                        {responses?.level_of_spoken_english_adequate === 'true' ? 'Yes' : 'No'}
+                                        {(() => {
+                                            const response = responses?.level_of_spoken_english_adequate;
+                                            if (response) {
+                                                try {
+                                                    const data = JSON.parse(response);
+                                                    return data[trainee.id] || '';
+                                                } catch (e) { return ''; }
+                                            }
+                                            return '';
+                                        })()}
                                     </td>
-                                    <td className="p-1 h-8"></td>
                                     <td className="p-1 h-8 text-center">
-                                        {responses?.sentinel_notified_date ? new Date(responses.sentinel_notified_date).toLocaleDateString('en-GB') : ''}
+                                        {(() => {
+                                            const response = responses?.pass_or_fail;
+                                            if (response) {
+                                                try {
+                                                    const data = JSON.parse(response);
+                                                    return data[trainee.id] || '';
+                                                } catch (e) { return ''; }
+                                            }
+                                            return '';
+                                        })()}
+                                    </td>
+                                    <td className="p-1 h-8 text-center">
+                                        {(() => {
+                                            const response = responses?.sentinel_notified_date;
+                                            if (response) {
+                                                try {
+                                                    const data = JSON.parse(response);
+                                                    const date = data[trainee.id];
+                                                    return date ? new Date(date).toLocaleDateString('en-GB') : '';
+                                                } catch (e) { return ''; }
+                                            }
+                                            return '';
+                                        })()}
                                     </td>
                                 </tr>
                             ))}

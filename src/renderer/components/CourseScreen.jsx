@@ -22,7 +22,7 @@ const CourseScreen = ({ user }) => {
             if (!user?.id) return;
 
             let query = `
-                SELECT d.id, d.course_id, c.name AS courseName, d.start_date
+                SELECT d.id, d.course_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids
                 FROM datapack d
                 JOIN courses c ON d.course_id = c.id
             `;
