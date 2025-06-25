@@ -47,6 +47,8 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'HEADER', question_text: 'NWR Toolkit No', input_type: 'number', field_name: 'nwr_toolkit_no', access: 'trainer' },
     { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },  
     { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
+    { document_id: 1, section: 'MAIN', question_text: 'Level of spoken English adequate', input_type: 'checkbox', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
+    { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified', input_type: 'date', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
     { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'checkbox', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },

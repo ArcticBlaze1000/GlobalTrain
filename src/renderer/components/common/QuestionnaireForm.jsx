@@ -233,6 +233,15 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     disabled={!isEditable}
                                                 />
                                             )}
+                                            {q.input_type === 'date' && (
+                                                <input
+                                                    type="date"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-48 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
                                             {q.input_type === 'number' && (
                                                 <input
                                                     type="number"

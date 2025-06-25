@@ -99,7 +99,14 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                     <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
                                     <td className="p-1 h-8">{trainee.sentry_number}</td>
                                     <td className="p-1 h-8">{trainee.sponsor}</td>
-                                    {[...Array(courseDuration + 3)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
+                                    {[...Array(courseDuration)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
+                                    <td className="p-1 h-8 text-center">
+                                        {responses?.level_of_spoken_english_adequate === 'true' ? 'Yes' : 'No'}
+                                    </td>
+                                    <td className="p-1 h-8"></td>
+                                    <td className="p-1 h-8 text-center">
+                                        {responses?.sentinel_notified_date ? new Date(responses.sentinel_notified_date).toLocaleDateString('en-GB') : ''}
+                                    </td>
                                 </tr>
                             ))}
                             {emptyRows.map((_, index) => (
