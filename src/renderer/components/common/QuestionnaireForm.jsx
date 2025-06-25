@@ -171,9 +171,16 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
     // Effect to flush pending saves on unmount
     useEffect(() => {
-        return () => {
+        const flushDebouncedSaves = () => {
             debouncedSave.flush();
             debouncedCommentSave.flush();
+        };
+
+        window.addEventListener('beforeunload', flushDebouncedSaves);
+
+        return () => {
+            flushDebouncedSaves();
+            window.removeEventListener('beforeunload', flushDebouncedSaves);
         };
     }, [debouncedSave, debouncedCommentSave]);
 
@@ -183,6 +190,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         setResponses(newResponses);
         const valueToSave = inputType === 'checkbox' ? String(value) : value;
         debouncedSave(fieldName, valueToSave, isComplete);
+        debouncedSave.flush();
     };
 
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
