@@ -4,7 +4,6 @@ import React from 'react';
 // It will be converted to an HTML string and sent to Puppeteer.
 const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) => {
     // Helper to create empty rows for the table
-    const emptyRows = Array.from({ length: Math.max(0, 8 - (trainees?.length || 0)) });
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
     const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
 
@@ -109,39 +108,8 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                     </td>
                                 </tr>
                             ))}
-                            {emptyRows.map((_, index) => (
-                                <tr key={`empty-${index}`} className="divide-x divide-black">
-                                     <td className="p-1 text-center">{(trainees?.length || 0) + index + 1}</td>
-                                     {[...Array(courseDuration + 6)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
-                                </tr>
-                            ))}
                         </tbody>
                     </table>
-
-                    {/* Footer Section */}
-                    <div className="grid grid-cols-2 gap-x-4 mt-2">
-                         <div>
-                            <div className="border border-black h-24 p-1">
-                                <p className="font-bold">ADMIN COMMENTS:</p>
-                            </div>
-                             <div className="border-x border-b border-black p-1">
-                                <p className="font-bold">ADMIN SIGNATURE:</p>
-                                <br/><br/>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="border border-black h-24 p-1">
-                                <p className="font-bold">TRAINER COMMENTS:</p>
-                            </div>
-                             <div className="border-x border-b border-black p-1">
-                                <p className="font-bold">TRAINER SIGNATURE:</p>
-                                <br/><br/>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="border-x border-b border-black p-1 h-24">
-                        <p className="font-bold">Additional notes/hand outs/references etc:</p>
-                    </div>
 
                     {/* Version footer is now empty */}
                 </div>
