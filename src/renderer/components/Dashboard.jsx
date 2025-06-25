@@ -3,6 +3,7 @@ import CreationScreen from './CreationScreen';
 import CourseScreen from './CourseScreen';
 import CandidateScreen from './CandidateScreen';
 import UsersScreen from './UsersScreen';
+import DeveloperTools from './common/DeveloperTools';
 
 // A local component for rendering tab buttons to reduce repetition
 const TabButton = ({ name, activeTab, setActiveTab }) => {
@@ -63,6 +64,7 @@ const Dashboard = ({ user, onLogout }) => {
                 {activeTab === 'course' && <CourseScreen user={user} />}
                 {activeTab === 'candidate' && <CandidateScreen />}
             </div>
+            {user.role === 'dev' && <DeveloperTools />}
         </div>
     );
 };

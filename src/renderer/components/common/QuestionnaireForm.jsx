@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 // Helper function to determine if the user can edit a specific question
 const canUserEdit = (questionAccess, userRole) => {
     if (userRole === 'dev') return true;
-    if (userRole === 'admin' && (questionAccess === 'admin' || questionAccess === 'trainer')) return true;
+    if (userRole === 'admin' && questionAccess === 'admin') return true;
     if (userRole === 'trainer' && questionAccess === 'trainer') return true;
     return false;
 };

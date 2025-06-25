@@ -64,10 +64,11 @@ ipcMain.handle('get-css-path', async () => {
     }
 });
 
-ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, options = {}) => {
-    // Save to a temporary directory to avoid cluttering the user's documents
+let lastPdfArgs = {}; // Cache for the last PDF generation arguments
+
+// Extracted PDF generation logic to be reusable
+const generatePdfLogic = async (htmlContent, datapackId, options = {}) => {
     const tempPath = app.getPath('temp');
-    // Use a unique filename to prevent conflicts
     const filePath = path.join(tempPath, `globaltrain_doc_${datapackId}_${Date.now()}.pdf`);
 
     let browser;
@@ -84,20 +85,31 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, 
             landscape: options.landscape || false,
         });
 
-        // Open the generated PDF with the default system viewer
         await shell.openPath(filePath);
-
     } catch (error) {
         console.error('Failed to generate or open PDF with Puppeteer:', error);
-        throw error; // Propagate error back to renderer
+        throw error;
     } finally {
         if (browser) {
             await browser.close();
         }
     }
-
-    // Return a success message instead of a file path
     return 'PDF generated and opened successfully.';
+};
+
+ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, options = {}) => {
+    // Cache the arguments for quick regeneration
+    lastPdfArgs = { htmlContent, datapackId, options };
+    return generatePdfLogic(htmlContent, datapackId, options);
+});
+
+// New handler for regenerating the last PDF
+ipcMain.handle('dev:regenerate-last-pdf', async () => {
+    if (!lastPdfArgs.htmlContent) {
+        return 'No PDF has been generated yet in this session.';
+    }
+    // Re-run the generation logic with the cached args
+    return generatePdfLogic(lastPdfArgs.htmlContent, lastPdfArgs.datapackId, lastPdfArgs.options);
 });
 
 app.whenReady().then(() => {
