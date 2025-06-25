@@ -6,6 +6,7 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
     // Helper to create empty rows for the table
     const emptyRows = Array.from({ length: Math.max(0, 8 - (trainees?.length || 0)) });
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
+    const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
 
     return (
         <html>
@@ -21,7 +22,7 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                 <div className="p-2">
                     {/* Header */}
                     <div className="flex justify-between items-start mb-4">
-                        <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET</h1>
+                        <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET (V2 - TEST)</h1>
                         <div className="text-2xl font-bold">
                             <span className="text-red-600">Global</span>
                             <span className="text-blue-600">Train</span>
@@ -80,7 +81,7 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                 <th className="p-1">CANDIDATE NAME</th>
                                 <th className="p-1">SENTINEL NO.</th>
                                 <th className="p-1">SPONSOR</th>
-                                {[...Array(5)].map((_, i) => (
+                                {[...Array(courseDuration)].map((_, i) => (
                                     <th key={i} className="p-1 text-center">
                                         DAY {i+1}
                                         {i === 0 && <><br/>(SIGNATURE)</>}
@@ -98,13 +99,13 @@ const Template = ({ course, trainer, datapack, trainees, cssPath, responses }) =
                                     <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
                                     <td className="p-1 h-8">{trainee.sentry_number}</td>
                                     <td className="p-1 h-8">{trainee.sponsor}</td>
-                                    {[...Array(8)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
+                                    {[...Array(courseDuration + 3)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
                                 </tr>
                             ))}
                             {emptyRows.map((_, index) => (
                                 <tr key={`empty-${index}`} className="divide-x divide-black">
                                      <td className="p-1 text-center">{(trainees?.length || 0) + index + 1}</td>
-                                     {[...Array(11)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
+                                     {[...Array(courseDuration + 6)].map((_, i) => <td key={i} className="p-1 h-8"></td>)}
                                 </tr>
                             ))}
                         </tbody>

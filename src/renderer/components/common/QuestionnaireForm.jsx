@@ -158,6 +158,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
+    const handleGenerateAndCache = () => {
+        if (process.env.NODE_ENV !== 'production') {
+            // Store the callback function so the dev tools can access it
+            window.dev_regenerateLastPdf = onPdfButtonClick;
+        }
+        onPdfButtonClick();
+    };
+
     const groupedQuestions = useMemo(() => {
         return questions.reduce((acc, q) => {
             const section = q.section || 'General';
@@ -269,16 +277,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 </div>
             ))}
             
-            {showPdfButton && (
-                <div className="pt-4">
+            {showPdfButton && onPdfButtonClick && (
+                <div className="mt-6 text-center">
                     <button
-                        onClick={onPdfButtonClick}
-                        disabled={completionPercentage < 100}
-                        className={`w-full py-3 px-4 text-white font-bold rounded-lg transition-colors ${
-                            completionPercentage < 100 
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
+                        onClick={handleGenerateAndCache}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg"
                     >
                         {pdfButtonText}
                     </button>

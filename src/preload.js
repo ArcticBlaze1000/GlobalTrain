@@ -9,8 +9,7 @@ contextBridge.exposeInMainWorld('db', {
 
 contextBridge.exposeInMainWorld('electron', {
   generatePdfFromHtml: (htmlContent, datapackId, options) => ipcRenderer.invoke('generate-pdf-from-html', htmlContent, datapackId, options),
-  getCssPath: () => ipcRenderer.invoke('get-css-path'),
-  regenerateLastPdf: () => ipcRenderer.invoke('dev:regenerate-last-pdf')
+  getCssPath: () => ipcRenderer.invoke('get-css-path')
 });
 
 window.addEventListener('DOMContentLoaded', () => {

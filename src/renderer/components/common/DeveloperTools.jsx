@@ -12,12 +12,16 @@ const DeveloperTools = () => {
     const handleRegenerate = async () => {
         setIsProcessing(true);
         setMessage('');
-        try {
-            const result = await window.electron.regenerateLastPdf();
-            setMessage(result);
-        } catch (error) {
-            console.error('Failed to regenerate PDF:', error);
-            setMessage(`Error: ${error.message}`);
+        if (window.dev_regenerateLastPdf && typeof window.dev_regenerateLastPdf === 'function') {
+            try {
+                await window.dev_regenerateLastPdf();
+                setMessage('PDF regenerated successfully.');
+            } catch (error) {
+                console.error('Failed to regenerate PDF:', error);
+                setMessage(`Error: ${error.message}`);
+            }
+        } else {
+            setMessage('You must generate a PDF first in this session.');
         }
         setIsProcessing(false);
     };
