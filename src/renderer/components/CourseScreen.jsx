@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useEvent } from '../context/EventContext';
-import RegisterForm from './Register/Form';
-import TrainingCourseChecklistForm from './TrainingCourseChecklist/Form';
-import TrainingAndWeldingTrackSafetyBreifingForm from './TrainingAndWeldingTrackSafetyBreifing/Form';
+import RegisterForm from './General/Register/Form';
+import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
+import TrainingAndWeldingTrackSafetyBreifingForm from './PTS/TrainingAndWeldingTrackSafetyBreifing/Form';
+
+const formatDocName = (name) => {
+    if (!name) return '';
+    // Add a space before any capital letter that is preceded by a lowercase letter.
+    return name.replace(/([a-z])([A-Z])/g, '$1 $2');
+};
 
 const CourseScreen = ({ user, openSignatureModal }) => {
     const [events, setEvents] = useState([]);
@@ -141,7 +147,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
                         }`}
                     >
-                        <p className="font-semibold">{item.name}</p>
+                        <p className="font-semibold">{formatDocName(item.name)}</p>
                         {progress === 100 && <span className="text-green-500">✅</span>}
                         {progress > 0 && progress < 100 && (
                             <span className="text-sm text-blue-500 font-bold">{progress}%</span>

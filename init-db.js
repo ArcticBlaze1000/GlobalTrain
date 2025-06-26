@@ -21,9 +21,7 @@ const tables = [
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
-    { name: 'attendance_timers', schema: `CREATE TABLE attendance_timers (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, day_number INTEGER NOT NULL, timer_start_time TEXT NOT NULL, UNIQUE(datapack_id, day_number))`},
-    // Old tables to ensure they are dropped
-    { name: 'trainers' }, { name: 'admins' }, { name: 'devs' }
+    { name: 'attendance_timers', schema: `CREATE TABLE attendance_timers (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, day_number INTEGER NOT NULL, timer_start_time TEXT NOT NULL, UNIQUE(datapack_id, day_number))`}
 ];
 
 // --- Seed Data ---
@@ -42,9 +40,9 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1,2,3,4,5,6' }, 
-    { name: 'PTS Reset', doc_ids: '1,2' }, 
-    { name: 'COSS Initial', doc_ids: '1,2' }
+    { name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4' }, 
+    { name: 'PTS Reset', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4' }, 
+    { name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5' }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course' },
@@ -52,7 +50,9 @@ const documentsToSeed = [
     { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course' },
     { name: 'Pre Course', scope: 'candidate' },
     { name: 'Post Course', scope: 'candidate' },
-    { name: 'Leaving Form', scope: 'candidate' }
+    { name: 'Leaving Form', scope: 'candidate' },
+    { name: 'PhoneticQuiz', scope: 'candidate' },
+    { name: 'EmergencyPhoneCallExercise', scope: 'candidate' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -218,9 +218,7 @@ db.all('SELECT id FROM competencies', [], (err, competencies) => {
     db.serialize(() => {
         const courseStmt = db.prepare(`INSERT INTO courses (name, doc_ids, competency_ids) VALUES (?, ?, ?)`);
         coursesToSeed.forEach(course => {
-            const numCompetencies = Math.floor(Math.random() * 3) + 3; // 3 to 5
-            const selectedCompetencyIds = [...competencyIds].sort(() => 0.5 - Math.random()).slice(0, numCompetencies);
-            courseStmt.run(course.name, course.doc_ids, selectedCompetencyIds.join(','));
+            courseStmt.run(course.name, course.doc_ids, course.competency_ids);
         });
         courseStmt.finalize();
 

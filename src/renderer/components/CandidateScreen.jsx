@@ -2,9 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useEvent } from '../context/EventContext';
 import Dropdown from './common/Dropdown';
 import QuestionnaireForm from './common/QuestionnaireForm';
-import PreCourseForm from './PreCourse/Form';
-import PostCourseForm from './PostCourse/Form';
-import LeavingForm from './LeavingForm/Form';
+import PreCourseForm from './General/PreCourse/Form';
+import PostCourseForm from './General/PostCourse/Form';
+import LeavingForm from './General/LeavingForm/Form';
+import PhoneticQuizForm from './PTS/PhoneticQuiz/Form';
+import EmergencyPhoneCallExerciseForm from './PTS/EmergencyPhoneCallExercise/Form';
+
+const formatDocName = (name) => {
+    if (!name) return '';
+    // Add a space before any capital letter that is preceded by a lowercase letter.
+    return name.replace(/([a-z])([A-Z])/g, '$1 $2');
+};
 
 const CandidateScreen = ({ openSignatureModal }) => {
     // Shared state from context
@@ -122,7 +130,7 @@ const CandidateScreen = ({ openSignatureModal }) => {
                             isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
                         }`}
                     >
-                        <p className="font-semibold">{item.name}</p>
+                        <p className="font-semibold">{formatDocName(item.name)}</p>
                     </button>
                 );
             })}
@@ -175,6 +183,10 @@ const CandidateScreen = ({ openSignatureModal }) => {
                 return <PostCourseForm {...props} />;
             case 'Leaving Form':
                 return <LeavingForm {...props} />;
+            case 'PhoneticQuiz':
+                return <PhoneticQuizForm {...props} />;
+            case 'EmergencyPhoneCallExercise':
+                return <EmergencyPhoneCallExerciseForm {...props} />;
             default:
                 // Fallback for any other document that might not have a specific form
                 return <QuestionnaireForm {...props} />;

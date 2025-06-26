@@ -214,8 +214,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                 newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
                 debouncedGridSave(field, gridData, isComplete);
-            };
-
+    };
+    
             updateAndRecalculateCompletion(fieldName, traineeId, value);
             
             if (inputType === 'signature_grid') {
@@ -276,7 +276,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: value, completed: isComplete } };
         setResponses(newResponses);
-
+    
         const valueToSave = inputType === 'checkbox' ? String(value) : value;
         debouncedSave(fieldName, valueToSave, isComplete);
     };
@@ -608,10 +608,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                 return (
                                                     <div key={trainee.id} className="flex flex-col space-y-2">
                                                         <div className="flex items-center">
-                                                            <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
-                                                                {trainee.forename} {trainee.surname}
-                                                            </label>
-                                                            <div 
+                                                        <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                            {trainee.forename} {trainee.surname}
+                                                        </label>
+                                                        <div 
                                                                 className={`w-3/5 h-24 border rounded-md flex justify-center items-center ${canSign ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
                                                                 onClick={() => {
                                                                     if (canSign) {
@@ -623,8 +623,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                                 }}
                                                             >
                                                                 {isSigned ? (
-                                                                    <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
-                                                                ) : (
+                                                                <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
+                                                            ) : (
                                                                     <span className="text-gray-500 text-sm capitalize">
                                                                         {signatureData === 'absent' && 'Absent'}
                                                                         {signatureData === 'skip' && 'Skipped'}
