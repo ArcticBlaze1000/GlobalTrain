@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useEvent } from '../context/EventContext';
 import Dropdown from './common/Dropdown';
+import QuestionnaireForm from './common/QuestionnaireForm';
+import PreCourseForm from './PreCourse/Form';
+import PostCourseForm from './PostCourse/Form';
 
 const CandidateScreen = () => {
     // Shared state from context
@@ -8,13 +11,20 @@ const CandidateScreen = () => {
 
     // State for data
     const [candidates, setCandidates] = useState([]);
-    const [competencies, setCompetencies] = useState([]);
     const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
+    const [documents, setDocuments] = useState([]);
 
     // State for form controls
     const [selectedCandidateId, setSelectedCandidateId] = useState('');
-    const [selectedCompetencyId, setSelectedCompetencyId] = useState('');
+    const [selectedFolder, setSelectedFolder] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
+    const [selectedDocument, setSelectedDocument] = useState(null);
+
+    // Callback for the form to report its progress
+    const handleProgressUpdate = useCallback((documentId, percentage) => {
+        // Placeholder for progress update logic
+        console.log(`Progress for doc ${documentId}: ${percentage}%`);
+    }, []);
 
     // Effect to fetch candidates when the active event changes
     useEffect(() => {
@@ -43,18 +53,26 @@ const CandidateScreen = () => {
         fetchTraineesForEvent();
     }, [activeEvent]);
 
-    // Effect to fetch all competencies once on mount
     useEffect(() => {
-        const fetchCompetencies = async () => {
-            try {
-                const results = await window.db.query('SELECT id, name FROM competencies');
-                setCompetencies(results);
-            } catch (error) {
-                console.error('Failed to fetch competencies:', error);
+        const fetchDocuments = async () => {
+            if (activeEvent) {
+                const docIds = await window.db.query(
+                    'SELECT doc_ids FROM courses WHERE id = ?',
+                    [activeEvent.course_id]
+                );
+                
+                if (docIds.length > 0) {
+                    const ids = docIds[0].doc_ids.split(',');
+                    const docs = await window.db.query(
+                        `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate'`,
+                        [...ids]
+                    );
+                    setDocuments(docs);
+                }
             }
         };
-        fetchCompetencies();
-    }, []);
+        fetchDocuments();
+    }, [activeEvent]);
 
     // Effect to fetch details when a candidate is selected
     useEffect(() => {
@@ -74,6 +92,72 @@ const CandidateScreen = () => {
         fetchCandidateDetails();
     }, [selectedCandidateId]);
 
+    const handleDocClick = (doc) => {
+        setSelectedDocument(doc);
+    };
+
+    const renderDocList = (items, selectedItem, handler) => (
+        <div className="flex flex-col">
+            {items.map((item) => {
+                const isSelected = selectedItem?.id === item.id;
+                return (
+                    <button
+                        key={item.id}
+                        onClick={() => handler(item)}
+                        className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none flex justify-between items-center ${
+                            isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
+                        }`}
+                    >
+                        <p className="font-semibold">{item.name}</p>
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    const renderSelectedForm = () => {
+        if (!selectedDocument) {
+            return selectedCandidateDetails ? (
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="text-xl font-semibold border-b pb-2 mb-4 text-gray-700">
+                        {selectedCandidateDetails.forename} {selectedCandidateDetails.surname}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Sponsor</p>
+                            <p className="text-lg font-semibold">{selectedCandidateDetails.sponsor}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Sentry Number</p>
+                            <p className="text-lg font-semibold">{selectedCandidateDetails.sentry_number}</p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-center justify-center h-full bg-white rounded-lg shadow-md">
+                    <p className="text-gray-500">Select a candidate to view their details.</p>
+                </div>
+            );
+        }
+
+        const props = {
+            eventDetails: activeEvent,
+            documentDetails: selectedDocument,
+            selectedTraineeId: selectedCandidateId,
+            onProgressUpdate: handleProgressUpdate,
+        };
+
+        switch (selectedDocument.name) {
+            case 'Pre Course':
+                return <PreCourseForm {...props} />;
+            case 'Post Course':
+                return <PostCourseForm {...props} />;
+            default:
+                // Fallback for any other document that might not have a specific form
+                return <QuestionnaireForm {...props} />;
+        }
+    };
+
     // Render a placeholder if no event is selected
     if (!activeEvent || !activeEvent.id) {
         return (
@@ -89,7 +173,7 @@ const CandidateScreen = () => {
     return (
         <div className="flex h-full bg-gray-50">
             {/* Left Column for Controls */}
-            <div className="w-1/4 bg-white p-6 border-r">
+            <div className="w-[15%] bg-white p-6 border-r">
                 <h2 className="text-xl font-bold mb-6">Candidate Selections</h2>
                 <div className="space-y-6">
                     <Dropdown
@@ -100,11 +184,11 @@ const CandidateScreen = () => {
                         placeholder="Select Candidate"
                     />
                     <Dropdown
-                        label="Competency"
-                        value={selectedCompetencyId}
-                        onChange={setSelectedCompetencyId}
-                        options={competencies}
-                        placeholder="Select Competency"
+                        label="Folders"
+                        value={selectedFolder}
+                        onChange={setSelectedFolder}
+                        options={[]}
+                        placeholder="Select Folder"
                     />
                     <div className="flex items-center">
                         <input
@@ -121,13 +205,29 @@ const CandidateScreen = () => {
                 </div>
             </div>
 
+            {/* Middle Column for Documents */}
+            <div className="w-[15%] bg-white p-6 border-r">
+                <h2 className="text-xl font-bold mb-6">Required Docs</h2>
+                {selectedCandidateId ? (
+                    documents.length > 0 ? (
+                        renderDocList(documents, selectedDocument, handleDocClick)
+                    ) : (
+                        <p className="p-4 text-gray-500">No documents required for this candidate.</p>
+                    )
+                ) : (
+                    <p className="p-4 text-gray-500">Select a candidate to see documents.</p>
+                )}
+            </div>
+
             {/* Right Column for Display */}
-            <div className="w-3/4 p-6">
+            <div className="w-[70%] p-6">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">
                     Event: {activeEvent.courseName} — {activeEvent.startDate}
                 </h2>
 
-                {selectedCandidateDetails ? (
+                {selectedDocument ? (
+                    renderSelectedForm()
+                ) : selectedCandidateDetails ? (
                     <div className="bg-white p-6 rounded-lg shadow-md">
                         <h3 className="text-xl font-semibold border-b pb-2 mb-4 text-gray-700">
                             {selectedCandidateDetails.forename} {selectedCandidateDetails.surname}

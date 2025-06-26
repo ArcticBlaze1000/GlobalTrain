@@ -36,7 +36,7 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No" }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
@@ -123,9 +123,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 );
 
                 if (response.length === 0) {
+                    const traineeIdsForResponse = documentDetails.scope === 'candidate' ? String(selectedTraineeId) : eventDetails.trainee_ids;
                     await window.db.run(
-                        'INSERT INTO responses (datapack_id, document_id, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?)',
-                        [datapackId, documentId, q.field_name, '', 0, '']
+                        'INSERT INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [datapackId, documentId, traineeIdsForResponse, q.field_name, '', 0, '']
                     );
                     response = [{ response_data: '', completed: 0, additional_comments: '' }];
                 }
@@ -153,7 +154,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             setResponses(initialResponses);
         };
         initializeForm();
-    }, [documentId, datapackId, eventDetails]);
+    }, [documentId, datapackId, eventDetails, selectedTraineeId]);
     
     const debouncedSave = useCallback(debounce(async (fieldName, value, isComplete) => {
         await window.db.run(
