@@ -169,11 +169,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         );
     }, 500), [datapackId, documentId]);
 
+    const debouncedGridSave = useCallback(debounce(async (fieldName, gridData, isComplete) => {
+        await window.db.run(
+            'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [JSON.stringify(gridData), isComplete, datapackId, documentId, fieldName]
+        );
+    }, 500), [datapackId, documentId]);
+
     // Effect to flush pending saves on unmount
     useEffect(() => {
         const flushDebouncedSaves = () => {
             debouncedSave.flush();
             debouncedCommentSave.flush();
+            debouncedGridSave.flush();
         };
 
         window.addEventListener('beforeunload', flushDebouncedSaves);
@@ -182,7 +190,81 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             flushDebouncedSaves();
             window.removeEventListener('beforeunload', flushDebouncedSaves);
         };
-    }, [debouncedSave, debouncedCommentSave]);
+    }, [debouncedSave, debouncedCommentSave, debouncedGridSave]);
+
+    const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
+        const originalValue = responses[fieldName]?.data?.[traineeId];
+        
+        setResponses(currentResponses => {
+            const newResponses = JSON.parse(JSON.stringify(currentResponses)); // Deep copy for safety
+
+            const updateAndRecalculateCompletion = (field, trainee, val) => {
+                const gridData = newResponses[field]?.data || {};
+                gridData[trainee] = val;
+
+                let isComplete = false;
+                if (field.includes('signature')) {
+                    isComplete = trainees.every(t => {
+                        const status = gridData[t.id];
+                        return status === 'absent' || status === 'skip' || (typeof status === 'string' && status.startsWith('data:image'));
+                    });
+                } else {
+                    isComplete = trainees.every(t => gridData[t.id] !== undefined && String(gridData[t.id]).trim() !== '');
+                }
+
+                newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
+                debouncedGridSave(field, gridData, isComplete);
+            };
+
+            updateAndRecalculateCompletion(fieldName, traineeId, value);
+            
+            if (inputType === 'signature_grid') {
+                const dayNumber = parseInt(fieldName.split('_')[1], 10);
+
+                if (!attendanceTimers[dayNumber]) {
+                    const now = new Date();
+                    window.db.run(
+                        'INSERT OR IGNORE INTO attendance_timers (datapack_id, day_number, timer_start_time) VALUES (?, ?, ?)',
+                        [datapackId, dayNumber, now.toISOString()]
+                    ).then(() => {
+                        setAttendanceTimers(prev => ({ ...prev, [dayNumber]: now }));
+                    });
+                }
+
+                const allSignatureQuestions = questions
+                    .filter(q => q.input_type === 'signature_grid')
+                    .sort((a, b) => parseInt(a.field_name.split('_')[1], 10) - parseInt(b.field_name.split('_')[1], 10));
+
+                if (value === 'absent') {
+                    allSignatureQuestions.forEach(q => {
+                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
+                        if (questionDay > dayNumber) {
+                            updateAndRecalculateCompletion(q.field_name, traineeId, 'absent');
+                        }
+                    });
+                } else if (originalValue === 'absent') {
+                    allSignatureQuestions.forEach(q => {
+                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
+                        if (questionDay > dayNumber) {
+                            let isStillLocked = false;
+                            for (const prevQ of allSignatureQuestions) {
+                                const prevDay = parseInt(prevQ.field_name.split('_')[1], 10);
+                                if (prevDay < questionDay && newResponses[prevQ.field_name]?.data?.[traineeId] === 'absent') {
+                                    isStillLocked = true;
+                                    break;
+                                }
+                            }
+                            if (!isStillLocked) {
+                                updateAndRecalculateCompletion(q.field_name, traineeId, '');
+                            }
+                        }
+                    });
+                }
+            }
+            
+            return newResponses;
+        });
+    };
 
     const handleInputChange = (fieldName, value, inputType) => {
         let isComplete;
@@ -199,90 +281,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         debouncedSave(fieldName, valueToSave, isComplete);
     };
 
-    const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
-        const originalValue = responses[fieldName]?.data?.[traineeId];
-        if (originalValue === value) return; // No change, no action needed.
-
-        // Use functional update to ensure we are working with the latest state
-        setResponses(currentResponses => {
-            const newResponses = JSON.parse(JSON.stringify(currentResponses)); // Deep copy to avoid mutation issues
-
-            const updateAndRecalculateCompletion = (field, trainee, val) => {
-                const gridData = newResponses[field]?.data ? newResponses[field].data : {};
-                gridData[trainee] = val;
-                
-                const isComplete = trainees.every(t => {
-                    const traineeValue = gridData[t.id];
-                    // For signatures, any status (signed, absent, skip) counts as complete. 'Present' (empty string) does not.
-                    return traineeValue !== undefined && traineeValue !== '';
-                });
-
-                newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
-                debouncedSave(field, JSON.stringify(gridData), isComplete);
-            };
-
-            // 1. Update the field that was directly changed by the user
-            updateAndRecalculateCompletion(fieldName, traineeId, value);
-            
-            // 2. Handle propagation logic for signature grids
-            if (inputType === 'signature_grid') {
-                const dayNumber = parseInt(fieldName.split('_')[1], 10);
-
-                // --- Timer Start Logic ---
-                // If this is the first entry for this day, start the timer.
-                if (!attendanceTimers[dayNumber]) {
-                    const now = new Date();
-                    window.db.run(
-                        'INSERT INTO attendance_timers (datapack_id, day_number, timer_start_time) VALUES (?, ?, ?)',
-                        [datapackId, dayNumber, now.toISOString()]
-                    ).then(() => {
-                        setAttendanceTimers(prev => ({ ...prev, [dayNumber]: now }));
-                    });
-                }
-                // --- End Timer Start Logic ---
-
-                const allAttendanceQuestions = questions
-                    .filter(q => q.input_type === 'signature_grid' || q.input_type === 'attendance_grid')
-                    .sort((a,b) => parseInt(a.field_name.split('_')[1], 10) - parseInt(b.field_name.split('_')[1], 10));
-
-                // If a trainee is marked absent, mark all subsequent days as absent too.
-                if (value === 'absent') {
-                    allAttendanceQuestions.forEach(q => {
-                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
-                        if (questionDay > dayNumber) {
-                            updateAndRecalculateCompletion(q.field_name, traineeId, 'absent');
-                        }
-                    });
-                } 
-                // If a trainee's status is changed FROM absent to something else
-                else if (originalValue === 'absent') {
-                    allAttendanceQuestions.forEach(q => {
-                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
-                        if (questionDay > dayNumber) {
-                            // Check if there is still a preceding day that is 'absent'
-                            let isStillLocked = false;
-                            for (const prevQ of allAttendanceQuestions) {
-                                const prevDay = parseInt(prevQ.field_name.split('_')[1], 10);
-                                if (prevDay < questionDay) {
-                                    if (newResponses[prevQ.field_name]?.data?.[traineeId] === 'absent') {
-                                        isStillLocked = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            // If no other preceding day is absent, unlock this day by setting it to 'Present'
-                            if (!isStillLocked) {
-                                updateAndRecalculateCompletion(q.field_name, traineeId, ''); // '' represents 'Present'
-                            }
-                        }
-                    });
-                }
-            }
-            
-            return newResponses;
-        });
-    };
-    
     const handleCommentChange = (fieldName, comments) => {
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
         setResponses(newResponses);
@@ -294,7 +292,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     };
     
     const completionPercentage = useMemo(() => {
+        const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature'];
         const relevantQuestions = questions.filter(q => {
+            if (fieldsToExclude.includes(q.field_name)) {
+                return false; // Exclude these specific fields from completion calculation
+            }
             if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                 const dayNumber = parseInt(q.field_name.split('_')[1], 10);
                 return dayNumber <= (eventDetails?.duration || 0);
@@ -316,6 +318,21 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
     const handleGenerateAndCache = () => {
+        // Validation for paired comment/signature fields
+        const trainerComment = responses.trainer_comments?.data?.trim();
+        const trainerSig = responses.trainer_signature?.data?.trim();
+        if (trainerComment && !trainerSig) {
+            alert('Trainer signature is required when a trainer comment is present.');
+            return;
+        }
+
+        const adminComment = responses.admin_comments?.data?.trim();
+        const adminSig = responses.admin_signature?.data?.trim();
+        if (adminComment && !adminSig) {
+            alert('Admin signature is required when an admin comment is present.');
+            return;
+        }
+
         if (process.env.NODE_ENV !== 'production') {
             // Store the callback function so the dev tools can access it
             window.dev_regenerateLastPdf = onPdfButtonClick;
@@ -720,11 +737,34 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     ))}
                                                 </select>
                                             )}
-                                            {q.input_type === 'tri_toggle' && (
-                                                <TriToggleButton
-                                                    value={responses[q.field_name]?.data || 'neutral'}
-                                                    onChange={newValue => handleInputChange(q.field_name, newValue, q.input_type)}
+                                            {q.input_type === 'textarea' && (
+                                                <textarea
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-full disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    rows="3"
+                                                    disabled={!isEditable}
                                                 />
+                                            )}
+                                            {q.input_type === 'signature_box' && (
+                                                <div 
+                                                    className={`w-48 h-24 border rounded-md flex justify-center items-center ${isEditable ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
+                                                    onClick={() => {
+                                                        if (isEditable) {
+                                                            const signatureData = responses[q.field_name]?.data || '';
+                                                            const onSave = (dataUrl) => {
+                                                                handleInputChange(q.field_name, dataUrl, q.input_type);
+                                                            };
+                                                            openSignatureModal(onSave, signatureData);
+                                                        }
+                                                    }}
+                                                >
+                                                    {responses[q.field_name]?.data ? (
+                                                        <img src={responses[q.field_name].data} alt="Signature" className="h-full w-full object-contain" />
+                                                    ) : (
+                                                        <span className="text-gray-500 text-sm">Click to Sign</span>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     </div>

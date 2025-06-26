@@ -74,6 +74,12 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'MAIN', question_text: 'Final Result', input_type: 'trainee_dropdown_grid', field_name: 'final_result', access: 'trainer', has_comments: 'NO' },
     { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified Date', input_type: 'trainee_date_grid', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
 
+    // New comment and signature sections for the Register
+    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Comments', input_type: 'textarea', field_name: 'trainer_comments', access: 'trainer' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'trainer_signature', access: 'trainer' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Admin Comments', input_type: 'textarea', field_name: 'admin_comments', access: 'admin' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Admin Signature', input_type: 'signature_box', field_name: 'admin_signature', access: 'admin' },
+
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
     { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },

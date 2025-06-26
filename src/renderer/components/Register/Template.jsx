@@ -209,6 +209,29 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                         </table>
                     </div>
 
+                    <div className="flex justify-between mt-8 text-[8px] pt-4">
+                        <div className="w-1/2 pr-4">
+                            <h3 className="text-base font-bold mb-1">Trainer Comments</h3>
+                            <p className="border p-2 min-h-[60px]">{responses?.trainer_comments || ''}</p>
+                            <div className="mt-2">
+                                <p className="font-bold mb-1">Trainer Signature:</p>
+                                <div className="border h-20 w-full flex items-center justify-center">
+                                    {responses?.trainer_signature && <img src={responses.trainer_signature} alt="Trainer Signature" className="h-full w-full object-contain"/>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-1/2 pl-4">
+                            <h3 className="text-base font-bold mb-1">Admin Comments</h3>
+                            <p className="border p-2 min-h-[60px]">{responses?.admin_comments || ''}</p>
+                            <div className="mt-2">
+                                <p className="font-bold mb-1">Admin Signature:</p>
+                                <div className="border h-20 w-full flex items-center justify-center">
+                                    {responses?.admin_signature && <img src={responses.admin_signature} alt="Admin Signature" className="h-full w-full object-contain"/>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Version footer is now empty */}
                 </div>
             </body>
