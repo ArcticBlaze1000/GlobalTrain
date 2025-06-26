@@ -44,11 +44,13 @@ const CourseScreen = ({ user }) => {
 
     // When an event is selected, fetch its associated documents
     useEffect(() => {
-        const fetchDocuments = async () => {
+        const fetchDocumentsAndProgress = async () => {
             if (!activeEvent) {
                 setDocuments([]);
+                setDocProgress({});
                 return;
             }
+
             const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
             const docIds = course[0]?.doc_ids?.split(',');
 
@@ -56,13 +58,45 @@ const CourseScreen = ({ user }) => {
                 const placeholders = docIds.map(() => '?').join(',');
                 const docs = await window.db.query(`SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course'`, docIds);
                 setDocuments(docs);
+
+                const progressMap = {};
+                for (const doc of docs) {
+                    const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
+                    
+                    const relevantQuestions = questions.filter(q => {
+                        if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
+                            const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                            return !isNaN(dayNumber) && dayNumber <= (activeEvent.duration || 0);
+                        }
+                        return true;
+                    });
+
+                    const totalQuestions = relevantQuestions.length;
+                    if (totalQuestions === 0) {
+                        progressMap[doc.id] = 0;
+                        continue;
+                    }
+
+                    const relevantQuestionFieldNames = relevantQuestions.map(q => q.field_name);
+                    const responsePlaceholders = relevantQuestionFieldNames.map(() => '?').join(',');
+                    const completedResponses = await window.db.query(
+                        `SELECT COUNT(*) as count FROM responses WHERE datapack_id = ? AND document_id = ? AND completed = 1 AND field_name IN (${responsePlaceholders})`,
+                        [activeEvent.id, doc.id, ...relevantQuestionFieldNames]
+                    );
+                    
+                    const completedCount = completedResponses[0]?.count || 0;
+                    progressMap[doc.id] = Math.round((completedCount / totalQuestions) * 100);
+                }
+                setDocProgress(progressMap);
+
             } else {
                 setDocuments([]);
+                setDocProgress({});
             }
         };
-        fetchDocuments();
+
+        fetchDocumentsAndProgress();
         setSelectedDoc(null); // Reset doc selection when event changes
-        setDocProgress({}); // Reset progress on event change
     }, [activeEvent]);
 
     const handleEventClick = (event) => {
