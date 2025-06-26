@@ -3,9 +3,13 @@ import React, { useState } from 'react';
 const LoginScreen = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
+        setError('');
         try {
             const users = await window.db.query(
                 'SELECT * FROM users WHERE username = ? AND password = ?',
@@ -22,12 +26,24 @@ const LoginScreen = ({ onLogin }) => {
                     role: user.role
                 });
             } else {
-                alert('Invalid username or password.');
+                setError('Invalid username or password.');
             }
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert('An error occurred during login.');
+        } catch (err) {
+            console.error('Login failed:', err);
+            setError('An error occurred during login.');
+        } finally {
+            setIsLoading(false);
         }
+    };
+
+    const handleUsernameChange = (e) => {
+        setUsername(e.target.value);
+        setError('');
+    };
+
+    const handlePasswordChange = (e) => {
+        setPassword(e.target.value);
+        setError('');
     };
 
     return (
@@ -46,9 +62,10 @@ const LoginScreen = ({ onLogin }) => {
                             type="text"
                             id="username"
                             value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            onChange={handleUsernameChange}
                             className="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
+                            disabled={isLoading}
                         />
                     </div>
                     <div>
@@ -62,17 +79,22 @@ const LoginScreen = ({ onLogin }) => {
                             type="password"
                             id="password"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={handlePasswordChange}
                             className="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
+                            disabled={isLoading}
                         />
                     </div>
+                    {error && (
+                        <p className="text-sm text-red-600 text-center">{error}</p>
+                    )}
                     <div>
                         <button
                             type="submit"
-                            className="w-full px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                            className="w-full px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400"
+                            disabled={isLoading}
                         >
-                            Login
+                            {isLoading ? 'Logging in...' : 'Login'}
                         </button>
                     </div>
                 </form>
