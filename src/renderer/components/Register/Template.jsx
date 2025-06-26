@@ -87,7 +87,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                     </th>
                                 ))}
                                 <th className="p-1 text-center">LEVEL OF SPOKEN<br/>ENGLISH ADEQUATE</th>
-                                <th className="p-1 text-center">PASS OR<br/>FAIL</th>
+                                <th className="p-1 text-center">FINAL RESULT</th>
                                 <th className="p-1 text-center">SENTINEL NOTIFIED<br/>(DATE)</th>
                             </tr>
                         </thead>
@@ -136,7 +136,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                     </td>
                                     <td className="p-1 h-8 text-center">
                                         {(() => {
-                                            const response = responses?.pass_or_fail;
+                                            const response = responses?.final_result;
                                             if (response) {
                                                 try {
                                                     const data = JSON.parse(response);

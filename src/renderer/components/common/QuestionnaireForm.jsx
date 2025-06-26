@@ -223,8 +223,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const handleCommentChange = (fieldName, comments) => {
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
         setResponses(newResponses);
-        const valueToSave = JSON.stringify(updatedGridData);
-        debouncedSave(fieldName, valueToSave, isComplete);
+        debouncedCommentSave(fieldName, comments);
     };
 
     const toggleComment = (fieldName) => {
