@@ -109,6 +109,7 @@ const questionnaireOptionsToSeed = [
     { question_field_name: 'resources', option_value: 'SHB' },
     { question_field_name: 'level_of_spoken_english_adequate', option_value: 'Yes' },
     { question_field_name: 'level_of_spoken_english_adequate', option_value: 'No' },
+    { question_field_name: 'level_of_spoken_english_adequate', option_value: 'Not Applicable' },
     { question_field_name: 'final_result', option_value: 'Competent' },
     { question_field_name: 'final_result', option_value: 'Not Competent' },
 ];

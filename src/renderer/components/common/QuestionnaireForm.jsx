@@ -205,10 +205,73 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     };
 
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
-        const currentGridData = responses[fieldName]?.data || {};
-    
-        const updatedGridData = { ...currentGridData, [traineeId]: value };
-        saveGridData(fieldName, updatedGridData, inputType);
+        const originalValue = responses[fieldName]?.data?.[traineeId];
+        if (originalValue === value) return; // No change, no action needed.
+
+        // Use functional update to ensure we are working with the latest state
+        setResponses(currentResponses => {
+            const newResponses = JSON.parse(JSON.stringify(currentResponses)); // Deep copy to avoid mutation issues
+
+            const updateAndRecalculateCompletion = (field, trainee, val) => {
+                const gridData = newResponses[field]?.data ? newResponses[field].data : {};
+                gridData[trainee] = val;
+                
+                const isComplete = trainees.every(t => {
+                    const traineeValue = gridData[t.id];
+                    // For signatures, any status (signed, absent, skip) counts as complete. 'Present' (empty string) does not.
+                    return traineeValue !== undefined && traineeValue !== '';
+                });
+
+                newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
+                debouncedSave(field, JSON.stringify(gridData), isComplete);
+            };
+
+            // 1. Update the field that was directly changed by the user
+            updateAndRecalculateCompletion(fieldName, traineeId, value);
+            
+            // 2. Handle propagation logic for signature grids
+            if (inputType === 'signature_grid') {
+                const dayNumber = parseInt(fieldName.split('_')[1], 10);
+                const allAttendanceQuestions = questions
+                    .filter(q => q.input_type === 'signature_grid' || q.input_type === 'attendance_grid')
+                    .sort((a,b) => parseInt(a.field_name.split('_')[1], 10) - parseInt(b.field_name.split('_')[1], 10));
+
+                // If a trainee is marked absent, mark all subsequent days as absent too.
+                if (value === 'absent') {
+                    allAttendanceQuestions.forEach(q => {
+                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
+                        if (questionDay > dayNumber) {
+                            updateAndRecalculateCompletion(q.field_name, traineeId, 'absent');
+                        }
+                    });
+                } 
+                // If a trainee's status is changed FROM absent to something else
+                else if (originalValue === 'absent') {
+                    allAttendanceQuestions.forEach(q => {
+                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
+                        if (questionDay > dayNumber) {
+                            // Check if there is still a preceding day that is 'absent'
+                            let isStillLocked = false;
+                            for (const prevQ of allAttendanceQuestions) {
+                                const prevDay = parseInt(prevQ.field_name.split('_')[1], 10);
+                                if (prevDay < questionDay) {
+                                    if (newResponses[prevQ.field_name]?.data?.[traineeId] === 'absent') {
+                                        isStillLocked = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            // If no other preceding day is absent, unlock this day by setting it to 'Present'
+                            if (!isStillLocked) {
+                                updateAndRecalculateCompletion(q.field_name, traineeId, ''); // '' represents 'Present'
+                            }
+                        }
+                    });
+                }
+            }
+            
+            return newResponses;
+        });
     };
     
     const saveGridData = (fieldName, updatedGridData, inputType) => {
@@ -517,24 +580,72 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
                                             {trainees.map(trainee => {
-                                                const signatureData = responses[q.field_name]?.data?.[trainee.id];
+                                                const currentDay = parseInt(q.field_name.split('_')[1], 10);
+                                                let isLockedDueToAbsence = false;
+
+                                                // Check if any previous day is marked 'absent'
+                                                for (let i = 1; i < currentDay; i++) {
+                                                    const prevFieldName = `day_${i}_attendance`;
+                                                    const prevDayQuestion = questions.find(ques => ques.field_name === prevFieldName && (ques.input_type === 'signature_grid' || ques.input_type === 'attendance_grid'));
+                                                    if (prevDayQuestion) {
+                                                        const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
+                                                        if (prevDayResponse === 'absent') {
+                                                            isLockedDueToAbsence = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // If locked, the status is 'absent', otherwise get it from responses
+                                                const signatureData = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
+                                                const isSigned = typeof signatureData === 'string' && signatureData.startsWith('data:image');
+                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence;
+                                                const canSign = isEditableForThisCell && !isSigned && signatureData !== 'absent' && signatureData !== 'skip';
+
                                                 return (
-                                                    <div key={trainee.id} className="flex items-center">
-                                                        <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
-                                                            {trainee.forename} {trainee.surname}
-                                                        </label>
-                                                        <div 
-                                                            className="w-3/5 h-24 border rounded-md flex justify-center items-center cursor-pointer hover:bg-gray-100"
-                                                            onClick={() => isEditable && setSignatureModal({ isOpen: true, fieldName: q.field_name, traineeId: trainee.id })}
-                                                        >
-                                                            {signatureData ? (
-                                                                <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
-                                                            ) : (
-                                                                <span className="text-gray-500 text-sm">Click to Sign</span>
-                                                            )}
+                                                    <div key={trainee.id} className="flex flex-col space-y-2">
+                                                        <div className="flex items-center">
+                                                            <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                                {trainee.forename} {trainee.surname}
+                                                            </label>
+                                                            <div 
+                                                                className={`w-3/5 h-24 border rounded-md flex justify-center items-center ${canSign ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
+                                                                onClick={() => canSign && setSignatureModal({ isOpen: true, fieldName: q.field_name, traineeId: trainee.id })}
+                                                            >
+                                                                {isSigned ? (
+                                                                    <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
+                                                                ) : (
+                                                                    <span className="text-gray-500 text-sm capitalize">
+                                                                        {signatureData === 'absent' && 'Absent'}
+                                                                        {signatureData === 'skip' && 'Skipped'}
+                                                                        {signatureData === '' && 'Click to Sign'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
+
+                                                        {isEditable && (
+                                                            <div className="flex items-center">
+                                                                <span className="w-2/5"></span> {/* Spacer */}
+                                                                <select
+                                                                    value={isSigned ? 'signed' : signatureData}
+                                                                    onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, 'signature_grid')}
+                                                                    className="w-3/5 p-1 border rounded-md text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                    disabled={!isEditableForThisCell}
+                                                                >
+                                                                    {isSigned ? (
+                                                                        <option value="signed">Signed</option>
+                                                                    ) : (
+                                                                        <React.Fragment></React.Fragment> // Placeholder for potential future use
+                                                                    )}
+                                                                    <option value="">Present</option>
+                                                                    <option value="absent">Absent</option>
+                                                                    <option value="skip">Skip</option>
+                                                                </select>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )
+                                                );
                                             })}
                                         </div>
                                     </div>

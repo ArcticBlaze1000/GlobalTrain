@@ -113,12 +113,20 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                         const signatureOrInitial = attendanceData[trainee.id] || '';
 
                                         // Day 1 is a signature image, other days are initials
-                                        if (signatureOrInitial.startsWith('data:image')) {
+                                        if (typeof signatureOrInitial === 'string' && signatureOrInitial.startsWith('data:image')) {
                                             return (
                                                 <td key={i} className="p-1 h-8 text-center">
                                                     <img src={signatureOrInitial} alt="Signature" style={{ height: '100%', maxHeight: '32px', display: 'block', margin: 'auto' }} />
                                                 </td>
                                             );
+                                        }
+
+                                        if (signatureOrInitial === 'absent') {
+                                            return <td key={i} className="p-1 h-8 text-center">Absent</td>;
+                                        }
+
+                                        if (signatureOrInitial === 'skip') {
+                                            return <td key={i} className="p-1 h-8 text-center">Skipped</td>;
                                         }
 
                                         return <td key={i} className="p-1 h-8 text-center text-[7px]">{signatureOrInitial}</td>;
