@@ -17,7 +17,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                     body { -webkit-print-color-adjust: exact; }
                 `}</style>
             </head>
-            <body className="font-sans text-[10px] p-4">
+            <body className="font-sans text-[8px] p-4">
                 <div className="p-2">
                     {/* Header */}
                     <div className="flex justify-between items-start mb-4">
@@ -73,7 +73,8 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                     </div>
                     
                     {/* Main Table */}
-                    <table className="w-full mt-2 border-collapse border border-black text-[8px]">
+                    <h2 className="text-base font-bold mt-4 mb-1">Attendance</h2>
+                    <table className="w-full border-collapse border border-black">
                         <thead className="border-b border-black">
                             <tr className="divide-x divide-black bg-blue-100">
                                 <th className="p-1">NO.</th>
@@ -112,7 +113,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                         const signatureOrInitial = attendanceData[trainee.id] || '';
 
                                         // Day 1 is a signature image, other days are initials
-                                        if (i === 0 && signatureOrInitial) {
+                                        if (signatureOrInitial.startsWith('data:image')) {
                                             return (
                                                 <td key={i} className="p-1 h-8 text-center">
                                                     <img src={signatureOrInitial} alt="Signature" style={{ height: '100%', maxHeight: '32px', display: 'block', margin: 'auto' }} />
@@ -166,8 +167,8 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
 
                     {/* Competencies Section */}
                     <div className="mt-4">
-                        <h2 className="text-lg font-bold mb-1">Competencies</h2>
-                        <table className="w-full border-collapse border border-black text-[8px]">
+                        <h2 className="text-base font-bold mb-1">Competencies</h2>
+                        <table className="w-full border-collapse border border-black">
                             <thead className="border-b border-black">
                                 <tr className="divide-x divide-black bg-blue-100">
                                     <th className="p-1">CANDIDATE NAME</th>
