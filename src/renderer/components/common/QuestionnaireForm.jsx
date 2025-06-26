@@ -624,7 +624,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                                 <span className="text-red-500">(Locked)</span>
                                                             ) : timerEndTime ? (
                                                                 <span className="text-green-600">
-                                                                    Unlocks in: {Math.max(0, Math.round((timerEndTime - new Date()) / (1000 * 60 * 60)))}h
+                                                                    Locks in: {Math.max(0, Math.round((timerEndTime - new Date()) / (1000 * 60 * 60)))}h
                                                                 </span>
                                                             ) : (
                                                                 <span className="text-gray-400">Not Started</span>
