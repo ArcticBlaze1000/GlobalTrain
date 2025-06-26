@@ -54,7 +54,7 @@ const CourseScreen = ({ user }) => {
 
             if (docIds && docIds[0] !== '') {
                 const placeholders = docIds.map(() => '?').join(',');
-                const docs = await window.db.query(`SELECT * FROM documents WHERE id IN (${placeholders})`, docIds);
+                const docs = await window.db.query(`SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course'`, docIds);
                 setDocuments(docs);
             } else {
                 setDocuments([]);
