@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import SignatureModal from './SignatureModal';
 import TriToggleButton from './TriToggleButton';
 
 // Helper function to determine if the user can edit a specific question
@@ -49,21 +48,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         datapackId: eventDetails?.id,
         documentId: documentDetails?.id
     }), [eventDetails, documentDetails]);
-
-    // Create a ref for each signature pad
-    const signaturePads = useRef({});
-    useEffect(() => {
-        trainees.forEach(trainee => {
-            questions.forEach(question => {
-                if (question.input_type === 'signature_grid') {
-                    const key = `${question.field_name}-${trainee.id}`;
-                    if (!signaturePads.current[key]) {
-                        signaturePads.current[key] = React.createRef();
-                    }
-                }
-            });
-        });
-    }, [trainees, questions]);
 
     // Fetch questions and initialize responses
     useEffect(() => {
@@ -276,26 +260,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         });
     };
     
-    const saveGridData = (fieldName, updatedGridData, inputType) => {
-        const isComplete = trainees.every(t => {
-            const traineeValue = updatedGridData[t.id];
-            if (inputType === 'trainee_checkbox_grid' || inputType === 'signature_grid') {
-                return traineeValue !== undefined && traineeValue !== '';
-            }
-            return traineeValue && String(traineeValue).trim() !== '';
-        });
-
-        const newResponses = {
-            ...responses,
-            [fieldName]: { ...responses[fieldName], data: updatedGridData, completed: isComplete }
-        };
-        setResponses(newResponses);
-    
-        const valueToSave = JSON.stringify(updatedGridData);
-        debouncedSave(fieldName, valueToSave, isComplete);
-        setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
-    };
-
     const handleCommentChange = (fieldName, comments) => {
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], comments: comments } };
         setResponses(newResponses);
@@ -366,37 +330,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         const valueToSave = JSON.stringify(updatedGridData);
         debouncedSave(fieldName, valueToSave, isComplete);
     };
-
-    // Effect to load existing signatures into the canvases
-    useEffect(() => {
-        if (trainees.length > 0 && questions.length > 0 && Object.keys(responses).length > 0) {
-            questions.forEach(question => {
-                if (question.input_type === 'signature_grid') {
-                    trainees.forEach(trainee => {
-                        const key = `${question.field_name}-${trainee.id}`;
-                        const sigPadRef = signaturePads.current[key];
-                        const signatureData = responses[question.field_name]?.data?.[trainee.id];
-
-                        if (sigPadRef && sigPadRef.current && signatureData && !sigPadRef.current.isEmpty()) {
-                            // This check prevents re-drawing over a freshly drawn signature
-                            // because the response state updates slightly after the onEnd event.
-                            // We only want to load from data URL on initial mount.
-                            const canvasElement = sigPadRef.current.getCanvas();
-                            if (canvasElement.toDataURL() !== signatureData) {
-                                sigPadRef.current.fromDataURL(signatureData);
-                            }
-                        } else if (sigPadRef && sigPadRef.current && signatureData) {
-                             setTimeout(() => {
-                                if (sigPadRef.current) { // Check ref still exists
-                                    sigPadRef.current.fromDataURL(signatureData);
-                                }
-                            }, 100);
-                        }
-                    });
-                }
-            });
-        }
-    }, [responses, trainees, questions]);
 
     return (
         <div className="space-y-6">
