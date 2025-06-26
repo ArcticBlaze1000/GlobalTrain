@@ -21,6 +21,7 @@ const tables = [
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
+    { name: 'attendance_timers', schema: `CREATE TABLE attendance_timers (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, day_number INTEGER NOT NULL, timer_start_time TEXT NOT NULL, UNIQUE(datapack_id, day_number))`},
     // Old tables to ensure they are dropped
     { name: 'trainers' }, { name: 'admins' }, { name: 'devs' }
 ];

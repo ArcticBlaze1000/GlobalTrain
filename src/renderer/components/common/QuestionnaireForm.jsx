@@ -43,6 +43,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const [questionOptions, setQuestionOptions] = useState({});
     const [trainees, setTrainees] = useState([]);
     const [competencies, setCompetencies] = useState([]);
+    const [attendanceTimers, setAttendanceTimers] = useState({});
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -53,6 +54,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     useEffect(() => {
         const initializeForm = async () => {
             if (!documentId || !datapackId) return;
+
+            // Fetch timers for this datapack
+            const fetchedTimers = await window.db.query('SELECT * FROM attendance_timers WHERE datapack_id = ?', [datapackId]);
+            const timersMap = fetchedTimers.reduce((acc, timer) => {
+                acc[timer.day_number] = new Date(timer.timer_start_time);
+                return acc;
+            }, {});
+            setAttendanceTimers(timersMap);
 
             // Fetch course-specific competencies
             if (eventDetails?.competency_ids) {
@@ -218,6 +227,20 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
             // 2. Handle propagation logic for signature grids
             if (inputType === 'signature_grid') {
                 const dayNumber = parseInt(fieldName.split('_')[1], 10);
+
+                // --- Timer Start Logic ---
+                // If this is the first entry for this day, start the timer.
+                if (!attendanceTimers[dayNumber]) {
+                    const now = new Date();
+                    window.db.run(
+                        'INSERT INTO attendance_timers (datapack_id, day_number, timer_start_time) VALUES (?, ?, ?)',
+                        [datapackId, dayNumber, now.toISOString()]
+                    ).then(() => {
+                        setAttendanceTimers(prev => ({ ...prev, [dayNumber]: now }));
+                    });
+                }
+                // --- End Timer Start Logic ---
+
                 const allAttendanceQuestions = questions
                     .filter(q => q.input_type === 'signature_grid' || q.input_type === 'attendance_grid')
                     .sort((a,b) => parseInt(a.field_name.split('_')[1], 10) - parseInt(b.field_name.split('_')[1], 10));
@@ -510,8 +533,44 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                 const currentDay = parseInt(q.field_name.split('_')[1], 10);
                                                 let isLockedDueToAbsence = false;
 
+                                                // --- New Timer-based Locking Logic ---
+                                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                                let isDayLocked = false;
+                                                let isWaitingForPreviousDay = false;
+                                                let timerEndTime = null;
+                                                const twelveHours = 12 * 60 * 60 * 1000;
+
+                                                const currentDayTimer = attendanceTimers[dayNumber];
+                                                if (currentDayTimer) {
+                                                    timerEndTime = new Date(currentDayTimer.getTime() + twelveHours);
+                                                    if (new Date() > timerEndTime) {
+                                                        isDayLocked = true;
+                                                    }
+                                                }
+                                                
+                                                if (dayNumber > 1) {
+                                                    const prevDayTimer = attendanceTimers[dayNumber - 1];
+                                                    if (!prevDayTimer) {
+                                                        // Previous day hasn't even started, so this day is locked.
+                                                        isWaitingForPreviousDay = true;
+                                                    } else {
+                                                        const prevDayEndTime = new Date(prevDayTimer.getTime() + twelveHours);
+                                                        if (new Date() < prevDayEndTime) {
+                                                            // Previous day's 12hr window is not over yet.
+                                                            isWaitingForPreviousDay = true;
+                                                        }
+                                                    }
+                                                }
+
+                                                // Admins/Devs bypass all timer locks
+                                                if (user.role === 'dev' || user.role === 'admin') {
+                                                    isDayLocked = false;
+                                                    isWaitingForPreviousDay = false;
+                                                }
+                                                // --- End of Timer Logic ---
+
                                                 // Check if any previous day is marked 'absent'
-                                                for (let i = 1; i < currentDay; i++) {
+                                                for (let i = 1; i < dayNumber; i++) {
                                                     const prevFieldName = `day_${i}_attendance`;
                                                     const prevDayQuestion = questions.find(ques => ques.field_name === prevFieldName && (ques.input_type === 'signature_grid' || ques.input_type === 'attendance_grid'));
                                                     if (prevDayQuestion) {
@@ -526,7 +585,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                 // If locked, the status is 'absent', otherwise get it from responses
                                                 const signatureData = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
                                                 const isSigned = typeof signatureData === 'string' && signatureData.startsWith('data:image');
-                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence;
+                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence && !isDayLocked && !isWaitingForPreviousDay;
                                                 const canSign = isEditableForThisCell && !isSigned && signatureData !== 'absent' && signatureData !== 'skip';
 
                                                 return (
@@ -556,6 +615,20 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                        </div>
+
+                                                        <div className="text-xs text-right w-full pr-1">
+                                                            {isWaitingForPreviousDay ? (
+                                                                <span className="text-gray-500">Waiting for Day {dayNumber - 1}</span>
+                                                            ) : isDayLocked ? (
+                                                                <span className="text-red-500">(Locked)</span>
+                                                            ) : timerEndTime ? (
+                                                                <span className="text-green-600">
+                                                                    Unlocks in: {Math.max(0, Math.round((timerEndTime - new Date()) / (1000 * 60 * 60)))}h
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-400">Not Started</span>
+                                                            )}
                                                         </div>
 
                                                         {isEditable && (
