@@ -6,7 +6,7 @@ import PreCourseForm from './PreCourse/Form';
 import PostCourseForm from './PostCourse/Form';
 import LeavingForm from './LeavingForm/Form';
 
-const CandidateScreen = () => {
+const CandidateScreen = ({ openSignatureModal }) => {
     // Shared state from context
     const { activeEvent } = useEvent();
 
@@ -159,6 +159,7 @@ const CandidateScreen = () => {
             documentDetails: selectedDocument,
             selectedTraineeId: selectedCandidateId,
             onProgressUpdate: handleProgressUpdate,
+            openSignatureModal,
         };
 
         switch (selectedDocument.name) {

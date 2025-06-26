@@ -4,7 +4,7 @@ import RegisterForm from './Register/Form';
 import TrainingCourseChecklistForm from './TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './TrainingAndWeldingTrackSafetyBreifing/Form';
 
-const CourseScreen = ({ user }) => {
+const CourseScreen = ({ user, openSignatureModal }) => {
     const [events, setEvents] = useState([]);
     const { activeEvent, setActiveEvent } = useEvent();
     const [documents, setDocuments] = useState([]);
@@ -166,6 +166,7 @@ const CourseScreen = ({ user }) => {
             eventDetails: activeEvent,
             documentDetails: selectedDoc,
             onProgressUpdate: handleProgressUpdate,
+            openSignatureModal,
         };
 
         switch (selectedDoc.name) {

@@ -37,14 +37,13 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
     const [questionOptions, setQuestionOptions] = useState({});
     const [trainees, setTrainees] = useState([]);
     const [competencies, setCompetencies] = useState([]);
-    const [signatureModal, setSignatureModal] = useState({ isOpen: false, fieldName: null, traineeId: null });
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -127,10 +126,13 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     const traineeIdsForResponse = documentDetails.scope === 'candidate' ? String(selectedTraineeId) : eventDetails.trainee_ids;
                     const initialData = q.input_type === 'tri_toggle' ? 'neutral' : '';
                     await window.db.run(
-                        'INSERT INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT OR IGNORE INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
                         [datapackId, documentId, traineeIdsForResponse, q.field_name, initialData, 0, '']
                     );
-                    response = [{ response_data: initialData, completed: 0, additional_comments: '' }];
+                    response = await window.db.query(
+                        'SELECT * FROM responses WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                        [datapackId, documentId, q.field_name]
+                    );
                 }
                 
                 const responseData = response[0].response_data;
@@ -325,14 +327,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     }, [completionPercentage, documentId, onProgressUpdate]);
 
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
-
-    const handleSaveSignature = (dataUrl) => {
-        const { fieldName, traineeId } = signatureModal;
-        if (fieldName && traineeId) {
-            handleGridInputChange(fieldName, traineeId, dataUrl, 'signature_grid');
-        }
-        setSignatureModal({ isOpen: false, fieldName: null, traineeId: null });
-    };
 
     const handleGenerateAndCache = () => {
         if (process.env.NODE_ENV !== 'production') {
@@ -610,7 +604,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                             </label>
                                                             <div 
                                                                 className={`w-3/5 h-24 border rounded-md flex justify-center items-center ${canSign ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                                onClick={() => canSign && setSignatureModal({ isOpen: true, fieldName: q.field_name, traineeId: trainee.id })}
+                                                                onClick={() => {
+                                                                    if (canSign) {
+                                                                        const onSave = (dataUrl) => {
+                                                                            handleGridInputChange(q.field_name, trainee.id, dataUrl, 'signature_grid');
+                                                                        };
+                                                                        openSignatureModal(onSave, signatureData);
+                                                                    }
+                                                                }}
                                                             >
                                                                 {isSigned ? (
                                                                     <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
@@ -751,11 +752,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     </button>
                 </div>
             )}
-            <SignatureModal 
-                show={signatureModal.isOpen}
-                onClose={() => setSignatureModal({ isOpen: false, fieldName: null, traineeId: null })}
-                onSave={handleSaveSignature}
-            />
         </div>
     );
 };

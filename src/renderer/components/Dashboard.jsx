@@ -4,6 +4,7 @@ import CourseScreen from './CourseScreen';
 import CandidateScreen from './CandidateScreen';
 import UsersScreen from './UsersScreen';
 import DeveloperTools from './common/DeveloperTools';
+import SignatureModal from './common/SignatureModal';
 
 // A local component for rendering tab buttons to reduce repetition
 const TabButton = ({ name, activeTab, setActiveTab }) => {
@@ -25,9 +26,27 @@ const Dashboard = ({ user, onLogout }) => {
         return 'course';
     };
     const [activeTab, setActiveTab] = useState(getDefaultTab());
+    const [signatureModal, setSignatureModal] = useState({ isOpen: false, onSave: null, currentSignature: '' });
+
+    const openSignatureModal = (onSave, currentSignature = '') => {
+        setSignatureModal({
+            isOpen: true,
+            onSave: (dataUrl) => {
+                // The onSave from the child component will be wrapped
+                // to also close the modal from here.
+                onSave(dataUrl);
+                closeSignatureModal();
+            },
+            currentSignature
+        });
+    };
+
+    const closeSignatureModal = () => {
+        setSignatureModal({ isOpen: false, onSave: null, currentSignature: '' });
+    };
 
     const renderHeader = () => (
-        <div className="flex justify-between items-center border-b bg-white shadow-sm p-2">
+        <div className="relative z-10 flex justify-between items-center border-b bg-white shadow-sm p-2">
             {/* Tabs on the left */}
             <div className="flex">
                 {(user.role === 'dev' || user.role === 'admin') && (
@@ -61,10 +80,16 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
-                {activeTab === 'course' && <CourseScreen user={user} />}
-                {activeTab === 'candidate' && <CandidateScreen />}
+                {activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
+                {activeTab === 'candidate' && <CandidateScreen openSignatureModal={openSignatureModal} />}
             </div>
             {user.role === 'dev' && <DeveloperTools />}
+            <SignatureModal 
+                show={signatureModal.isOpen}
+                onClose={closeSignatureModal}
+                onSave={signatureModal.onSave}
+                signatureData={signatureModal.currentSignature}
+            />
         </div>
     );
 };
