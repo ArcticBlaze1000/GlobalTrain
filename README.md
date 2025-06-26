@@ -1,42 +1,67 @@
-# Global Train - Training Management System
+# Global Train - Dynamic Training Management System
 
-## Project Overview
+## Overview
 
-Global Train is a desktop application built with Electron and React, designed to streamline the management of training courses, trainees, and associated documentation. It provides a role-based system for administrators, trainers, and developers to manage the entire training lifecycle, from course creation to generating completion documents. A key feature of the application is its ability to create dynamic questionnaires and checklists for various training documents, and then generate PDFs from the completed forms.
+Global Train is a sophisticated desktop application built with **Electron and React**, designed to be the definitive solution for managing complex training programs. It provides a powerful, role-based system for administrators and trainers to handle the entire training lifecycle—from course creation and event scheduling to generating dynamic, data-driven PDF documents.
 
-## Tech Stack
+The core philosophy of this application is **flexibility through a database-driven UI**. Instead of hard-coding forms and checklists, Global Train uses a relational SQLite database to define every aspect of a document, allowing for rapid development and easy updates without ever touching the core application code.
 
-- **Framework:** Electron, React
-- **Bundler:** Vite
-- **Database:** SQLite
-- **Styling:** Tailwind CSS
-- **PDF Generation:** pdf-lib, Puppeteer
+---
 
-## Features
+## Key Features
 
-- **User Authentication:** Secure login system with role-based access control.
-- **Role-Based Views:** The interface adapts based on user roles (Admin, Trainer, Dev), showing relevant screens and actions.
-- **Course Management:** Create and manage training courses.
-- **Trainee Management:** Add and manage trainee information.
-- **Datapack Creation:** Group trainees, courses, and trainers into "datapacks" representing a specific training event.
-- **Dynamic Questionnaires:** The system uses a database-driven approach to generate forms and checklists for different training documents.
-- **PDF Generation:** Generate PDF documents from completed questionnaires and forms.
-- **User Management:** Admins can manage user accounts.
+-   **Role-Based Access Control (RBAC)**: A secure login system that tailors the user experience to the logged-in user's role.
+    -   **Admin/Dev**: Full access to all screens, including user management and system configuration.
+    -   **Trainer**: A focused view for managing their assigned training events and completing the necessary documentation.
 
-## Database Schema
+-   **Dynamic Event & Datapack Management**:
+    -   Create and manage **Courses** (e.g., PTS, COSS Initial).
+    -   Assign trainees and a trainer to a specific course instance, creating a **Datapack** that represents a unique training event.
 
-The application uses an SQLite database (`database.db`) to persist data. The schema is initialized by `init-db.js`.
+-   **Database-Driven Document Generation**:
+    -   The structure of all forms and checklists is defined in the database, not in the code. This allows for easy creation or modification of questionnaires on the fly.
+    -   Supports a wide variety of input types, from simple checkboxes and dropdowns to complex grids and digital signatures.
 
-- **`users`**: Stores user credentials and roles (`dev`, `admin`, `trainer`).
-- **`trainees`**: Manages information about individuals participating in training.
-- **`courses`**: Defines the available training courses.
-- **`documents`**: Lists the types of documents that can be generated (e.g., Register, Checklist).
-- **`questionnaires`**: Holds the structure for dynamic forms (questions, sections, input types) associated with each document.
-- **`questionnaire_options`**: Stores options for dropdowns in the questionnaires.
-- **`datapack`**: Represents a specific training instance, linking a course, trainer, and trainees.
-- **`responses`**: Saves the answers submitted for each questionnaire within a datapack.
+-   **Scoped Documentation**:
+    -   Documents can be scoped to either a **Course** or a **Candidate**.
+    -   `Course` documents apply to the entire training event (e.g., Attendance Register).
+    -   `Candidate` documents are specific to an individual trainee (e.g., Pre-Course Assessment, Leaving Form), allowing for personalized tracking.
 
-## Project Structure
+-   **Conditional UI & Smart Forms**:
+    -   The user interface intelligently adapts to user input. For example, the "Leaving Form" only becomes available if a trainer marks a candidate as "Leaving," keeping the UI clean and context-aware.
+
+-   **Persistent & Real-Time Progress Tracking**:
+    -   The completion percentage for each course document is calculated and displayed in real-time.
+    -   This progress state persists across navigation, giving trainers an at-a-glance overview of what's outstanding.
+
+-   **Automated PDF Generation**:
+    -   Generate professional, pixel-perfect PDF documents from completed forms with the click of a button.
+    -   Uses a powerful template-based system to ensure all generated documents are consistent and accurate.
+
+-   **Non-Blocking UI Feedback**:
+    -   User feedback, such as login errors, is displayed through non-blocking inline messages, creating a smooth and seamless user experience without disruptive pop-ups.
+
+---
+
+## System Architecture
+
+### Database Schema
+
+The application's flexibility comes from its relational SQLite database (`database.db`). The schema is the blueprint for the entire application's functionality.
+
+| Table                 | Description                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`               | Stores user credentials and roles (`dev`, `admin`, `trainer`).                                                                           |
+| `courses`             | Defines available training courses and links them to their required document IDs.                                                        |
+| `trainees`            | Manages information for all individuals participating in training.                                                                       |
+| `datapack`            | The core table representing a training event. It links a `course`, a `trainer`, and a set of `trainees`.                                 |
+| `documents`           | Lists all document types. The `scope` column ('course' or 'candidate') is critical for determining a document's context.                 |
+| `questionnaires`      | **The heart of the dynamic UI.** Defines the sections, questions, and input types for every document.                                    |
+| `questionnaire_options` | Stores the available options for any dropdown-style questions in the `questionnaires` table.                                           |
+| `responses`           | Stores all submitted data. The `trainee_ids` column specifies which trainee(s) a response belongs to, enabling candidate-scoped tracking. |
+| `competencies`        | A list of professional competencies that can be assessed.                                                                                |
+
+### Project Structure
 
 ```
 global-train/
@@ -46,46 +71,22 @@ global-train/
 |   |-- main.js         # Electron main process
 |   |-- preload.js      # Electron preload script
 |   |-- renderer/       # React application source
-|   |   |-- components/ # React components
-|   |   |-- context/    # React context providers
+|   |   |-- components/ # React components for screens, forms, and UI elements
+|   |   |-- context/    # React context providers for global state (e.g., active event)
 |   |   |-- App.jsx     # Main React app component
-|   |   `-- index.css   # Main stylesheet
+|   |   `-- index.css   # Main stylesheet for Tailwind CSS
 |-- package.json        # Project metadata and dependencies
 `-- README.md           # This file
 ```
 
-## Component Breakdown
-
-The core of the application is built around a few key React components.
-
-### Main Components
-- **`App.jsx`**: The root component. It handles the login state and renders either the `LoginScreen` or the `Dashboard`.
-- **`LoginScreen.jsx`**: Provides the user interface for authentication.
-- **`Dashboard.jsx`**: The main container after login. It features a tab-based navigation that displays different screens based on the user's role.
-
-### Screens
-The `Dashboard` renders one of the following screens based on the active tab:
-
-- **`CreationScreen.jsx`**: (Admin/Dev only) Likely used for creating new courses, users, or datapacks.
-- **`CourseScreen.jsx`**: Displays information about courses and datapacks. This is the main view for trainers.
-- **`CandidateScreen.jsx`**: Displays and manages trainee information.
-- **`UsersScreen.jsx`**: (Admin/Dev only) Used for managing application users.
-
-### Form and PDF Generation
-- **`Register/`**, **`TrainingAndWeldingTrackSafetyBreifing/`**, **`TrainingCourseChecklist/`**: These folders contain components related to specific documents.
-    - **`Form.jsx`**: Renders the dynamic questionnaire for that document type.
-    - **`PDFGenerator.jsx`**: Contains the logic to generate a PDF from the form data.
-    - **`Template.jsx`**: A template for the PDF structure.
-
-### Common Components
-- **`common/`**: Contains reusable components like `Dropdown.jsx`, a generic `PDFGenerator.jsx`, and `QuestionnaireForm.jsx`.
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js
-- npm
+-   Node.js
+-   npm
 
 ### Installation & Running
 
@@ -101,20 +102,17 @@ The `Dashboard` renders one of the following screens based on the active tab:
     ```
 
 3.  **Initialize the database:**
-    This script will create `database.db` if it doesn't exist and seed it with initial data.
+    This script creates `database.db` and seeds it with initial data. Run this anytime you need to reset the database.
     ```sh
     npm run db:init
     ```
 
 4.  **Run the application in development mode:**
-    This will start the Vite dev server for the React app and launch the Electron application.
     ```sh
     npm run dev
     ```
 
 ### Building the Application
 
-To package the application for distribution, you can use the following scripts:
-
--   `npm run package`: Packages the app without creating an installer.
--   `npm run make`: Creates an installer for your platform. 
+-   `npm run package`: Packages the app for your current platform without creating an installer.
+-   `npm run make`: Creates a native installer for your current platform. 
