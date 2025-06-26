@@ -27,6 +27,13 @@ const CandidateScreen = () => {
         console.log(`Progress for doc ${documentId}: ${percentage}%`);
     }, []);
 
+    const filteredDocuments = documents.filter(doc => {
+        if (doc.name === 'Leaving Form') {
+            return isLeaving;
+        }
+        return true;
+    });
+
     // Effect to fetch candidates when the active event changes
     useEffect(() => {
         const fetchTraineesForEvent = async () => {
@@ -74,6 +81,12 @@ const CandidateScreen = () => {
         };
         fetchDocuments();
     }, [activeEvent]);
+
+    useEffect(() => {
+        if (!isLeaving && selectedDocument?.name === 'Leaving Form') {
+            setSelectedDocument(null);
+        }
+    }, [isLeaving, selectedDocument]);
 
     // Effect to fetch details when a candidate is selected
     useEffect(() => {
@@ -212,8 +225,8 @@ const CandidateScreen = () => {
             <div className="w-[15%] bg-white p-6 border-r">
                 <h2 className="text-xl font-bold mb-6">Required Docs</h2>
                 {selectedCandidateId ? (
-                    documents.length > 0 ? (
-                        renderDocList(documents, selectedDocument, handleDocClick)
+                    filteredDocuments.length > 0 ? (
+                        renderDocList(filteredDocuments, selectedDocument, handleDocClick)
                     ) : (
                         <p className="p-4 text-gray-500">No documents required for this candidate.</p>
                     )
