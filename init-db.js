@@ -41,7 +41,7 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1,2,3,4,5' }, 
+    { name: 'PTS', doc_ids: '1,2,3,4,5,6' }, 
     { name: 'PTS Reset', doc_ids: '1,2' }, 
     { name: 'COSS Initial', doc_ids: '1,2' }
 ];
@@ -50,7 +50,8 @@ const documentsToSeed = [
     { name: 'TrainingCourseChecklist', scope: 'course' },
     { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course' },
     { name: 'Pre Course', scope: 'candidate' },
-    { name: 'Post Course', scope: 'candidate' }
+    { name: 'Post Course', scope: 'candidate' },
+    { name: 'Leaving Form', scope: 'candidate' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)

@@ -4,6 +4,7 @@ import Dropdown from './common/Dropdown';
 import QuestionnaireForm from './common/QuestionnaireForm';
 import PreCourseForm from './PreCourse/Form';
 import PostCourseForm from './PostCourse/Form';
+import LeavingForm from './LeavingForm/Form';
 
 const CandidateScreen = () => {
     // Shared state from context
@@ -152,6 +153,8 @@ const CandidateScreen = () => {
                 return <PreCourseForm {...props} />;
             case 'Post Course':
                 return <PostCourseForm {...props} />;
+            case 'Leaving Form':
+                return <LeavingForm {...props} />;
             default:
                 // Fallback for any other document that might not have a specific form
                 return <QuestionnaireForm {...props} />;
