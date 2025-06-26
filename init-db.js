@@ -86,26 +86,26 @@ const questionnairesToSeed = [
 
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'checkbox', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Trainer Capability (Sentinel)', input_type: 'checkbox', field_name: 'tc_sentinel', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Course Attendance Form (Ensure NWR Toolkit Red are completed)', input_type: 'checkbox', field_name: 'caf_nwr', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Progress Record', input_type: 'checkbox', field_name: 'progress_record', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval', input_type: 'checkbox', field_name: 'sponsorship_approval', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Booking Form', input_type: 'checkbox', field_name: 'booking_form', access: 'admin', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Joining Instructions', input_type: 'checkbox', field_name: 'joining_instructions', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Practical Track Visit Briefing Forms and SWP', input_type: 'checkbox', field_name: 'track_visit_swp', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Notification Report', input_type: 'checkbox', field_name: 'sentinel_notification', access: 'admin', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Sepite in Reports', input_type: 'checkbox', field_name: 'sentinel_reports', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Issued/Updated log books', input_type: 'checkbox', field_name: 'log_books', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Trainer Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'tc_sentinel', access: 'admin', has_comments: 'YES'  },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Course Attendance Form (Ensure NWR Toolkit Red are completed)', input_type: 'tri_toggle', field_name: 'caf_nwr', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Progress Record', input_type: 'tri_toggle', field_name: 'progress_record', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval', input_type: 'tri_toggle', field_name: 'sponsorship_approval', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Booking Form', input_type: 'tri_toggle', field_name: 'booking_form', access: 'admin', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Joining Instructions', input_type: 'tri_toggle', field_name: 'joining_instructions', access: 'admin', has_comments: 'YES'  },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Practical Track Visit Briefing Forms and SWP', input_type: 'tri_toggle', field_name: 'track_visit_swp', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Notification Report', input_type: 'tri_toggle', field_name: 'sentinel_notification', access: 'admin', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Sepite in Reports', input_type: 'tri_toggle', field_name: 'sentinel_reports', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Issued/Updated log books', input_type: 'tri_toggle', field_name: 'log_books', access: 'trainer', has_comments: 'YES' },
     // -- LEARNER PACKS --
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Delegate ID Form', input_type: 'checkbox', field_name: 'delegate_id', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Candidate Sentinel Printout', input_type: 'checkbox', field_name: 'candidate_sentinel', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Log books entries, electronic, paper', input_type: 'checkbox', field_name: 'log_book_entries', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Learner Questionnaire and Feedback Form', input_type: 'checkbox', field_name: 'feedback_form', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'checkbox', field_name: 'course_docs', access: 'trainer', has_comments: 'YES'  },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'checkbox', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'checkbox', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'checkbox', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' }
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Delegate ID Form', input_type: 'tri_toggle', field_name: 'delegate_id', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Candidate Sentinel Printout', input_type: 'tri_toggle', field_name: 'candidate_sentinel', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Log books entries, electronic, paper', input_type: 'tri_toggle', field_name: 'log_book_entries', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Learner Questionnaire and Feedback Form', input_type: 'tri_toggle', field_name: 'feedback_form', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'tri_toggle', field_name: 'course_docs', access: 'trainer', has_comments: 'YES'  },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' }
 ];
 
 const checklistQuestionFieldNames = questionnairesToSeed

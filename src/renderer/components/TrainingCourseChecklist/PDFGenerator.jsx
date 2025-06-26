@@ -8,7 +8,7 @@ export const generateChecklistPdf = async (datapackId) => {
     }
 
     try {
-        // 1. Fetch all necessary data from the database
+        // Fetch all necessary data from the database
         const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
         if (!datapack) throw new Error("Datapack not found.");
 
@@ -16,33 +16,43 @@ export const generateChecklistPdf = async (datapackId) => {
         const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
         
         const document = (await window.db.query('SELECT * FROM documents WHERE name = ?', ['TrainingCourseChecklist']))[0];
-        const responses = await window.db.query('SELECT field_name, additional_comments FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, document.id]);
+        
+        // Fetch all questions for the checklist
+        const allQuestions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ? ORDER BY id', [document.id]);
+        
+        // Fetch all responses for the checklist
+        const allResponses = await window.db.query('SELECT field_name, response_data, additional_comments FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, document.id]);
 
-        const commentsMap = responses.reduce((acc, res) => {
-            if (res.additional_comments) {
-                acc[res.field_name] = res.additional_comments;
-            }
+        const responsesMap = allResponses.reduce((acc, res) => {
+            acc[res.field_name] = res;
             return acc;
         }, {});
 
-        // 2. Get the correct CSS path for styling
+        // Filter out questions where the response was 'no'
+        const visibleQuestions = allQuestions.filter(q => {
+            const response = responsesMap[q.field_name];
+            return response?.response_data !== 'no';
+        });
+
+        // Get the correct CSS path for styling
         const cssPath = await window.electron.getCssPath();
 
-        // 3. Prepare props for the template
+        // Prepare props for the template
         const templateProps = {
             courseName: course?.name || 'N/A',
             trainerName: trainer ? `${trainer.forename} ${trainer.surname}` : 'N/A',
             courseDate: new Date(datapack.start_date).toLocaleDateString('en-GB'),
             cssPath: cssPath,
-            comments: commentsMap,
+            questions: visibleQuestions,
+            responses: responsesMap,
         };
 
-        // 4. Render the React component to an HTML string
+        // Render the React component to an HTML string
         const htmlContent = ReactDOMServer.renderToStaticMarkup(
             <Template {...templateProps} />
         );
 
-        // 5. Send the HTML to the main process for PDF generation
+        // Send the HTML to the main process for PDF generation
         await window.electron.generatePdfFromHtml(htmlContent, datapack.id, { landscape: false });
 
     } catch (error) {

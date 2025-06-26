@@ -1,17 +1,17 @@
 import React from 'react';
 
-const ChecklistSection = ({ title, items, comments, fieldNames }) => {
+const ChecklistSection = ({ title, questions, responses }) => {
     return (
         <>
             <tr>
                 <th colSpan="3" className="p-2 text-left bg-gray-200 border-b border-black">{title}</th>
             </tr>
-            {items.map((item, index) => {
-                const fieldName = fieldNames[index];
-                const comment = comments[fieldName] || '';
+            {questions.map((question) => {
+                const response = responses[question.field_name] || {};
+                const comment = response.additional_comments || '';
                 return (
-                    <tr key={index} className="divide-x divide-black h-8">
-                        <td className="p-2 border-r border-black w-[40%] text-xs">{item}</td>
+                    <tr key={question.id} className="divide-x divide-black h-8">
+                        <td className="p-2 border-r border-black w-[40%] text-xs">{question.question_text}</td>
                         <td className="p-2 text-center border-r border-black w-[10%]">✓</td>
                         <td className="p-2 w-[50%] text-xs">{comment}</td>
                     </tr>
@@ -21,44 +21,9 @@ const ChecklistSection = ({ title, items, comments, fieldNames }) => {
     );
 };
 
-const Template = ({ courseName, trainerName, courseDate, cssPath, comments }) => {
-    const preCourseChecks = {
-        items: [
-            'Global Train Capability (Sentinel)',
-            'Trainer Capability (Sentinel)',
-            'Course Attendance Form (Ensure NWR Toolkit Red are completed)',
-            'Progress Record',
-            'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval',
-            'Booking Form',
-            'Joining Instructions',
-            'Practical Track Visit Briefing Forms and SWP',
-            'Sentinel Notification Report',
-            'Sentinel Sepite in Reports',
-            'Issued/Updated log books'
-        ],
-        fieldNames: [
-            'gtc_sentinel', 'tc_sentinel', 'caf_nwr', 'progress_record',
-            'sponsorship_approval', 'booking_form', 'joining_instructions',
-            'track_visit_swp', 'sentinel_notification', 'sentinel_reports', 'log_books'
-        ]
-    };
-    
-    const learnerPacks = {
-        items: [
-            'Delegate ID Form',
-            'Candidate Sentinel Printout',
-            'Log books entries, electronic, paper',
-            'Learner Questionnaire and Feedback Form',
-            'Course Documentation',
-            'Post Course Training / Assessment Cycle (all Sentinel Courses)',
-            'Certificate of Competence (all Sentinel Courses)',
-            'Issued Certificate/s'
-        ],
-        fieldNames: [
-            'delegate_id', 'candidate_sentinel', 'log_book_entries', 'feedback_form',
-            'course_docs', 'assessment_cycle', 'cert_of_competence', 'issued_certs'
-        ]
-    };
+const Template = ({ courseName, trainerName, courseDate, cssPath, questions, responses }) => {
+    const preCourseChecks = questions.filter(q => q.section === 'PRE COURSE CHECKS');
+    const learnerPacks = questions.filter(q => q.section === 'LEARNER PACKS');
 
     return (
         <html>
@@ -94,15 +59,13 @@ const Template = ({ courseName, trainerName, courseDate, cssPath, comments }) =>
                         <tbody className="divide-y divide-black">
                             <ChecklistSection 
                                 title="PRE COURSE CHECKS" 
-                                items={preCourseChecks.items} 
-                                comments={comments} 
-                                fieldNames={preCourseChecks.fieldNames} 
+                                questions={preCourseChecks} 
+                                responses={responses}
                             />
                             <ChecklistSection 
                                 title="LEARNER PACKS" 
-                                items={learnerPacks.items} 
-                                comments={comments} 
-                                fieldNames={learnerPacks.fieldNames} 
+                                questions={learnerPacks}
+                                responses={responses}
                             />
                         </tbody>
                     </table>

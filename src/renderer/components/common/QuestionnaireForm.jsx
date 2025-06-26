@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import SignatureModal from './SignatureModal';
+import TriToggleButton from './TriToggleButton';
 
 // Helper function to determine if the user can edit a specific question
 const canUserEdit = (questionAccess, userRole) => {
@@ -124,11 +125,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                 if (response.length === 0) {
                     const traineeIdsForResponse = documentDetails.scope === 'candidate' ? String(selectedTraineeId) : eventDetails.trainee_ids;
+                    const initialData = q.input_type === 'tri_toggle' ? 'neutral' : '';
                     await window.db.run(
                         'INSERT INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        [datapackId, documentId, traineeIdsForResponse, q.field_name, '', 0, '']
+                        [datapackId, documentId, traineeIdsForResponse, q.field_name, initialData, 0, '']
                     );
-                    response = [{ response_data: '', completed: 0, additional_comments: '' }];
+                    response = [{ response_data: initialData, completed: 0, additional_comments: '' }];
                 }
                 
                 const responseData = response[0].response_data;
@@ -138,6 +140,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 let parsedData;
                 if (q.input_type === 'checkbox') {
                     parsedData = responseData === 'true';
+                } else if (q.input_type === 'tri_toggle') {
+                    parsedData = responseData;
                 } else if (q.input_type === 'attendance_grid' || q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid' || q.input_type === 'competency_grid' || q.input_type === 'trainee_yes_no_grid' || q.input_type === 'signature_grid') {
                     try {
                         parsedData = responseData ? JSON.parse(responseData) : {};
@@ -186,12 +190,18 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     }, [debouncedSave, debouncedCommentSave]);
 
     const handleInputChange = (fieldName, value, inputType) => {
-        const isComplete = inputType === 'checkbox' ? value : !!String(value).trim();
+        let isComplete;
+        if (inputType === 'tri_toggle') {
+            isComplete = value !== 'neutral';
+        } else {
+            isComplete = inputType === 'checkbox' ? value : !!String(value).trim();
+        }
+
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: value, completed: isComplete } };
         setResponses(newResponses);
+
         const valueToSave = inputType === 'checkbox' ? String(value) : value;
         debouncedSave(fieldName, valueToSave, isComplete);
-        debouncedSave.flush();
     };
 
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
@@ -591,6 +601,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                         <option key={opt} value={opt}>{opt}</option>
                                                     ))}
                                                 </select>
+                                            )}
+                                            {q.input_type === 'tri_toggle' && (
+                                                <TriToggleButton
+                                                    value={responses[q.field_name]?.data || 'neutral'}
+                                                    onChange={newValue => handleInputChange(q.field_name, newValue, q.input_type)}
+                                                />
                                             )}
                                         </div>
                                     </div>
