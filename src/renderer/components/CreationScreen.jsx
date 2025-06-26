@@ -29,7 +29,7 @@ const CreationScreen = () => {
     // Adjust the trainee details array when the number of trainees changes
     useEffect(() => {
         const newTraineeDetails = Array.from({ length: numTrainees }, (_, i) =>
-            traineeDetails[i] || { forename: '', surname: '', sponsor: '', sentry_number: '' }
+            traineeDetails[i] || { forename: '', surname: '', sponsor: '', sentry_number: '', has_comments: false, additional_comments: '' }
         );
         setTraineeDetails(newTraineeDetails);
     }, [numTrainees]);
@@ -62,8 +62,8 @@ const CreationScreen = () => {
             for (const trainee of traineeDetails) {
                 if (trainee.forename && trainee.surname) { // Only insert if name is provided
                     const result = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)',
-                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number]
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments) VALUES (?, ?, ?, ?, ?)',
+                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments]
                     );
                     insertedTraineeIds.push(result.lastID);
                 }
@@ -144,23 +144,46 @@ const CreationScreen = () => {
                     <h3 className="text-lg font-bold text-gray-800 mb-4">Candidate Details</h3>
                     <div className="space-y-4">
                         {traineeDetails.map((trainee, index) => (
-                            <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50">
-                                <input
-                                    type="text" placeholder={`Forename ${index + 1}`} value={trainee.forename}
-                                    onChange={e => handleTraineeDetailChange(index, 'forename', e.target.value)} className="p-2 border rounded-md"
-                                />
-                                <input
-                                    type="text" placeholder="Surname" value={trainee.surname}
-                                    onChange={e => handleTraineeDetailChange(index, 'surname', e.target.value)} className="p-2 border rounded-md"
-                                />
-                                <input
-                                    type="text" placeholder="Sponsor" value={trainee.sponsor}
-                                    onChange={e => handleTraineeDetailChange(index, 'sponsor', e.target.value)} className="p-2 border rounded-md"
-                                />
-                                <input
-                                    type="text" placeholder="Sentry Number" value={trainee.sentry_number}
-                                    onChange={e => handleTraineeDetailChange(index, 'sentry_number', e.target.value)} className="p-2 border rounded-md"
-                                />
+                            <div key={index} className="p-4 border rounded-md bg-gray-50">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <input
+                                        type="text" placeholder={`Forename ${index + 1}`} value={trainee.forename}
+                                        onChange={e => handleTraineeDetailChange(index, 'forename', e.target.value)} className="p-2 border rounded-md"
+                                    />
+                                    <input
+                                        type="text" placeholder="Surname" value={trainee.surname}
+                                        onChange={e => handleTraineeDetailChange(index, 'surname', e.target.value)} className="p-2 border rounded-md"
+                                    />
+                                    <input
+                                        type="text" placeholder="Sponsor" value={trainee.sponsor}
+                                        onChange={e => handleTraineeDetailChange(index, 'sponsor', e.target.value)} className="p-2 border rounded-md"
+                                    />
+                                    <input
+                                        type="text" placeholder="Sentry Number" value={trainee.sentry_number}
+                                        onChange={e => handleTraineeDetailChange(index, 'sentry_number', e.target.value)} className="p-2 border rounded-md"
+                                    />
+                                </div>
+                                <div className="mt-2 flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id={`other-checkbox-${index}`}
+                                        checked={trainee.has_comments}
+                                        onChange={e => handleTraineeDetailChange(index, 'has_comments', e.target.checked)}
+                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <label htmlFor={`other-checkbox-${index}`} className="ml-2 text-sm text-gray-900">Other</label>
+                                </div>
+                                {trainee.has_comments && (
+                                    <div className="mt-2">
+                                        <textarea
+                                            placeholder="Enter any additional comments here..."
+                                            value={trainee.additional_comments}
+                                            onChange={e => handleTraineeDetailChange(index, 'additional_comments', e.target.value)}
+                                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                                            rows="2"
+                                        ></textarea>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

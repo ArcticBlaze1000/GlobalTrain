@@ -146,6 +146,12 @@ const CandidateScreen = ({ openSignatureModal }) => {
                             <p className="text-lg font-semibold">{selectedCandidateDetails.sentry_number}</p>
                         </div>
                     </div>
+                    {selectedCandidateDetails.additional_comments && (
+                        <div className="mt-4 pt-4 border-t">
+                            <p className="text-sm font-medium text-gray-500">Additional Comments</p>
+                            <p className="text-base whitespace-pre-wrap">{selectedCandidateDetails.additional_comments}</p>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="flex items-center justify-center h-full bg-white rounded-lg shadow-md">
@@ -259,10 +265,16 @@ const CandidateScreen = ({ openSignatureModal }) => {
                                 <p className="text-lg font-semibold">{selectedCandidateDetails.sentry_number}</p>
                             </div>
                         </div>
+                        {selectedCandidateDetails.additional_comments && (
+                            <div className="mt-4 pt-4 border-t">
+                                <p className="text-sm font-medium text-gray-500">Additional Comments</p>
+                                <p className="text-base whitespace-pre-wrap">{selectedCandidateDetails.additional_comments}</p>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center h-full bg-white rounded-lg shadow-md">
-                         <p className="text-gray-500">Select a candidate to view their details.</p>
+                        <p className="text-gray-500">Select a candidate to view their details.</p>
                     </div>
                 )}
             </div>

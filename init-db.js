@@ -13,7 +13,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // --- Schema Definition ---
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
-    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
+    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
@@ -197,6 +197,13 @@ db.serialize(() => {
     const competencyStmt = db.prepare(`INSERT INTO competencies (name) VALUES (?)`);
     competenciesToSeed.forEach(c => competencyStmt.run(c.name));
     competencyStmt.finalize();
+
+    // Add comments to 5 random trainees
+    db.run("UPDATE trainees SET additional_comments = 'Requires extra support with reading.' WHERE id = 1");
+    db.run("UPDATE trainees SET additional_comments = 'Has a slight hearing impairment.' WHERE id = 3");
+    db.run("UPDATE trainees SET additional_comments = 'Allergic to nuts.' WHERE id = 5");
+    db.run("UPDATE trainees SET additional_comments = 'Anxious in group settings.' WHERE id = 7");
+    db.run("UPDATE trainees SET additional_comments = 'Colour-blind (red-green).' WHERE id = 9");
 });
 
 // Chain course and datapack seeding to run after the initial seeding
