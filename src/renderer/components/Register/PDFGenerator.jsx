@@ -18,8 +18,7 @@ export const generateRegisterPdf = async (datapackId) => {
         const traineeIds = datapack.trainee_ids.split(',');
         const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
 
-        const competencyIds = course.competency_ids.split(',');
-        const competencies = await window.db.query(`SELECT * FROM competencies WHERE id IN (${competencyIds.map(() => '?').join(',')})`, competencyIds);
+        const competencies = await window.db.query('SELECT * FROM competencies');
 
         const registerDoc = (await window.db.query('SELECT id FROM documents WHERE name = ?', ['Register']))[0];
         const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, registerDoc.id]);
@@ -31,13 +30,13 @@ export const generateRegisterPdf = async (datapackId) => {
 
         // Calculate successful trainees
         let successfulTraineesCount = 0;
-        const passOrFailResponse = responsesMap['pass_or_fail'];
+        const passOrFailResponse = responsesMap['final_result'];
         if (passOrFailResponse) {
             try {
                 const passOrFailData = JSON.parse(passOrFailResponse);
-                successfulTraineesCount = Object.values(passOrFailData).filter(status => status === 'Pass').length;
+                successfulTraineesCount = Object.values(passOrFailData).filter(status => status === 'Competent').length;
             } catch (e) {
-                console.error('Failed to parse pass_or_fail data in PDFGenerator:', e);
+                console.error('Failed to parse final_result data in PDFGenerator:', e);
             }
         }
 

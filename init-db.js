@@ -15,7 +15,7 @@ const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT)` },
-    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)` },
+    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
@@ -31,6 +31,7 @@ const usersToSeed = [
     { forename: 'Mick', surname: 'Lamont', role: 'admin', username: 'mick', password: 'lamont' },
     { forename: 'George', surname: 'Penman', role: 'trainer', username: 'george', password: 'penman' },
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
+    { forename: 'Brenda', surname: 'Moore', role: 'admin', username: 'brenda', password: 'moore' },
 ];
 const competenciesToSeed = [
     { name: 'PTS' },
@@ -40,14 +41,16 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1,2,3' }, 
+    { name: 'PTS', doc_ids: '1,2,3,4,5' }, 
     { name: 'PTS Reset', doc_ids: '1,2' }, 
     { name: 'COSS Initial', doc_ids: '1,2' }
 ];
 const documentsToSeed = [
-    { name: 'Register' },
-    { name: 'TrainingCourseChecklist' },
-    { name: 'TrainingAndWeldingTrackSafetyBreifing' }
+    { name: 'Register', scope: 'course' },
+    { name: 'TrainingCourseChecklist', scope: 'course' },
+    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course' },
+    { name: 'Pre Course', scope: 'candidate' },
+    { name: 'Post Course', scope: 'candidate' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -76,9 +79,8 @@ const questionnairesToSeed = [
         access: 'trainer',
         has_comments: 'NO'
     })),
-
-    { document_id: 1, section: 'MAIN', question_text: 'Level of spoken English adequate', input_type: 'trainee_dropdown_grid', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
-    { document_id: 1, section: 'MAIN', question_text: 'Pass or Fail', input_type: 'trainee_dropdown_grid', field_name: 'pass_or_fail', access: 'trainer', has_comments: 'NO' },
+    { document_id: 1, section: 'HEADER', question_text: 'Level of spoken English adequate', input_type: 'trainee_dropdown_grid', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
+    { document_id: 1, section: 'MAIN', question_text: 'Final Result', input_type: 'trainee_dropdown_grid', field_name: 'final_result', access: 'trainer', has_comments: 'NO' },
     { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified Date', input_type: 'trainee_date_grid', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
 
     // TrainingCourseChecklist Questions (document_id = 2)
@@ -117,8 +119,8 @@ const questionnaireOptionsToSeed = [
     { question_field_name: 'resources', option_value: 'SHB' },
     { question_field_name: 'level_of_spoken_english_adequate', option_value: 'Yes' },
     { question_field_name: 'level_of_spoken_english_adequate', option_value: 'No' },
-    { question_field_name: 'pass_or_fail', option_value: 'Pass' },
-    { question_field_name: 'pass_or_fail', option_value: 'Fail' },
+    { question_field_name: 'final_result', option_value: 'Competent' },
+    { question_field_name: 'final_result', option_value: 'Not Competent' },
 ];
 
 // Add competency questions dynamically
@@ -134,8 +136,9 @@ competenciesToSeed.forEach(comp => {
         has_comments: 'NO'
     });
     questionnaireOptionsToSeed.push(
-        { question_field_name: field_name, option_value: 'Yes' },
-        { question_field_name: field_name, option_value: 'No' }
+        { question_field_name: field_name, option_value: 'Competent' },
+        { question_field_name: field_name, option_value: 'Not Competent' },
+        { question_field_name: field_name, option_value: 'Not Applicable' }
     );
 });
 
@@ -177,8 +180,8 @@ db.serialize(() => {
     usersToSeed.forEach(user => userStmt.run(Object.values(user)));
     userStmt.finalize();
 
-    const docStmt = db.prepare(`INSERT INTO documents (name) VALUES (?)`);
-    documentsToSeed.forEach(doc => docStmt.run(doc.name));
+    const docStmt = db.prepare(`INSERT INTO documents (name, scope) VALUES (?, ?)`);
+    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope));
     docStmt.finalize();
 
     const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
