@@ -1,10 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+
+const SortableHeader = ({ children, sortKey, currentSort, onSort }) => {
+    const isSorted = currentSort.key === sortKey;
+    const isAsc = isSorted && currentSort.direction === 'asc';
+    const isDesc = isSorted && currentSort.direction === 'desc';
+
+    return (
+        <th className="px-4 py-2 cursor-pointer" onClick={() => onSort(sortKey)}>
+            <div className="flex items-center">
+                {children}
+                <span className="ml-2">
+                    {isAsc && '▲'}
+                    {isDesc && '▼'}
+                    {!isSorted && '↕'}
+                </span>
+            </div>
+        </th>
+    );
+};
 
 const UsersScreen = ({ currentUser }) => {
     const [users, setUsers] = useState([]);
     const [forename, setForename] = useState('');
     const [surname, setSurname] = useState('');
     const [role, setRole] = useState('trainer'); // Default role for new user
+    const [sort, setSort] = useState({ key: 'id', direction: 'asc' });
 
     const fetchUsers = async () => {
         const allUsers = await window.db.query('SELECT id, forename, surname, role, username FROM users');
@@ -14,6 +34,43 @@ const UsersScreen = ({ currentUser }) => {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    const sortedUsers = useMemo(() => {
+        let sortableUsers = [...users];
+        if (sort.key) {
+            sortableUsers.sort((a, b) => {
+                const direction = sort.direction === 'asc' ? 1 : -1;
+
+                if (sort.key === 'role') {
+                    const roleOrder = { dev: 3, admin: 2, trainer: 1 };
+                    const aVal = roleOrder[a.role] || 0;
+                    const bVal = roleOrder[b.role] || 0;
+                    return (aVal - bVal) * direction;
+                }
+
+                // For other keys (id, forename, surname)
+                const aVal = a[sort.key];
+                const bVal = b[sort.key];
+
+                if (aVal < bVal) {
+                    return -1 * direction;
+                }
+                if (aVal > bVal) {
+                    return 1 * direction;
+                }
+                return 0;
+            });
+        }
+        return sortableUsers;
+    }, [users, sort]);
+
+    const handleSort = (key) => {
+        setSort(prevSort => {
+            const isSameKey = prevSort.key === key;
+            const direction = isSameKey && prevSort.direction === 'asc' ? 'desc' : 'asc';
+            return { key, direction };
+        });
+    };
 
     const handleAddUser = async (e) => {
         e.preventDefault();
@@ -78,16 +135,16 @@ const UsersScreen = ({ currentUser }) => {
                 <table className="w-full text-left table-auto">
                     <thead className="bg-gray-200">
                         <tr>
-                            <th className="px-4 py-2">ID</th>
-                            <th className="px-4 py-2">Forename</th>
-                            <th className="px-4 py-2">Surname</th>
-                            <th className="px-4 py-2">Role</th>
+                            <SortableHeader sortKey="id" currentSort={sort} onSort={handleSort}>ID</SortableHeader>
+                            <SortableHeader sortKey="forename" currentSort={sort} onSort={handleSort}>Forename</SortableHeader>
+                            <SortableHeader sortKey="surname" currentSort={sort} onSort={handleSort}>Surname</SortableHeader>
+                            <SortableHeader sortKey="role" currentSort={sort} onSort={handleSort}>Role</SortableHeader>
                             <th className="px-4 py-2">Username</th>
                             <th className="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map((user) => (
+                        {sortedUsers.map((user) => (
                             <tr key={user.id} className="border-b hover:bg-gray-50">
                                 <td className="px-4 py-2">{user.id}</td>
                                 <td className="px-4 py-2">{user.forename}</td>
