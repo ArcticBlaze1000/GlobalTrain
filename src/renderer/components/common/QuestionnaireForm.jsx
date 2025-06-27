@@ -14,23 +14,31 @@ const debounce = (func, delay) => {
     let timeout;
     let lastArgs;
 
+    const run = (args) => {
+        if (!args) return;
+        const result = func(...args);
+        if (result && typeof result.then === 'function') {
+            result.then(() => {
+                if (lastArgs === args) {
+                    lastArgs = null;
+                }
+            });
+        } else {
+            lastArgs = null;
+        }
+    };
+
     const debounced = (...args) => {
         lastArgs = args;
         clearTimeout(timeout);
         timeout = setTimeout(() => {
-            if (lastArgs) {
-                func(...lastArgs);
-                lastArgs = null;
-            }
+            run(lastArgs);
         }, delay);
     };
 
     debounced.flush = () => {
         clearTimeout(timeout);
-        if (lastArgs) {
-            func(...lastArgs);
-            lastArgs = null;
-        }
+        run(lastArgs);
     };
 
     return debounced;
@@ -703,6 +711,13 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     checked={!!responses[q.field_name]?.data}
                                                     onChange={(e) => handleInputChange(q.field_name, e.target.checked, q.input_type)}
                                                     className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'tri_toggle' && (
+                                                <TriToggleButton
+                                                    value={responses[q.field_name]?.data || 'neutral'}
+                                                    onChange={(newValue) => handleInputChange(q.field_name, newValue, q.input_type)}
                                                     disabled={!isEditable}
                                                 />
                                             )}
