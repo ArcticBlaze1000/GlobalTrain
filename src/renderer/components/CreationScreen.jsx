@@ -57,30 +57,46 @@ const CreationScreen = () => {
         }
 
         try {
-            // 1. Insert all trainees and collect their IDs
+            // 1. Insert the new datapack first, but without the trainee_ids, to get its ID
+            const datapackResult = await window.db.run(
+                'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)',
+                [courseId, trainerId, startDate, duration, numTrainees, ''] // trainee_ids is initially empty
+            );
+            const newDatapackId = datapackResult.lastID;
+
+            // 2. Insert all trainees, linking them to the new datapack ID
             const insertedTraineeIds = [];
             for (const trainee of traineeDetails) {
                 if (trainee.forename && trainee.surname) { // Only insert if name is provided
-                    const result = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments) VALUES (?, ?, ?, ?, ?)',
-                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments]
+                    const traineeResult = await window.db.run(
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
+                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, newDatapackId]
                     );
-                    insertedTraineeIds.push(result.lastID);
+                    insertedTraineeIds.push(traineeResult.lastID);
+
+                    // Also create a user account for the trainee
+                    try {
+                        const username = trainee.forename.toLowerCase();
+                        const password = trainee.surname.toLowerCase();
+                        await window.db.run(
+                            'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
+                            [trainee.forename, trainee.surname, 'candidate', username, password]
+                        );
+                    } catch (userError) {
+                        console.warn(`Could not create user for ${trainee.forename} ${trainee.surname}. It might already exist. Error: ${userError.message}`);
+                    }
                 }
             }
             
             if (insertedTraineeIds.length !== numTrainees) {
                 alert('Some trainees were not added because they were missing a forename or surname.');
-                // Decide if you want to continue or stop here
             }
 
-            // 2. Format trainee IDs into a comma-separated string
+            // 3. Now, update the datapack with the collected trainee IDs
             const traineeIdsString = insertedTraineeIds.join(',');
-
-            // 3. Insert the new datapack
             await window.db.run(
-                'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)',
-                [courseId, trainerId, startDate, duration, numTrainees, traineeIdsString]
+                'UPDATE datapack SET trainee_ids = ? WHERE id = ?',
+                [traineeIdsString, newDatapackId]
             );
 
             // 4. Show success and clear the form

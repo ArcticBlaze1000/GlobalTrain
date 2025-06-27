@@ -13,9 +13,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // --- Schema Definition ---
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
-    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT)` },
+    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT)` },
-    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT)` },
+    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
@@ -31,6 +31,17 @@ const usersToSeed = [
     { forename: 'George', surname: 'Penman', role: 'trainer', username: 'george', password: 'penman' },
     { forename: 'Stewart', surname: 'Roxburgh', role: 'trainer', username: 'stewart', password: 'roxburgh' },
     { forename: 'Brenda', surname: 'Moore', role: 'admin', username: 'brenda', password: 'moore' },
+    // --- Migrated Trainees ---
+    { forename: 'John', surname: 'Doe', role: 'candidate', username: 'johndoe', password: 'doe' },
+    { forename: 'Jane', surname: 'Smith', role: 'candidate', username: 'janesmith', password: 'smith' },
+    { forename: 'Jim', surname: 'Beam', role: 'candidate', username: 'jimbeam', password: 'beam' },
+    { forename: 'Jim', surname: 'Brown', role: 'candidate', username: 'jimbrown', password: 'brown' },
+    { forename: 'Alice', surname: 'Johnson', role: 'candidate', username: 'alicejohnson', password: 'johnson' },
+    { forename: 'Bob', surname: 'Williams', role: 'candidate', username: 'bobwilliams', password: 'williams' },
+    { forename: 'Eve', surname: 'Davis', role: 'candidate', username: 'evedavis', password: 'davis' },
+    { forename: 'Charlie', surname: 'Miller', role: 'candidate', username: 'charliemiller', password: 'miller' },
+    { forename: 'Grace', surname: 'Taylor', role: 'candidate', username: 'gracetaylor', password: 'taylor' },
+    { forename: 'Liam', surname: 'Anderson', role: 'candidate', username: 'liamanderson', password: 'anderson' }
 ];
 const competenciesToSeed = [
     { name: 'PTS' },
@@ -45,14 +56,14 @@ const coursesToSeed = [
     { name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5' }
 ];
 const documentsToSeed = [
-    { name: 'Register', scope: 'course' },
-    { name: 'TrainingCourseChecklist', scope: 'course' },
-    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course' },
-    { name: 'Pre Course', scope: 'candidate' },
-    { name: 'Post Course', scope: 'candidate' },
-    { name: 'LeavingForm', scope: 'candidate' },
-    { name: 'PhoneticQuiz', scope: 'candidate' },
-    { name: 'EmergencyPhoneCallExercise', scope: 'candidate' }
+    { name: 'Register', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer,candidate' },
+    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer,candidate' },
+    { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -127,15 +138,17 @@ const questionnairesToSeed = [
     { document_id: 3, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'briefing_trainer_signature', access: 'trainer', has_comments: 'NO' },
 
     // Pre-Course Questions (document_id = 4)
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Gender', input_type: 'dropdown', field_name: 'pre_gender', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Age', input_type: 'dropdown', field_name: 'pre_age', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Nationality', input_type: 'dropdown', field_name: 'pre_nationality', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Ethnicity', input_type: 'dropdown', field_name: 'pre_ethnicity', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Gender', input_type: 'dropdown', field_name: 'pre_gender', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Age', input_type: 'dropdown', field_name: 'pre_age', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Nationality', input_type: 'dropdown', field_name: 'pre_nationality', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Ethnicity', input_type: 'dropdown', field_name: 'pre_ethnicity', access: 'candidate', has_comments: 'NO' },
     
-    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any disabilities or health issues that you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_disabilities_q', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_disabilities_details', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any learning difficulties you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_learning_difficulties_q', access: 'trainer', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_learning_difficulties_details', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any disabilities or health issues that you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_disabilities_q', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_disabilities_details', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any learning difficulties you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_learning_difficulties_q', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_learning_difficulties_details', access: 'candidate', has_comments: 'NO' },
+
+    { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'candidate', has_comments: 'NO' },
 
     { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'trainer', has_comments: 'NO' },
 
@@ -192,16 +205,16 @@ competenciesToSeed.forEach(comp => {
 });
 
 const traineesToSeed = [
-    { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456' }, 
-    { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321' },
-    { forename: 'Jim', surname: 'Beam', sponsor: 'SWGR', sentry_number: '123456' },
-    { forename: 'Jim', surname: 'Brown', sponsor: 'SWGR', sentry_number: '123456' },
-    { forename: 'Alice', surname: 'Johnson', sponsor: 'Network Rail', sentry_number: '987654' },
-    { forename: 'Bob', surname: 'Williams', sponsor: 'Babcock', sentry_number: '456789' },
-    { forename: 'Eve', surname: 'Davis', sponsor: 'SWGR', sentry_number: '321654' },
-    { forename: 'Charlie', surname: 'Miller', sponsor: 'Siemens', sentry_number: '789123' },
-    { forename: 'Grace', surname: 'Taylor', sponsor: 'Amey', sentry_number: '147258' },
-    { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369' }
+    { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456', datapack: 1 }, 
+    { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321', datapack: 2 },
+    { forename: 'Jim', surname: 'Beam', sponsor: 'SWGR', sentry_number: '123456', datapack: 2 },
+    { forename: 'Jim', surname: 'Brown', sponsor: 'SWGR', sentry_number: '123456', datapack: 2 },
+    { forename: 'Alice', surname: 'Johnson', sponsor: 'Network Rail', sentry_number: '987654', datapack: 3 },
+    { forename: 'Bob', surname: 'Williams', sponsor: 'Babcock', sentry_number: '456789', datapack: 3 },
+    { forename: 'Eve', surname: 'Davis', sponsor: 'SWGR', sentry_number: '321654', datapack: 4 },
+    { forename: 'Charlie', surname: 'Miller', sponsor: 'Siemens', sentry_number: '789123', datapack: 4 },
+    { forename: 'Grace', surname: 'Taylor', sponsor: 'Amey', sentry_number: '147258', datapack: 5 },
+    { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369', datapack: 5 }
 ];
 const datapackToSeed = [
     { course_id: 1, trainer_id: 3, start_date: '2025-08-01', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
@@ -229,8 +242,8 @@ db.serialize(() => {
     usersToSeed.forEach(user => userStmt.run(Object.values(user)));
     userStmt.finalize();
 
-    const docStmt = db.prepare(`INSERT INTO documents (name, scope) VALUES (?, ?)`);
-    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope));
+    const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible) VALUES (?, ?, ?)`);
+    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible));
     docStmt.finalize();
 
     const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -241,7 +254,7 @@ db.serialize(() => {
     questionnaireOptionsToSeed.forEach(option => questionnaireOptionsStmt.run(Object.values(option)));
     questionnaireOptionsStmt.finalize();
 
-    const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number) VALUES (?, ?, ?, ?)`);
+    const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number, datapack) VALUES (?, ?, ?, ?, ?)`);
     traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));
     traineeStmt.finalize();
 

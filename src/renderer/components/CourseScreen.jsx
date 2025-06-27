@@ -61,8 +61,12 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             const docIds = course[0]?.doc_ids?.split(',');
 
             if (docIds && docIds[0] !== '') {
+                // Filter documents based on the 'visible' column for the user's role.
                 const placeholders = docIds.map(() => '?').join(',');
-                const docs = await window.db.query(`SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course'`, docIds);
+                const docs = await window.db.query(
+                    `SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course' AND visible LIKE ?`,
+                    [...docIds, `%${user.role}%`]
+                );
                 setDocuments(docs);
                 
                 // Fetch all data needed for calculation up front
@@ -127,7 +131,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
         fetchDocumentsAndProgress();
         setSelectedDoc(null); // Reset doc selection when event changes
-    }, [activeEvent]);
+    }, [activeEvent, user.role]);
 
     const handleEventClick = (event) => {
         setActiveEvent(event);

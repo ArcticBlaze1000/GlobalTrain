@@ -25,7 +25,6 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
 
     // State for form controls
     const [selectedCandidateId, setSelectedCandidateId] = useState('');
-    const [selectedFolder, setSelectedFolder] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [docProgress, setDocProgress] = useState({});
@@ -84,9 +83,11 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             
             if (docIdsResult.length > 0) {
                 const ids = docIdsResult[0].doc_ids.split(',');
+
+                // Filter documents based on the 'visible' column for the user's role.
                 const docs = await window.db.query(
-                    `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate'`,
-                    [...ids]
+                    `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate' AND visible LIKE ?`,
+                    [...ids, `%${user.role}%`]
                 );
                 setDocuments(docs);
 
@@ -139,7 +140,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         };
 
         fetchDocumentsAndProgress();
-    }, [activeEvent, selectedCandidateId]);
+    }, [activeEvent, selectedCandidateId, user.role]);
 
     useEffect(() => {
         if (!isLeaving && selectedDocument?.name === 'Leaving Form') {
