@@ -98,6 +98,14 @@ const LoginScreen = ({ onLogin }) => {
                         </button>
                     </div>
                 </form>
+                <div className="text-center">
+                    <button
+                        onClick={() => window.electron.quitApp()}
+                        className="px-4 py-2 text-sm text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    >
+                        Exit
+                    </button>
+                </div>
             </div>
         </div>
     );

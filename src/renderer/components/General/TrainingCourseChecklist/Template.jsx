@@ -21,7 +21,7 @@ const ChecklistSection = ({ title, questions, responses }) => {
     );
 };
 
-const Template = ({ courseName, trainerName, courseDate, cssPath, questions, responses }) => {
+const Template = ({ courseName, trainerName, courseDate, cssPath, logoBase64, questions, responses }) => {
     const preCourseChecks = questions.filter(q => q.section === 'PRE COURSE CHECKS');
     const learnerPacks = questions.filter(q => q.section === 'LEARNER PACKS');
 
@@ -33,11 +33,10 @@ const Template = ({ courseName, trainerName, courseDate, cssPath, questions, res
             </head>
             <body className="p-6 font-sans text-sm">
                 <header className="flex justify-between items-center pb-4 border-b">
-                    <div className="text-2xl font-bold">
-                        <span className="text-red-600">Global</span>
-                        <span className="text-blue-600">Train</span>
+                    <div className="w-1/4">
+                        {logoBase64 && <img src={logoBase64} alt="Global Train Logo" style={{ width: '100px' }} />}
                     </div>
-                    <h1 className="text-2xl font-bold text-center">Training Course Checklist</h1>
+                    <h1 className="text-2xl font-bold text-center w-1/2">Training Course Checklist</h1>
                     <div className="w-1/4"></div>
                 </header>
 

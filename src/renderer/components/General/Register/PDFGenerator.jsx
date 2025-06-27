@@ -40,8 +40,9 @@ export const generateRegisterPdf = async (datapackId) => {
             }
         }
 
-        // 2. Get the correct CSS path for styling
+        // 2. Get the correct CSS path and logo for styling
         const cssPath = await window.electron.getCssPath();
+        const logoBase64 = await window.electron.getLogoBase64();
 
         // 3. Prepare props for the template
         const templateProps = {
@@ -51,6 +52,7 @@ export const generateRegisterPdf = async (datapackId) => {
             trainees: trainees,
             competencies: competencies,
             cssPath: cssPath,
+            logoBase64: logoBase64,
             responses: responsesMap,
             successfulTraineesCount: successfulTraineesCount,
         };

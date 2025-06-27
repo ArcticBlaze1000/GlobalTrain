@@ -34,8 +34,9 @@ export const generateChecklistPdf = async (datapackId) => {
             return response?.response_data !== 'no';
         });
 
-        // Get the correct CSS path for styling
+        // Get the correct CSS path and logo for styling
         const cssPath = await window.electron.getCssPath();
+        const logoBase64 = await window.electron.getLogoBase64();
 
         // Prepare props for the template
         const templateProps = {
@@ -43,6 +44,7 @@ export const generateChecklistPdf = async (datapackId) => {
             trainerName: trainer ? `${trainer.forename} ${trainer.surname}` : 'N/A',
             courseDate: new Date(datapack.start_date).toLocaleDateString('en-GB'),
             cssPath: cssPath,
+            logoBase64: logoBase64,
             questions: visibleQuestions,
             responses: responsesMap,
         };

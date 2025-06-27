@@ -2,7 +2,7 @@ import React from 'react';
 
 // This component is a template for the PDF. It's not meant to be rendered directly in the app.
 // It will be converted to an HTML string and sent to Puppeteer.
-const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, responses, successfulTraineesCount }) => {
+const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, logoBase64, responses, successfulTraineesCount }) => {
     // Helper to create empty rows for the table
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
     const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
@@ -23,10 +23,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                     {/* Header */}
                     <div className="flex justify-between items-start mb-4">
                         <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET (V2 - TEST)</h1>
-                        <div className="text-2xl font-bold">
-                            <span className="text-red-600">Global</span>
-                            <span className="text-blue-600">Train</span>
-                        </div>
+                        {logoBase64 && <img src={logoBase64} alt="Global Train Logo" style={{ width: '100px' }} />}
                     </div>
 
                     {/* Info Grid */}

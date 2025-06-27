@@ -6,8 +6,7 @@ const puppeteer = require('puppeteer');
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
@@ -98,6 +97,28 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, 
 
     // Return a success message instead of a file path
     return 'PDF generated and opened successfully.';
+});
+
+ipcMain.handle('get-logo-base64', async () => {
+    try {
+        const logoFileName = 'GlobalTrainLogo.jpg'; // Correct filename
+        // This is a more reliable way to get the path in both dev and packaged modes.
+        const logoPath = app.isPackaged
+            // In a packaged app, the 'public' assets are copied to 'dist'.
+            ? path.join(process.resourcesPath, 'dist', logoFileName)
+            // In dev mode, the 'public' folder is at the project root.
+            : path.join(app.getAppPath(), 'public', logoFileName);
+            
+        const logoBuffer = await fs.promises.readFile(logoPath);
+        return `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+    } catch (error) {
+        console.error('Failed to read logo file:', error);
+        return null; // Return null if the logo can't be loaded
+    }
+});
+
+ipcMain.handle('app-quit', () => {
+    app.quit();
 });
 
 app.whenReady().then(() => {
