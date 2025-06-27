@@ -126,6 +126,19 @@ const questionnairesToSeed = [
 
     { document_id: 3, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'briefing_trainer_signature', access: 'trainer', has_comments: 'NO' },
 
+    // Pre-Course Questions (document_id = 4)
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Gender', input_type: 'dropdown', field_name: 'pre_gender', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Age', input_type: 'dropdown', field_name: 'pre_age', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Nationality', input_type: 'dropdown', field_name: 'pre_nationality', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Ethnicity', input_type: 'dropdown', field_name: 'pre_ethnicity', access: 'trainer', has_comments: 'NO' },
+    
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any disabilities or health issues that you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_disabilities_q', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_disabilities_details', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any learning difficulties you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_learning_difficulties_q', access: 'trainer', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_learning_difficulties_details', access: 'trainer', has_comments: 'NO' },
+
+    { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'trainer', has_comments: 'NO' },
+
     // LeavingForm Questions (document_id = 6)
     { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainer', has_comments: 'NO' },
@@ -148,6 +161,15 @@ const questionnaireOptionsToSeed = [
     { question_field_name: 'level_of_spoken_english_adequate', option_value: 'Not Applicable' },
     { question_field_name: 'final_result', option_value: 'Competent' },
     { question_field_name: 'final_result', option_value: 'Not Competent' },
+    
+    // Pre-course options
+    ...['Male', 'Female', 'Other', 'Prefer Not To Say'].map(o => ({ question_field_name: 'pre_gender', option_value: o })),
+    ...['16-24', '25-39', '40+', 'Prefer Not To Say'].map(o => ({ question_field_name: 'pre_age', option_value: o })),
+    ...['English', 'British', 'Scottish', 'Welsh', 'Northern Irish', 'European', 'Other', 'Prefer Not Say'].map(o => ({ question_field_name: 'pre_nationality', option_value: o })),
+    ...['White', 'Black', 'Mixed Race', 'Asian', 'African', 'Gypsy/Traveller', 'Indian', 'Pakistani', 'Bangladeshi', 'Chinese', 'Other', 'Prefer Not To Say'].map(o => ({ question_field_name: 'pre_ethnicity', option_value: o })),
+    ...['Yes', 'No'].map(o => ({ question_field_name: 'pre_disabilities_q', option_value: o })),
+    ...['Yes', 'No'].map(o => ({ question_field_name: 'pre_learning_difficulties_q', option_value: o })),
+    ...['1', '2', '3', '4', '5'].map(o => ({ question_field_name: 'pre_self_assessment_score', option_value: o })),
 ];
 
 // Add competency questions dynamically

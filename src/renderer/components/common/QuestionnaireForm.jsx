@@ -301,10 +301,20 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     
     const completionPercentage = useMemo(() => {
         const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature'];
+        
         const relevantQuestions = questions.filter(q => {
             if (fieldsToExclude.includes(q.field_name)) {
-                return false; // Exclude these specific fields from completion calculation
+                return false;
             }
+            
+            // Conditionally include detail fields only if their parent question is 'Yes'
+            if (q.field_name === 'pre_disabilities_details') {
+                return responses['pre_disabilities_q']?.data === 'Yes';
+            }
+            if (q.field_name === 'pre_learning_difficulties_details') {
+                return responses['pre_learning_difficulties_q']?.data === 'Yes';
+            }
+
             if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                 const dayNumber = parseInt(q.field_name.split('_')[1], 10);
                 return dayNumber <= (eventDetails?.duration || 0);
