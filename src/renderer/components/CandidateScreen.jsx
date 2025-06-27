@@ -14,7 +14,7 @@ const formatDocName = (name) => {
     return name.replace(/([a-z])([A-Z])/g, '$1 $2');
 };
 
-const CandidateScreen = ({ openSignatureModal }) => {
+const CandidateScreen = ({ user, openSignatureModal }) => {
     // Shared state from context
     const { activeEvent } = useEvent();
 
@@ -36,7 +36,7 @@ const CandidateScreen = ({ openSignatureModal }) => {
     }, []);
 
     const filteredDocuments = documents.filter(doc => {
-        if (doc.name === 'Leaving Form') {
+        if (doc.name === 'LeavingForm') {
             return isLeaving;
         }
         return true;
@@ -169,6 +169,7 @@ const CandidateScreen = ({ openSignatureModal }) => {
         }
 
         const props = {
+            user: user,
             eventDetails: activeEvent,
             documentDetails: selectedDocument,
             selectedTraineeId: selectedCandidateId,
@@ -181,7 +182,7 @@ const CandidateScreen = ({ openSignatureModal }) => {
                 return <PreCourseForm {...props} />;
             case 'Post Course':
                 return <PostCourseForm {...props} />;
-            case 'Leaving Form':
+            case 'LeavingForm':
                 return <LeavingForm {...props} />;
             case 'PhoneticQuiz':
                 return <PhoneticQuizForm {...props} />;

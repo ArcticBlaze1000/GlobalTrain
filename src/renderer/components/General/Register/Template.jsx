@@ -22,7 +22,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                 <div className="p-2">
                     {/* Header */}
                     <div className="flex justify-between items-start mb-4">
-                        <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET (V2 - TEST)</h1>
+                        <h1 className="text-xl font-bold">ATTENDANCE REGISTER & ANALYSIS SHEET</h1>
                         {logoBase64 && <img src={logoBase64} alt="Global Train Logo" style={{ width: '100px' }} />}
                     </div>
 

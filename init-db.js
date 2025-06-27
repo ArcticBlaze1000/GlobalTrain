@@ -50,7 +50,7 @@ const documentsToSeed = [
     { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course' },
     { name: 'Pre Course', scope: 'candidate' },
     { name: 'Post Course', scope: 'candidate' },
-    { name: 'Leaving Form', scope: 'candidate' },
+    { name: 'LeavingForm', scope: 'candidate' },
     { name: 'PhoneticQuiz', scope: 'candidate' },
     { name: 'EmergencyPhoneCallExercise', scope: 'candidate' }
 ];
@@ -101,7 +101,13 @@ const questionnairesToSeed = [
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'tri_toggle', field_name: 'course_docs', access: 'trainer', has_comments: 'YES'  },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES' },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' }
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' },
+
+    // LeavingForm Questions (document_id = 6)
+    { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
+    { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainer', has_comments: 'NO' },
+    { document_id: 6, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'leaving_trainer_signature', access: 'trainer', has_comments: 'NO' },
+    { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO' }
 ];
 
 const checklistQuestionFieldNames = questionnairesToSeed

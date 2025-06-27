@@ -81,7 +81,7 @@ const Dashboard = ({ user, onLogout }) => {
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
                 {activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
-                {activeTab === 'candidate' && <CandidateScreen openSignatureModal={openSignatureModal} />}
+                {activeTab === 'candidate' && <CandidateScreen user={user} openSignatureModal={openSignatureModal} />}
             </div>
             {user.role === 'dev' && <DeveloperTools />}
             <SignatureModal 
