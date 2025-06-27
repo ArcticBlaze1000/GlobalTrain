@@ -64,34 +64,58 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 const placeholders = docIds.map(() => '?').join(',');
                 const docs = await window.db.query(`SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course'`, docIds);
                 setDocuments(docs);
+                
+                // Fetch all data needed for calculation up front
+                const datapackDetails = await window.db.query('SELECT trainee_ids, duration FROM datapack WHERE id = ?', [activeEvent.id]);
+                const traineeIds = datapackDetails[0]?.trainee_ids?.split(',') || [];
+                const eventDuration = datapackDetails[0]?.duration || 0;
+                const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature'];
 
                 const progressMap = {};
                 for (const doc of docs) {
                     const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
-                    
+                    const responsesResult = await window.db.query('SELECT * FROM responses WHERE datapack_id = ? AND document_id = ?', [activeEvent.id, doc.id]);
+                    const responses = responsesResult.reduce((acc, res) => {
+                        try {
+                            const isGrid = res.field_name.includes('_grid');
+                            const data = isGrid ? JSON.parse(res.response_data || '{}') : res.response_data;
+                            acc[res.field_name] = { ...res, data };
+                        } catch {
+                            acc[res.field_name] = { ...res, data: {} };
+                        }
+                        return acc;
+                    }, {});
+
                     const relevantQuestions = questions.filter(q => {
+                        if (fieldsToExclude.includes(q.field_name)) {
+                            return false;
+                        }
                         if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                             const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                            return !isNaN(dayNumber) && dayNumber <= (activeEvent.duration || 0);
+                            return !isNaN(dayNumber) && dayNumber <= eventDuration;
                         }
                         return true;
                     });
-
-                    const totalQuestions = relevantQuestions.length;
-                    if (totalQuestions === 0) {
-                        progressMap[doc.id] = 0;
+                    
+                    if (relevantQuestions.length === 0) {
+                        progressMap[doc.id] = 100;
                         continue;
                     }
 
-                    const relevantQuestionFieldNames = relevantQuestions.map(q => q.field_name);
-                    const responsePlaceholders = relevantQuestionFieldNames.map(() => '?').join(',');
-                    const completedResponses = await window.db.query(
-                        `SELECT COUNT(*) as count FROM responses WHERE datapack_id = ? AND document_id = ? AND completed = 1 AND field_name IN (${responsePlaceholders})`,
-                        [activeEvent.id, doc.id, ...relevantQuestionFieldNames]
-                    );
-                    
-                    const completedCount = completedResponses[0]?.count || 0;
-                    progressMap[doc.id] = Math.round((completedCount / totalQuestions) * 100);
+                    const completedCount = relevantQuestions.filter(q => {
+                        const response = responses[q.field_name];
+                        if (!response) return false;
+                        
+                        if (q.input_type.includes('_grid')) {
+                            return !!response.completed;
+                        }
+
+                        if (q.input_type === 'checkbox') return response.data === 'true';
+                        if (q.input_type === 'tri_toggle') return response.data !== 'neutral' && response.data !== '';
+                        return response.data && String(response.data).trim() !== '';
+                    }).length;
+
+                    progressMap[doc.id] = Math.round((completedCount / relevantQuestions.length) * 100);
                 }
                 setDocProgress(progressMap);
 

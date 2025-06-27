@@ -299,39 +299,51 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
     };
     
-    const completionPercentage = useMemo(() => {
+    // Centralized calculation for progress
+    const progress = useMemo(() => {
         const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature'];
         
         const relevantQuestions = questions.filter(q => {
+            // Exclude the non-required footer fields from the calculation
             if (fieldsToExclude.includes(q.field_name)) {
                 return false;
             }
-            
-            // Conditionally include detail fields only if their parent question is 'Yes'
-            if (q.field_name === 'pre_disabilities_details') {
-                return responses['pre_disabilities_q']?.data === 'Yes';
-            }
-            if (q.field_name === 'pre_learning_difficulties_details') {
-                return responses['pre_learning_difficulties_q']?.data === 'Yes';
-            }
 
+            // Filter out attendance grids for days beyond the event duration
             if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                 const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                return dayNumber <= (eventDetails?.duration || 0);
+                return !isNaN(dayNumber) && dayNumber <= (eventDetails.duration || 0);
             }
+            // Add other filtering for conditional questions if needed
             return true;
         });
 
-        const totalQuestions = relevantQuestions.length;
-        if (totalQuestions === 0) return 100;
+        if (relevantQuestions.length === 0) return 100;
 
-        const relevantCompletedCount = relevantQuestions.filter(q => responses[q.field_name]?.completed).length;
-        return Math.round((relevantCompletedCount / totalQuestions) * 100);
-    }, [responses, questions, eventDetails]);
+        const completedCount = relevantQuestions.filter(q => {
+            const response = responses[q.field_name];
+            if (!response) return false;
+            
+            // Re-using the logic from handleGridInputChange for consistency
+            if (q.input_type.includes('_grid')) {
+                return response.completed; // The completed flag is now correctly set by handlers
+            }
 
+            if (q.input_type === 'checkbox') return response.data === true;
+            if (q.input_type === 'tri_toggle') return response.data !== 'neutral';
+            
+            return response.data && String(response.data).trim() !== '';
+        }).length;
+
+        return Math.round((completedCount / relevantQuestions.length) * 100);
+    }, [questions, responses, trainees, eventDetails]);
+
+    // Effect to report progress whenever it changes
     useEffect(() => {
-        if (documentId) onProgressUpdate(documentId, completionPercentage);
-    }, [completionPercentage, documentId, onProgressUpdate]);
+        if (onProgressUpdate) {
+            onProgressUpdate(documentId, progress);
+        }
+    }, [progress, documentId, onProgressUpdate]);
 
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
@@ -397,9 +409,9 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     <p className="text-sm text-gray-600">{documentDetails.name} — {formatDate(eventDetails.start_date)}</p>
                 </div>
                 <div className="w-1/4">
-                    <p className="font-bold text-sm text-right mb-1">Completion: {completionPercentage}%</p>
+                    <p className="font-bold text-sm text-right mb-1">Completion: {progress}%</p>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
                     </div>
                 </div>
             </div>
@@ -826,7 +838,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     <button 
                         onClick={handleGenerateAndCache}
                         className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        disabled={completionPercentage < 100}
+                        disabled={progress < 100}
                     >
                         {pdfButtonText}
                     </button>
