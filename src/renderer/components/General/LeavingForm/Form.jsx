@@ -37,7 +37,7 @@ const debounce = (func, delay) => {
 };
 
 
-const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, selectedTraineeId }) => {
+const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, selectedTraineeId, onProgressUpdate }) => {
     const [responses, setResponses] = useState({
         leaving_reasons: '',
         leaving_candidate_signature: '',
@@ -49,6 +49,22 @@ const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, 
         datapackId: eventDetails?.id,
         documentId: documentDetails?.id,
     }), [eventDetails, documentDetails]);
+
+    // --- Completion Calculation ---
+    useEffect(() => {
+        if (!documentId) return;
+
+        const totalFields = Object.keys(responses).length;
+        const filledFields = Object.values(responses).filter(value => {
+            // Consider the field filled if the value is a non-empty string
+            return typeof value === 'string' && value.trim() !== '';
+        }).length;
+
+        const percentage = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
+        
+        onProgressUpdate(documentId, percentage);
+    }, [responses, documentId, onProgressUpdate]);
+
 
     // --- Data Fetching ---
     useEffect(() => {

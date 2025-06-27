@@ -28,11 +28,11 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     const [selectedFolder, setSelectedFolder] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
+    const [docProgress, setDocProgress] = useState({});
 
     // Callback for the form to report its progress
     const handleProgressUpdate = useCallback((documentId, percentage) => {
-        // Placeholder for progress update logic
-        console.log(`Progress for doc ${documentId}: ${percentage}%`);
+        setDocProgress(prev => ({ ...prev, [documentId]: percentage }));
     }, []);
 
     const filteredDocuments = documents.filter(doc => {
@@ -70,25 +70,53 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     }, [activeEvent]);
 
     useEffect(() => {
-        const fetchDocuments = async () => {
-            if (activeEvent) {
-                const docIds = await window.db.query(
-                    'SELECT doc_ids FROM courses WHERE id = ?',
-                    [activeEvent.course_id]
+        const fetchDocumentsAndProgress = async () => {
+            if (!activeEvent || !selectedCandidateId) {
+                setDocuments([]);
+                setDocProgress({});
+                return;
+            }
+
+            const docIdsResult = await window.db.query(
+                'SELECT doc_ids FROM courses WHERE id = ?',
+                [activeEvent.course_id]
+            );
+            
+            if (docIdsResult.length > 0) {
+                const ids = docIdsResult[0].doc_ids.split(',');
+                const docs = await window.db.query(
+                    `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate'`,
+                    [...ids]
                 );
-                
-                if (docIds.length > 0) {
-                    const ids = docIds[0].doc_ids.split(',');
-                    const docs = await window.db.query(
-                        `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate'`,
-                        [...ids]
+                setDocuments(docs);
+
+                const progressMap = {};
+                for (const doc of docs) {
+                    const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
+                    const totalQuestions = questions.length;
+                    
+                    if (totalQuestions === 0) {
+                        progressMap[doc.id] = 0; // Or 100 if no questions means complete
+                        continue;
+                    }
+
+                    const questionFieldNames = questions.map(q => q.field_name);
+                    const responsePlaceholders = questionFieldNames.map(() => '?').join(',');
+                    
+                    const completedResponses = await window.db.query(
+                        `SELECT COUNT(*) as count FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ? AND completed = 1 AND field_name IN (${responsePlaceholders})`,
+                        [activeEvent.id, doc.id, selectedCandidateId, ...questionFieldNames]
                     );
-                    setDocuments(docs);
+                    
+                    const completedCount = completedResponses[0]?.count || 0;
+                    progressMap[doc.id] = Math.round((completedCount / totalQuestions) * 100);
                 }
+                setDocProgress(progressMap);
             }
         };
-        fetchDocuments();
-    }, [activeEvent]);
+
+        fetchDocumentsAndProgress();
+    }, [activeEvent, selectedCandidateId]);
 
     useEffect(() => {
         if (!isLeaving && selectedDocument?.name === 'Leaving Form') {
@@ -122,6 +150,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         <div className="flex flex-col">
             {items.map((item) => {
                 const isSelected = selectedItem?.id === item.id;
+                const progress = docProgress[item.id] || 0;
                 return (
                     <button
                         key={item.id}
@@ -131,6 +160,10 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                         }`}
                     >
                         <p className="font-semibold">{formatDocName(item.name)}</p>
+                        {progress === 100 && <span className="text-green-500">✅</span>}
+                        {progress > 0 && progress < 100 && (
+                            <span className="text-sm text-blue-500 font-bold">{progress}%</span>
+                        )}
                     </button>
                 );
             })}
