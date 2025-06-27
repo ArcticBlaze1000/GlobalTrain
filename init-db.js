@@ -103,6 +103,29 @@ const questionnairesToSeed = [
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' },
 
+    // TrainingAndWeldingTrackSafetyBreifing Questions (document_id = 3)
+    { document_id: 3, section: 'HEADER', question_text: 'Start Time', input_type: 'time', field_name: 'start_time', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'HEADER', question_text: 'Finish Time', input_type: 'time', field_name: 'finish_time', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO' },
+    
+    // Practical Elements
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Crosses the line correctly', input_type: 'checkbox', field_name: 'prac_crosses_line', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 1.25m (4ft) from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_1_25m', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2m (6ft 6") from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_2m', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates on or near the line', input_type: 'checkbox', field_name: 'prac_near_line', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2.75m (9ft)', input_type: 'checkbox', field_name: 'prac_dist_2_75m', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies or states Limited Clearance, No Refuges, No Safe Access while trains are running signs', input_type: 'checkbox', field_name: 'prac_limited_clearance', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies local examples of signalling equipment (e.g. IRJs for track signalling, axle counters, AWS magnets etc).', input_type: 'checkbox', field_name: 'prac_signalling_equipment', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates distance for tool', input_type: 'checkbox', field_name: 'prac_tool_distance', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates emergency detonator protection', input_type: 'checkbox', field_name: 'prac_detonator_protection', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies overhead line equipment', input_type: 'checkbox', field_name: 'prac_overhead_line_equipment', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Acknowledges warnings', input_type: 'checkbox', field_name: 'prac_acknowledges_warnings', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies hazards at station', input_type: 'checkbox', field_name: 'prac_hazards_at_station', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies equipment at station', input_type: 'checkbox', field_name: 'prac_equipment_at_station', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies landmarks that can be used for emergency call location', input_type: 'checkbox', field_name: 'prac_emergency_landmarks', access: 'trainer', has_comments: 'NO' },
+
+    { document_id: 3, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'briefing_trainer_signature', access: 'trainer', has_comments: 'NO' },
+
     // LeavingForm Questions (document_id = 6)
     { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainer', has_comments: 'NO' },

@@ -725,8 +725,17 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                 <input
                                                     type="date"
                                                     value={responses[q.field_name]?.data || ''}
-                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
-                                                    className="p-2 border rounded-md w-48 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'date')}
+                                                    className="p-2 border rounded-md shadow-sm w-full"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'time' && (
+                                                <input
+                                                    type="time"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'time')}
+                                                    className="p-2 border rounded-md shadow-sm w-full"
                                                     disabled={!isEditable}
                                                 />
                                             )}
@@ -734,7 +743,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                 <input
                                                     type="number"
                                                     value={responses[q.field_name]?.data || ''}
-                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'number')}
                                                     className="p-2 border rounded-md w-24 disabled:bg-gray-200 disabled:cursor-not-allowed"
                                                     disabled={!isEditable}
                                                 />
