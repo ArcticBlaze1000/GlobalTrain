@@ -207,43 +207,44 @@ const CreationScreen = () => {
         };
     }, [formState, debouncedSave]);
 
+    // --- FOLDER AUDIT ---
+    const runFolderAudit = useCallback(async () => {
+        const { courseId, trainerId, startDate, trainees } = formState;
+
+        // Don't run audit if essential info is missing or no register is active
+        if (!courseId || !trainerId || !startDate || !activeRegisterId) {
+            setFolderStatus(null);
+            return;
+        }
+
+        const course = courses.find(c => c.id === parseInt(courseId, 10));
+        const trainer = trainers.find(t => t.id === parseInt(trainerId, 10));
+
+        // Don't run if course/trainer lookups fail
+        if (!course || !trainer) {
+            setFolderStatus(null);
+            return;
+        }
+
+        const docsPath = await window.electron.getDocumentsPath();
+        const trainerName = `${trainer.forename} ${trainer.surname}`;
+        const folderName = `${course.name} - ${startDate.split('-').reverse().join('-')} - ${trainerName}`;
+        const eventPath = `${docsPath}/Global Train Events/${folderName}`;
+
+        const uniqueSponsors = new Set(trainees.map(t => t.sponsor).filter(Boolean));
+
+        const auditResults = await window.electron.auditEventFolders({
+            eventPath: eventPath,
+            numTrainees: trainees.length,
+            numSponsors: uniqueSponsors.size,
+        });
+        setFolderStatus(auditResults);
+    }, [formState, courses, trainers, activeRegisterId]); // Dependencies for useCallback
+
     // Effect to audit folder status whenever form state changes
     useEffect(() => {
-        const auditFolders = async () => {
-            const { courseId, trainerId, startDate, trainees } = formState;
-
-            // Don't run audit if essential info is missing or no register is active
-            if (!courseId || !trainerId || !startDate || !activeRegisterId) {
-                setFolderStatus(null);
-                return;
-            }
-
-            const course = courses.find(c => c.id === parseInt(courseId, 10));
-            const trainer = trainers.find(t => t.id === parseInt(trainerId, 10));
-
-            // Don't run if course/trainer lookups fail
-            if (!course || !trainer) {
-                setFolderStatus(null);
-                return;
-            }
-
-            const docsPath = await window.electron.getDocumentsPath();
-            const trainerName = `${trainer.forename} ${trainer.surname}`;
-            const folderName = `${course.name} - ${startDate.split('-').reverse().join('-')} - ${trainerName}`;
-            const eventPath = `${docsPath}/Global Train Events/${folderName}`;
-
-            const uniqueSponsors = new Set(trainees.map(t => t.sponsor).filter(Boolean));
-
-            const auditResults = await window.electron.auditEventFolders({
-                eventPath: eventPath,
-                numTrainees: trainees.length,
-                numSponsors: uniqueSponsors.size,
-            });
-            setFolderStatus(auditResults);
-        };
-
-        auditFolders();
-    }, [formState, courses, trainers, activeRegisterId]);
+        runFolderAudit();
+    }, [runFolderAudit]);
 
     const handleSelectRegister = async (id) => {
         console.log(`[CreationScreen] Action: Load Register. ID: ${id}`);
@@ -495,7 +496,15 @@ const CreationScreen = () => {
             {/* --- DOCUMENT CHECKLIST (MOVED) --- */}
             {folderStatus && (
                 <div className="mt-8">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-t pt-4">Document Checklist (Admin)</h3>
+                    <div className="flex items-center justify-between mb-4 border-t pt-4">
+                        <h3 className="text-lg font-bold text-gray-800">Document Checklist (Admin)</h3>
+                        <button 
+                            onClick={runFolderAudit}
+                            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                        >
+                            Refresh
+                        </button>
+                    </div>
                     <div className="space-y-2">
                         {Object.entries(folderStatus).map(([folder, status]) => (
                             <div key={folder} className="flex justify-between items-center p-2 rounded-md bg-gray-50">

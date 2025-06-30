@@ -213,8 +213,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                 newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
                 debouncedGridSave(field, gridData, isComplete);
-            };
-            
+    };
+    
             updateAndRecalculateCompletion(fieldName, traineeId, value);
             
             if (inputType === 'signature_grid') {
@@ -232,11 +232,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                         }
                     });
                 } else if (originalValue === 'absent') {
-                     allSignatureQuestions.forEach(q => {
+                    allSignatureQuestions.forEach(q => {
                         const questionDay = parseInt(q.field_name.split('_')[1], 10);
                         if (questionDay > dayNumber && (newResponses[q.field_name]?.data?.[traineeId] === 'absent')) {
                             // If the user was marked absent and is now being signed in, clear subsequent 'absent' marks
-                           updateAndRecalculateCompletion(q.field_name, traineeId, '');
+                                updateAndRecalculateCompletion(q.field_name, traineeId, '');
                         }
                     });
                 }
@@ -554,10 +554,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                                                 for (let i = 1; i < dayNumber; i++) {
                                                     const prevFieldName = `day_${i}_attendance`;
-                                                    const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
-                                                    if (prevDayResponse === 'absent') {
-                                                        isLockedDueToAbsence = true;
-                                                        break;
+                                                        const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
+                                                        if (prevDayResponse === 'absent') {
+                                                            isLockedDueToAbsence = true;
+                                                            break;
                                                     }
                                                 }
 
@@ -611,26 +611,26 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                                                         <div 
                                                             className={`w-full h-20 border rounded-md flex justify-center items-center ${isEditableForThisCell && isDayOpen ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                            onClick={() => {
+                                                                onClick={() => {
                                                                 if (isEditableForThisCell && isDayOpen && !isSigned) {
                                                                     const onSave = (dataUrl) => handleGridInputChange(q.field_name, trainee.id, dataUrl, q.input_type);
                                                                     openSignatureModal(onSave, traineeValue);
-                                                                }
-                                                            }}
-                                                        >
-                                                            {isSigned ? (
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {isSigned ? (
                                                                 <img src={traineeValue} alt="Signature" className="h-full w-full object-contain" />
                                                             ) : (
-                                                                <span className="text-gray-500 text-sm capitalize">
+                                                                    <span className="text-gray-500 text-sm capitalize">
                                                                     {traineeValue === 'absent' && 'Absent'}
                                                                     {traineeValue === 'skip' && 'Skipped'}
                                                                     {traineeValue !== 'absent' && traineeValue !== 'skip' && 'Click to Sign'}
-                                                                </span>
-                                                            )}
+                                                                    </span>
+                                                                )}
                                                         </div>
 
                                                         <div className="w-full">
-                                                            <select
+                                                                <select
                                                                 value={isSigned ? 'signed' : traineeValue}
                                                                 onChange={(e) => {
                                                                     const value = e.target.value;
@@ -641,16 +641,16 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                                 }}
                                                                 className="w-full p-1 border rounded-md text-sm"
                                                                 disabled={!isEditableForThisCell || !isDayOpen}
-                                                            >
-                                                                {isSigned ? (
-                                                                    <option value="signed">Signed</option>
-                                                                ) : (
+                                                                >
+                                                                    {isSigned ? (
+                                                                        <option value="signed">Signed</option>
+                                                                    ) : (
                                                                     <option value="">Present</option>
                                                                 )}
-                                                                <option value="absent">Absent</option>
-                                                                <option value="skip">Skip</option>
-                                                            </select>
-                                                        </div>
+                                                                    <option value="absent">Absent</option>
+                                                                    <option value="skip">Skip</option>
+                                                                </select>
+                                                            </div>
 
                                                         {statusText && <p className="text-xs text-gray-500 mt-1 w-full text-center">{statusText}</p>}
                                                     </div>
