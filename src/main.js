@@ -121,7 +121,33 @@ ipcMain.handle('app-quit', () => {
     app.quit();
 });
 
-app.whenReady().then(() => {
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.on('ready', () => {
+  ipcMain.handle('get-documents-path', () => app.getPath('documents'));
+  ipcMain.handle('ensure-event-folder-exists', async (event, { courseName, startDate }) => {
+    const fs = require('fs/promises');
+    const path = require('path');
+    
+    // Format date to DD-MM-YYYY
+    const [year, month, day] = startDate.split('-');
+    const formattedDate = `${day}-${month}-${year}`;
+
+    const folderName = `${courseName} - ${formattedDate}`;
+    const docsPath = app.getPath('documents');
+    const eventPath = path.join(docsPath, 'Global Train Events', folderName);
+
+    try {
+      await fs.mkdir(path.join(eventPath, '00 Admin'), { recursive: true });
+      await fs.mkdir(path.join(eventPath, '06 Candidate'), { recursive: true });
+      return { success: true, path: eventPath };
+    } catch (error) {
+      console.error(`Failed to create folder for event "${folderName}":`, error);
+      return { success: false, error: error.message };
+    }
+  });
+  
   createWindow();
 
   app.on('activate', function () {
@@ -129,6 +155,9 @@ app.whenReady().then(() => {
   });
 });
 
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 }); 

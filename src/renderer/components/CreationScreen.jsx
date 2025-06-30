@@ -31,7 +31,46 @@ const CreationScreen = () => {
             setIncompleteRegisters(fetchedRegisters);
         };
         fetchData();
+        syncEventFolders(); // Run the sync process on component load
     }, []);
+
+    // --- FOLDER SYNC LOGIC ---
+    const syncEventFolders = async () => {
+        console.log('[FolderSync] Starting event folder synchronization...');
+        // 1. Fetch all events (completed and incomplete)
+        const completed = await window.db.query(`
+            SELECT c.name as course_name, d.start_date 
+            FROM datapack d 
+            JOIN courses c ON d.course_id = c.id
+        `);
+        const incomplete = await window.db.query(`
+            SELECT c.name as course_name, r.start_date 
+            FROM incomplete_registers r 
+            JOIN courses c ON r.course_id = c.id
+        `);
+
+        const allEvents = [...completed, ...incomplete];
+        console.log(`[FolderSync] Found ${allEvents.length} total events to check.`);
+
+        // 2. Create a unique set of events to avoid redundant checks
+        const uniqueEvents = allEvents.reduce((acc, event) => {
+            if (event.course_name && event.start_date) {
+                const key = `${event.course_name}|${event.start_date}`;
+                acc.set(key, event);
+            }
+            return acc;
+        }, new Map()).values();
+
+        // 3. Ensure a folder exists for each unique event
+        for (const event of uniqueEvents) {
+            console.log(`[FolderSync] Ensuring folder exists for: ${event.course_name} on ${event.start_date}`);
+            await window.electron.ensureEventFolderExists({ 
+                courseName: event.course_name, 
+                startDate: event.start_date 
+            });
+        }
+        console.log('[FolderSync] Synchronization complete.');
+    };
 
     // --- FORM LOGIC ---
 
