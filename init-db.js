@@ -116,8 +116,8 @@ const questionnairesToSeed = [
     { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' },
 
     // TrainingAndWeldingTrackSafetyBreifing Questions (document_id = 3)
-    { document_id: 3, section: 'HEADER', question_text: 'Start Time', input_type: 'time', field_name: 'start_time', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'HEADER', question_text: 'Finish Time', input_type: 'time', field_name: 'finish_time', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'HEADER', question_text: 'Start Time', input_type: 'time_capture_button', field_name: 'start_time', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'HEADER', question_text: 'Finish Time', input_type: 'time_capture_button', field_name: 'finish_time', access: 'trainer', has_comments: 'NO' },
     { document_id: 3, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO' },
     
     // Practical Elements

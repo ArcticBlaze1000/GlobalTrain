@@ -51,7 +51,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     const [questionOptions, setQuestionOptions] = useState({});
     const [trainees, setTrainees] = useState([]);
     const [competencies, setCompetencies] = useState([]);
-    const [attendanceTimers, setAttendanceTimers] = useState({});
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
@@ -62,14 +61,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
     useEffect(() => {
         const initializeForm = async () => {
             if (!documentId || !datapackId) return;
-
-            // Fetch timers for this datapack
-            const fetchedTimers = await window.db.query('SELECT * FROM attendance_timers WHERE datapack_id = ?', [datapackId]);
-            const timersMap = fetchedTimers.reduce((acc, timer) => {
-                acc[timer.day_number] = new Date(timer.timer_start_time);
-                return acc;
-            }, {});
-            setAttendanceTimers(timersMap);
 
             // Fetch course-specific competencies
             if (eventDetails?.competency_ids) {
@@ -222,22 +213,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
 
                 newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
                 debouncedGridSave(field, gridData, isComplete);
-    };
-    
+            };
+            
             updateAndRecalculateCompletion(fieldName, traineeId, value);
             
             if (inputType === 'signature_grid') {
                 const dayNumber = parseInt(fieldName.split('_')[1], 10);
-
-                if (!attendanceTimers[dayNumber]) {
-                    const now = new Date();
-                    window.db.run(
-                        'INSERT OR IGNORE INTO attendance_timers (datapack_id, day_number, timer_start_time) VALUES (?, ?, ?)',
-                        [datapackId, dayNumber, now.toISOString()]
-                    ).then(() => {
-                        setAttendanceTimers(prev => ({ ...prev, [dayNumber]: now }));
-                    });
-                }
 
                 const allSignatureQuestions = questions
                     .filter(q => q.input_type === 'signature_grid')
@@ -251,20 +232,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                         }
                     });
                 } else if (originalValue === 'absent') {
-                    allSignatureQuestions.forEach(q => {
+                     allSignatureQuestions.forEach(q => {
                         const questionDay = parseInt(q.field_name.split('_')[1], 10);
-                        if (questionDay > dayNumber) {
-                            let isStillLocked = false;
-                            for (const prevQ of allSignatureQuestions) {
-                                const prevDay = parseInt(prevQ.field_name.split('_')[1], 10);
-                                if (prevDay < questionDay && newResponses[prevQ.field_name]?.data?.[traineeId] === 'absent') {
-                                    isStillLocked = true;
-                                    break;
-                                }
-                            }
-                            if (!isStillLocked) {
-                                updateAndRecalculateCompletion(q.field_name, traineeId, '');
-                            }
+                        if (questionDay > dayNumber && (newResponses[q.field_name]?.data?.[traineeId] === 'absent')) {
+                            // If the user was marked absent and is now being signed in, clear subsequent 'absent' marks
+                           updateAndRecalculateCompletion(q.field_name, traineeId, '');
                         }
                     });
                 }
@@ -577,133 +549,165 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
                                             {trainees.map(trainee => {
-                                                const currentDay = parseInt(q.field_name.split('_')[1], 10);
+                                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
                                                 let isLockedDueToAbsence = false;
 
-                                                // --- New Timer-based Locking Logic ---
-                                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                                                let isDayLocked = false;
-                                                let isWaitingForPreviousDay = false;
-                                                let timerEndTime = null;
-                                                const twelveHours = 12 * 60 * 60 * 1000;
-
-                                                const currentDayTimer = attendanceTimers[dayNumber];
-                                                if (currentDayTimer) {
-                                                    timerEndTime = new Date(currentDayTimer.getTime() + twelveHours);
-                                                    if (new Date() > timerEndTime) {
-                                                        isDayLocked = true;
-                                                    }
-                                                }
-                                                
-                                                if (dayNumber > 1) {
-                                                    const prevDayTimer = attendanceTimers[dayNumber - 1];
-                                                    if (!prevDayTimer) {
-                                                        // Previous day hasn't even started, so this day is locked.
-                                                        isWaitingForPreviousDay = true;
-                                                    } else {
-                                                        const prevDayEndTime = new Date(prevDayTimer.getTime() + twelveHours);
-                                                        if (new Date() < prevDayEndTime) {
-                                                            // Previous day's 12hr window is not over yet.
-                                                            isWaitingForPreviousDay = true;
-                                                        }
-                                                    }
-                                                }
-
-                                                // Admins/Devs bypass all timer locks
-                                                if (user.role === 'dev' || user.role === 'admin') {
-                                                    isDayLocked = false;
-                                                    isWaitingForPreviousDay = false;
-                                                }
-                                                // --- End of Timer Logic ---
-
-                                                // Check if any previous day is marked 'absent'
                                                 for (let i = 1; i < dayNumber; i++) {
                                                     const prevFieldName = `day_${i}_attendance`;
-                                                    const prevDayQuestion = questions.find(ques => ques.field_name === prevFieldName && (ques.input_type === 'signature_grid' || ques.input_type === 'attendance_grid'));
-                                                    if (prevDayQuestion) {
-                                                        const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
-                                                        if (prevDayResponse === 'absent') {
-                                                            isLockedDueToAbsence = true;
-                                                            break;
+                                                    const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
+                                                    if (prevDayResponse === 'absent') {
+                                                        isLockedDueToAbsence = true;
+                                                        break;
+                                                    }
+                                                }
+
+                                                const traineeValue = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
+                                                
+                                                let statusText = '';
+                                                let isDayOpen = false;
+
+                                                if (eventDetails.start_date) {
+                                                    const now = new Date();
+                                                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                                                    const [year, month, day] = eventDetails.start_date.split('-').map(Number);
+                                                    const courseStartDate = new Date(year, month - 1, day);
+
+                                                    const targetDate = new Date(courseStartDate);
+                                                    targetDate.setDate(courseStartDate.getDate() + dayNumber - 1);
+                                                    const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+                                                    if (targetDateOnly < today) {
+                                                        statusText = 'Closed';
+                                                    } else if (targetDateOnly > today) {
+                                                        statusText = `Opens on ${targetDate.toLocaleDateString('en-GB')}`;
+                                                    } else { // Date is today
+                                                        const currentHour = now.getHours();
+                                                        const isWithinTime = currentHour >= 9 && currentHour < 15;
+
+                                                        if (isWithinTime) {
+                                                            isDayOpen = true;
+                                                        } else if (currentHour >= 15) {
+                                                            statusText = 'Closed';
+                                                        } else { // currentHour < 9
+                                                            statusText = `Opens at 9:00 AM`;
                                                         }
                                                     }
                                                 }
+
+                                                if (user.role === 'dev') {
+                                                    isDayOpen = true;
+                                                    if (statusText) statusText += ' (Dev Override)';
+                                                }
                                                 
-                                                // If locked, the status is 'absent', otherwise get it from responses
-                                                const signatureData = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
-                                                const isSigned = typeof signatureData === 'string' && signatureData.startsWith('data:image');
-                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence && !isDayLocked && !isWaitingForPreviousDay;
-                                                const canSign = isEditableForThisCell && !isSigned && signatureData !== 'absent' && signatureData !== 'skip';
+                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence;
+                                                const isSigned = typeof traineeValue === 'string' && traineeValue.startsWith('data:image');
 
                                                 return (
-                                                    <div key={trainee.id} className="flex flex-col space-y-2">
-                                                        <div className="flex items-center">
-                                                        <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                    <div key={trainee.id} className="flex flex-col items-center space-y-2 p-2 border rounded-lg">
+                                                        <label className="text-sm font-medium text-gray-700 w-full text-center truncate" title={`${trainee.forename} ${trainee.surname}`}>
                                                             {trainee.forename} {trainee.surname}
                                                         </label>
-                                                        <div 
-                                                                className={`w-3/5 h-24 border rounded-md flex justify-center items-center ${canSign ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                                onClick={() => {
-                                                                    if (canSign) {
-                                                                        const onSave = (dataUrl) => {
-                                                                            handleGridInputChange(q.field_name, trainee.id, dataUrl, 'signature_grid');
-                                                                        };
-                                                                        openSignatureModal(onSave, signatureData);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {isSigned ? (
-                                                                <img src={signatureData} alt="Signature" className="h-full w-full object-contain" />
-                                                            ) : (
-                                                                    <span className="text-gray-500 text-sm capitalize">
-                                                                        {signatureData === 'absent' && 'Absent'}
-                                                                        {signatureData === 'skip' && 'Skipped'}
-                                                                        {signatureData === '' && 'Click to Sign'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
 
-                                                        <div className="text-xs text-right w-full pr-1">
-                                                            {isWaitingForPreviousDay ? (
-                                                                <span className="text-gray-500">Waiting for Day {dayNumber - 1}</span>
-                                                            ) : isDayLocked ? (
-                                                                <span className="text-red-500">(Locked)</span>
-                                                            ) : timerEndTime ? (
-                                                                <span className="text-green-600">
-                                                                    Locks in: {Math.max(0, Math.round((timerEndTime - new Date()) / (1000 * 60 * 60)))}h
-                                                                </span>
+                                                        <div 
+                                                            className={`w-full h-20 border rounded-md flex justify-center items-center ${isEditableForThisCell && isDayOpen ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-200 cursor-not-allowed'}`}
+                                                            onClick={() => {
+                                                                if (isEditableForThisCell && isDayOpen && !isSigned) {
+                                                                    const onSave = (dataUrl) => handleGridInputChange(q.field_name, trainee.id, dataUrl, q.input_type);
+                                                                    openSignatureModal(onSave, traineeValue);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {isSigned ? (
+                                                                <img src={traineeValue} alt="Signature" className="h-full w-full object-contain" />
                                                             ) : (
-                                                                <span className="text-gray-400">Not Started</span>
+                                                                <span className="text-gray-500 text-sm capitalize">
+                                                                    {traineeValue === 'absent' && 'Absent'}
+                                                                    {traineeValue === 'skip' && 'Skipped'}
+                                                                    {traineeValue !== 'absent' && traineeValue !== 'skip' && 'Click to Sign'}
+                                                                </span>
                                                             )}
                                                         </div>
 
-                                                        {isEditable && (
-                                                            <div className="flex items-center">
-                                                                <span className="w-2/5"></span> {/* Spacer */}
-                                                                <select
-                                                                    value={isSigned ? 'signed' : signatureData}
-                                                                    onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, 'signature_grid')}
-                                                                    className="w-3/5 p-1 border rounded-md text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                                    disabled={!isEditableForThisCell}
-                                                                >
-                                                                    {isSigned ? (
-                                                                        <option value="signed">Signed</option>
-                                                                    ) : (
-                                                                        <React.Fragment></React.Fragment> // Placeholder for potential future use
-                                                                    )}
+                                                        <div className="w-full">
+                                                            <select
+                                                                value={isSigned ? 'signed' : traineeValue}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    // Allow clearing the signature if "Present" is chosen, or setting other statuses
+                                                                    if (value === '' || value === 'absent' || value === 'skip') {
+                                                                         handleGridInputChange(q.field_name, trainee.id, value, q.input_type);
+                                                                    }
+                                                                }}
+                                                                className="w-full p-1 border rounded-md text-sm"
+                                                                disabled={!isEditableForThisCell || !isDayOpen}
+                                                            >
+                                                                {isSigned ? (
+                                                                    <option value="signed">Signed</option>
+                                                                ) : (
                                                                     <option value="">Present</option>
-                                                                    <option value="absent">Absent</option>
-                                                                    <option value="skip">Skip</option>
-                                                                </select>
-                                                            </div>
-                                                        )}
+                                                                )}
+                                                                <option value="absent">Absent</option>
+                                                                <option value="skip">Skip</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {statusText && <p className="text-xs text-gray-500 mt-1 w-full text-center">{statusText}</p>}
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
                                 )
+                            }
+
+                            if (q.input_type === 'time_capture_button') {
+                                const isEditable = canUserEdit(q.access, user.role);
+                                const responseValue = responses[q.field_name]?.data || '';
+                            
+                                let isDisabled = !isEditable;
+                                if (q.field_name === 'finish_time') {
+                                    const startTimeResponse = responses['start_time']?.data;
+                                    if (!startTimeResponse) {
+                                        isDisabled = true;
+                                    }
+                                }
+                            
+                                const handleTimeCapture = () => {
+                                    const now = new Date();
+                                    const hours = String(now.getHours()).padStart(2, '0');
+                                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                                    const currentTime = `${hours}:${minutes}`;
+                                    handleInputChange(q.field_name, currentTime, q.input_type);
+                                };
+                            
+                                return (
+                                    <div key={q.id} className={`flex items-center justify-between py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <span className="text-gray-700 font-medium">{q.question_text}</span>
+                                        <div className="flex items-center space-x-4">
+                                            {responseValue ? (
+                                                <>
+                                                    <span className="font-mono text-lg bg-gray-100 px-3 py-1 rounded-md">{responseValue}</span>
+                                                    <button
+                                                        onClick={() => handleInputChange(q.field_name, '', q.input_type)}
+                                                        className="text-xs text-red-500 hover:text-red-700"
+                                                        disabled={!isEditable}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={handleTimeCapture}
+                                                    className={`px-4 py-2 text-sm rounded ${isDisabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                                                    disabled={isDisabled}
+                                                >
+                                                    Record {q.question_text}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
                             }
 
                             const isEditable = canUserEdit(q.access, user.role);
