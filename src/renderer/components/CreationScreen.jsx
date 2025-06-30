@@ -1,57 +1,187 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Dropdown from './common/Dropdown';
+import { debounce } from 'lodash';
 
 const CreationScreen = () => {
-    // Component State
-    const [showForm, setShowForm] = useState(false);
+    // --- STATE MANAGEMENT ---
     const [courses, setCourses] = useState([]);
     const [trainers, setTrainers] = useState([]);
-    
-    // Form State
-    const [courseId, setCourseId] = useState('');
-    const [trainerId, setTrainerId] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [duration, setDuration] = useState(1);
-    const [numTrainees, setNumTrainees] = useState(0);
-    const [traineeDetails, setTraineeDetails] = useState([]);
+    const [incompleteRegisters, setIncompleteRegisters] = useState([]);
+    const [activeRegisterId, setActiveRegisterId] = useState(null); // Can be 'new' or an ID from the DB
 
-    // Fetch initial data for dropdowns
+    // Form State
+    const [formState, setFormState] = useState({
+        courseId: '',
+        trainerId: '',
+        startDate: '',
+        duration: 1,
+        trainees: []
+    });
+
+    // --- DATA FETCHING ---
     useEffect(() => {
         const fetchData = async () => {
-            setCourses(await window.db.query('SELECT * FROM courses'));
-            // Fetch users with the 'trainer' role
-            const trainerUsers = await window.db.query("SELECT id, forename, surname FROM users WHERE role = 'trainer'");
-            setTrainers(trainerUsers);
+            const [fetchedCourses, fetchedTrainers, fetchedRegisters] = await Promise.all([
+                window.db.query('SELECT id, name, course_length FROM courses'),
+                window.db.query("SELECT id, forename, surname FROM users WHERE role = 'trainer'"),
+                window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC')
+            ]);
+            setCourses(fetchedCourses);
+            setTrainers(fetchedTrainers);
+            setIncompleteRegisters(fetchedRegisters);
         };
         fetchData();
     }, []);
 
-    // Adjust the trainee details array when the number of trainees changes
-    useEffect(() => {
-        const newTraineeDetails = Array.from({ length: numTrainees }, (_, i) =>
-            traineeDetails[i] || { forename: '', surname: '', sponsor: '', sentry_number: '', has_comments: false, additional_comments: '' }
-        );
-        setTraineeDetails(newTraineeDetails);
-    }, [numTrainees]);
+    // --- FORM LOGIC ---
 
-    const handleTraineeDetailChange = (index, field, value) => {
-        const updatedTrainees = [...traineeDetails];
+    const handleFormChange = (field, value) => {
+        setFormState(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleTraineeChange = (index, field, value) => {
+        const updatedTrainees = [...formState.trainees];
         updatedTrainees[index][field] = value;
-        setTraineeDetails(updatedTrainees);
+        handleFormChange('trainees', updatedTrainees);
+    };
+
+    const handleNumTraineesChange = (num) => {
+        const count = Math.max(0, parseInt(num, 10) || 0);
+        const currentTrainees = formState.trainees;
+        let newTrainees = [...currentTrainees];
+
+        if (count > currentTrainees.length) {
+            for (let i = currentTrainees.length; i < count; i++) {
+                newTrainees.push({ forename: '', surname: '', sponsor: '', sentry_number: '', has_comments: false, additional_comments: '' });
+            }
+        } else {
+            newTrainees = newTrainees.slice(0, count);
+        }
+        handleFormChange('trainees', newTrainees);
+    };
+
+    const resetForm = () => {
+        setFormState({
+            courseId: '',
+            trainerId: '',
+            startDate: '',
+            duration: 1,
+            trainees: []
+        });
+        setActiveRegisterId(null);
     };
     
-    const resetForm = () => {
-        setCourseId('');
-        setTrainerId('');
-        setStartDate('');
-        setDuration(1);
-        setNumTrainees(0);
-        setTraineeDetails([]);
+    // --- DATABASE INTERACTIONS ---
+
+    const saveDraft = async (stateToSave) => {
+        const { courseId, trainerId, startDate, duration, trainees } = stateToSave;
+        const traineesJson = JSON.stringify(trainees);
+
+        if (activeRegisterId && activeRegisterId !== 'new') {
+            // Update existing draft
+            await window.db.run(
+                'UPDATE incomplete_registers SET course_id = ?, trainer_id = ?, start_date = ?, duration = ?, trainees_json = ? WHERE id = ?',
+                [courseId, trainerId, startDate, duration, traineesJson, activeRegisterId]
+            );
+        } else {
+            // Create new draft
+            const result = await window.db.run(
+                'INSERT INTO incomplete_registers (course_id, trainer_id, start_date, duration, trainees_json) VALUES (?, ?, ?, ?, ?)',
+                [courseId, trainerId, startDate, duration, traineesJson]
+            );
+            setActiveRegisterId(result.lastID); // Set the new ID as active
+        }
+        // Refresh the list
+        const fetchedRegisters = await window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC');
+        setIncompleteRegisters(fetchedRegisters);
+    };
+    
+    // Debounced save function
+    const debouncedSave = useCallback(debounce(saveDraft, 1500), [activeRegisterId]);
+
+    useEffect(() => {
+        if (activeRegisterId) { // Only save if a register is active
+            debouncedSave(formState);
+        }
+        // Cleanup function to cancel any pending saves when component unmounts or dependencies change
+        return () => {
+            debouncedSave.cancel();
+        };
+    }, [formState, debouncedSave]);
+
+
+    const handleSelectRegister = async (id) => {
+        console.log(`[CreationScreen] Action: Load Register. ID: ${id}`);
+
+        // Handle creating a completely new, blank register
+        if (id === 'new') {
+            console.log("[CreationScreen] Creating a new, blank register form.");
+            resetForm();
+            setActiveRegisterId('new');
+            return;
+        }
+
+        try {
+            // 1. Locate the row of info related to the incomplete form id
+            console.log(`[CreationScreen] Fetching register ${id} from the database...`);
+            const results = await window.db.query('SELECT * FROM incomplete_registers WHERE id = ?', [id]);
+            const register = results[0]; // .query returns an array, so we take the first element
+
+            if (!register) {
+                console.error(`[CreationScreen] Error: No register found with ID ${id}.`);
+                alert('Could not find the selected register. It may have been deleted.');
+                return;
+            }
+            console.log(`[CreationScreen] Found register data:`, register);
+
+            // 2. Take the info from there and prepopulate the boxes
+            let trainees = [];
+            if (register.trainees_json) {
+                try {
+                    trainees = JSON.parse(register.trainees_json);
+                    if (!Array.isArray(trainees)) {
+                         console.warn(`[CreationScreen] Parsed trainee data is not an array. Defaulting to empty.`, trainees);
+                         trainees = [];
+                    }
+                } catch (e) {
+                    console.error(`[CreationScreen] Error parsing trainee JSON for register ${id}.`, e);
+                    alert('Could not load trainee details for this register due to invalid data. Starting with a blank list.');
+                }
+            }
+
+            const newState = {
+                courseId: register.course_id || '',
+                trainerId: register.trainer_id || '',
+                startDate: register.start_date || '',
+                duration: register.duration || 1,
+                trainees: trainees
+            };
+
+            console.log("[CreationScreen] Populating form with new state:", newState);
+            setFormState(newState);
+
+            // 3. Open the data entry canvas
+            console.log("[CreationScreen] Displaying the form.");
+            setActiveRegisterId(id);
+
+        } catch (error) {
+            console.error(`[CreationScreen] A critical error occurred while loading register ${id}:`, error);
+            alert('An unexpected error stopped the register from loading. Please check the developer console for more details.');
+        }
+    };
+    
+    const handleDeleteRegister = async (e, id) => {
+        e.stopPropagation();
+        await window.db.run('DELETE FROM incomplete_registers WHERE id = ?', [id]);
+        setIncompleteRegisters(prev => prev.filter(r => r.id !== id));
+        if (activeRegisterId === id) {
+            resetForm();
+        }
     };
 
     const handleCreateEvent = async () => {
         // Validation
-        if (!courseId || !trainerId || !startDate || numTrainees <= 0) {
+        if (!formState.courseId || !formState.trainerId || !formState.startDate || formState.trainees.length <= 0) {
             alert('Please fill out all required fields and add at least one trainee.');
             return;
         }
@@ -60,13 +190,13 @@ const CreationScreen = () => {
             // 1. Insert the new datapack first, but without the trainee_ids, to get its ID
             const datapackResult = await window.db.run(
                 'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)',
-                [courseId, trainerId, startDate, duration, numTrainees, ''] // trainee_ids is initially empty
+                [formState.courseId, formState.trainerId, formState.startDate, formState.duration, formState.trainees.length, ''] // trainee_ids is initially empty
             );
             const newDatapackId = datapackResult.lastID;
 
             // 2. Insert all trainees, linking them to the new datapack ID
             const insertedTraineeIds = [];
-            for (const trainee of traineeDetails) {
+            for (const trainee of formState.trainees) {
                 if (trainee.forename && trainee.surname) { // Only insert if name is provided
                     const traineeResult = await window.db.run(
                         'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
@@ -88,7 +218,7 @@ const CreationScreen = () => {
                 }
             }
             
-            if (insertedTraineeIds.length !== numTrainees) {
+            if (insertedTraineeIds.length !== formState.trainees.length) {
                 alert('Some trainees were not added because they were missing a forename or surname.');
             }
 
@@ -101,6 +231,8 @@ const CreationScreen = () => {
 
             // 4. Show success and clear the form
             alert('Event created successfully!');
+            const fetchedRegisters = await window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC');
+            setIncompleteRegisters(fetchedRegisters);
             resetForm();
 
         } catch (error) {
@@ -109,22 +241,29 @@ const CreationScreen = () => {
         }
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+    };
+
     const renderRegistrationForm = () => (
-        <div className="p-8 h-full overflow-y-auto">
+        <div className="p-8 h-full overflow-y-auto relative">
+             <button onClick={resetForm} className="absolute top-4 right-4 text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
             <h2 className="text-2xl font-bold mb-6 text-gray-800">New Registration Form</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Dropdown
+                 <Dropdown
                     label="Course Title"
-                    value={courseId}
-                    onChange={setCourseId}
+                    value={formState.courseId}
+                    onChange={(val) => handleFormChange('courseId', val)}
                     options={courses}
                     placeholder="Select a course"
                 />
                 
                 <Dropdown
                     label="Trainer"
-                    value={trainerId}
-                    onChange={setTrainerId}
+                    value={formState.trainerId}
+                    onChange={(val) => handleFormChange('trainerId', val)}
                     options={trainers}
                     placeholder="Select a trainer"
                 />
@@ -132,13 +271,13 @@ const CreationScreen = () => {
                 {/* Start Date */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Start Date</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" />
+                    <input type="date" value={formState.startDate} onChange={e => handleFormChange('startDate', e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" />
                 </div>
 
                 {/* Course Duration */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Course Duration (days)</label>
-                    <input type="number" min="1" value={duration} onChange={e => setDuration(parseInt(e.target.value, 10))} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" />
+                    <input type="number" min="1" value={formState.duration} onChange={e => handleFormChange('duration', parseInt(e.target.value, 10))} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" />
                 </div>
             </div>
 
@@ -148,35 +287,35 @@ const CreationScreen = () => {
                 <input
                     type="number"
                     min="0"
-                    value={numTrainees}
-                    onChange={(e) => setNumTrainees(parseInt(e.target.value, 10) || 0)}
+                    value={formState.trainees.length}
+                    onChange={(e) => handleNumTraineesChange(e.target.value)}
                     className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
                 />
             </div>
 
             {/* Dynamic Trainee Inputs */}
-            {numTrainees > 0 && (
+            {formState.trainees.length > 0 && (
                 <div className="mt-8">
                     <h3 className="text-lg font-bold text-gray-800 mb-4">Candidate Details</h3>
                     <div className="space-y-4">
-                        {traineeDetails.map((trainee, index) => (
+                        {formState.trainees.map((trainee, index) => (
                             <div key={index} className="p-4 border rounded-md bg-gray-50">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <input
                                         type="text" placeholder={`Forename ${index + 1}`} value={trainee.forename}
-                                        onChange={e => handleTraineeDetailChange(index, 'forename', e.target.value)} className="p-2 border rounded-md"
+                                        onChange={e => handleTraineeChange(index, 'forename', e.target.value)} className="p-2 border rounded-md"
                                     />
                                     <input
                                         type="text" placeholder="Surname" value={trainee.surname}
-                                        onChange={e => handleTraineeDetailChange(index, 'surname', e.target.value)} className="p-2 border rounded-md"
+                                        onChange={e => handleTraineeChange(index, 'surname', e.target.value)} className="p-2 border rounded-md"
                                     />
                                     <input
                                         type="text" placeholder="Sponsor" value={trainee.sponsor}
-                                        onChange={e => handleTraineeDetailChange(index, 'sponsor', e.target.value)} className="p-2 border rounded-md"
+                                        onChange={e => handleTraineeChange(index, 'sponsor', e.target.value)} className="p-2 border rounded-md"
                                     />
                                     <input
                                         type="text" placeholder="Sentry Number" value={trainee.sentry_number}
-                                        onChange={e => handleTraineeDetailChange(index, 'sentry_number', e.target.value)} className="p-2 border rounded-md"
+                                        onChange={e => handleTraineeChange(index, 'sentry_number', e.target.value)} className="p-2 border rounded-md"
                                     />
                                 </div>
                                 <div className="mt-2 flex items-center">
@@ -184,7 +323,7 @@ const CreationScreen = () => {
                                         type="checkbox"
                                         id={`other-checkbox-${index}`}
                                         checked={trainee.has_comments}
-                                        onChange={e => handleTraineeDetailChange(index, 'has_comments', e.target.checked)}
+                                        onChange={e => handleTraineeChange(index, 'has_comments', e.target.checked)}
                                         className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     />
                                     <label htmlFor={`other-checkbox-${index}`} className="ml-2 text-sm text-gray-900">Other</label>
@@ -194,13 +333,13 @@ const CreationScreen = () => {
                                         <textarea
                                             placeholder="Enter any additional comments here..."
                                             value={trainee.additional_comments}
-                                            onChange={e => handleTraineeDetailChange(index, 'additional_comments', e.target.value)}
+                                            onChange={e => handleTraineeChange(index, 'additional_comments', e.target.value)}
                                             className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
                                             rows="2"
                                         ></textarea>
                                     </div>
                                 )}
-                            </div>
+                                </div>
                         ))}
                     </div>
                 </div>
@@ -218,23 +357,51 @@ const CreationScreen = () => {
     return (
         <div className="flex h-full bg-gray-100">
             {/* Left Column */}
-            <div className="w-1/5 bg-white p-6 shadow-md">
-                <h2 className="text-xl font-bold mb-6">Create</h2>
-                <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    Register
-                </button>
+            <div className="w-1/5 bg-white p-6 shadow-md flex flex-col">
+                <div>
+                    <h2 className="text-xl font-bold mb-6">Create</h2>
+                    <button
+                        onClick={() => handleSelectRegister('new')}
+                        className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        New Register
+                    </button>
+                </div>
+                <div className="mt-8 border-t pt-4">
+                    <h3 className="text-lg font-semibold mb-4">Incomplete Registers</h3>
+                    <div className="space-y-2">
+                        {incompleteRegisters.map(reg => (
+                            <div 
+                                key={reg.id} 
+                                onClick={() => handleSelectRegister(reg.id)}
+                                className={`p-3 rounded-md cursor-pointer border flex justify-between items-center ${activeRegisterId === reg.id ? 'bg-blue-100 border-blue-400' : 'hover:bg-gray-50'}`}
+                            >
+                                <div>
+                                    <p className="font-semibold">{reg.course_name || 'Untitled'}{reg.start_date ? `: ${formatDate(reg.start_date)}` : ''}</p>
+                                    <p className="text-sm text-gray-500">
+                                        Last saved: {new Date(reg.updated_at.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                                <button
+                                   onClick={(e) => handleDeleteRegister(e, reg.id)}
+                                   className="text-red-500 hover:text-red-700 font-bold"
+                                   title="Delete Draft"
+                                >
+                                   &times;
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Right Column (Canvas) */}
             <div className="w-4/5 bg-white">
-                {showForm ? (
+                {activeRegisterId ? (
                     renderRegistrationForm()
                 ) : (
                     <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500">Select an action from the left menu.</p>
+                        <p className="text-gray-500">Select a register to edit or create a new one.</p>
                     </div>
                 )}
             </div>

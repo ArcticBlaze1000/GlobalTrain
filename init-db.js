@@ -21,7 +21,9 @@ const tables = [
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
-    { name: 'attendance_timers', schema: `CREATE TABLE attendance_timers (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, day_number INTEGER NOT NULL, timer_start_time TEXT NOT NULL, UNIQUE(datapack_id, day_number))`}
+    { name: 'attendance_timers', schema: `CREATE TABLE attendance_timers (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, day_number INTEGER NOT NULL, timer_start_time TEXT NOT NULL, UNIQUE(datapack_id, day_number))`},
+    { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
+    { name: 'incomplete_registers', schema: `CREATE TABLE IF NOT EXISTS incomplete_registers (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, trainees_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)` },
 ];
 
 // --- Seed Data ---
@@ -270,6 +272,29 @@ db.serialize(() => {
     db.run("UPDATE trainees SET additional_comments = 'Allergic to nuts.' WHERE id = 5");
     db.run("UPDATE trainees SET additional_comments = 'Anxious in group settings.' WHERE id = 7");
     db.run("UPDATE trainees SET additional_comments = 'Colour-blind (red-green).' WHERE id = 9");
+
+    // Create a trigger to update the updated_at column on row update
+    db.run(`
+        CREATE TRIGGER IF NOT EXISTS update_incomplete_registers_updated_at
+        AFTER UPDATE ON incomplete_registers
+        FOR EACH ROW
+        BEGIN
+            UPDATE incomplete_registers SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+        END;
+    `);
+
+    // Populate default permissions
+    const defaultPermissions = [
+        // Admin can do anything
+        { role: 'admin', action: 'ALL', resource: 'ALL' },
+        { role: 'dev', action: 'ALL', resource: 'ALL' },
+        { role: 'trainer', action: 'ALL', resource: 'ALL' },
+        { role: 'candidate', action: 'ALL', resource: 'ALL' },
+    ];
+
+    const permissionStmt = db.prepare(`INSERT INTO permissions (role, action, resource) VALUES (?, ?, ?)`);
+    defaultPermissions.forEach(p => permissionStmt.run(Object.values(p)));
+    permissionStmt.finalize();
 });
 
 // Chain course and datapack seeding to run after the initial seeding
