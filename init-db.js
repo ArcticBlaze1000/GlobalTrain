@@ -61,8 +61,8 @@ const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer' },
     { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer' },
     { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer,candidate' },
-    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer,candidate' },
+    { name: 'Pre Course', scope: 'candidate', visible: 'dev' },
+    { name: 'Post Course', scope: 'candidate', visible: 'dev' },
     { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer' }
