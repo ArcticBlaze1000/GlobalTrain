@@ -283,6 +283,27 @@ db.serialize(() => {
         END;
     `);
 
+    // Create and populate the course_folders table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS course_folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_id INTEGER NOT NULL,
+            folder_name TEXT NOT NULL,
+            FOREIGN KEY (course_id) REFERENCES courses(id)
+        );
+    `);
+    
+    const ptsFolders = ['Phonetic Quiz', 'Emergency Phone Call Exercise'];
+    const ptsCourseIds = [1, 2]; // Assuming 1=PTS Initial, 2=PTS Recert
+    const folderStmt = db.prepare('INSERT INTO course_folders (course_id, folder_name) VALUES (?, ?)');
+    
+    ptsCourseIds.forEach(courseId => {
+        ptsFolders.forEach(folderName => {
+            folderStmt.run(courseId, folderName);
+        });
+    });
+    folderStmt.finalize();
+
     // Populate default permissions
     const defaultPermissions = [
         // Admin can do anything

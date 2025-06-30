@@ -126,24 +126,59 @@ ipcMain.handle('app-quit', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   ipcMain.handle('get-documents-path', () => app.getPath('documents'));
-  ipcMain.handle('ensure-event-folder-exists', async (event, { courseName, startDate }) => {
+  ipcMain.handle('ensure-event-folder-exists', async (event, { courseName, startDate, trainerName, candidates, nonMandatoryFolders }) => {
     const fs = require('fs/promises');
     const path = require('path');
     
-    // Format date to DD-MM-YYYY
+    // --- Create Base Event Folder ---
     const [year, month, day] = startDate.split('-');
     const formattedDate = `${day}-${month}-${year}`;
-
-    const folderName = `${courseName} - ${formattedDate}`;
+    const folderName = `${courseName} - ${formattedDate} - ${trainerName}`;
     const docsPath = app.getPath('documents');
     const eventPath = path.join(docsPath, 'Global Train Events', folderName);
 
     try {
-      await fs.mkdir(path.join(eventPath, '00 Admin'), { recursive: true });
-      await fs.mkdir(path.join(eventPath, '06 Candidate'), { recursive: true });
+      // --- Create Admin Folders ---
+      const adminPath = path.join(eventPath, '00 Admin');
+      const adminSubfolders = [
+        '1. Email Confirmation to Sponsor',
+        '2. Booking Form',
+        '3. Joining Instructions',
+        '4. Sub Sponsorship Paperwork',
+        '5. Sentinel Report',
+        '6. Sponsor Notification of Results'
+      ];
+      for (const subfolder of adminSubfolders) {
+        await fs.mkdir(path.join(adminPath, subfolder), { recursive: true });
+      }
+
+      // --- Create Candidate Folders ---
+      const candidateBasePath = path.join(eventPath, '06 Candidate');
+      if (candidates && candidates.length > 0) {
+        for (let i = 0; i < candidates.length; i++) {
+          const candidate = candidates[i];
+          const candidateName = `${candidate.forename} ${candidate.surname}`;
+          // Pad number with leading zero
+          const folderPrefix = String(i + 1).padStart(2, '0');
+          await fs.mkdir(path.join(candidateBasePath, `${folderPrefix} ${candidateName}`), { recursive: true });
+        }
+      } else {
+        await fs.mkdir(candidateBasePath, { recursive: true });
+      }
+
+      // --- Create Non-Mandatory Folders ---
+      const nonMandatoryPath = path.join(eventPath, 'Non Mandatory Files');
+      if (nonMandatoryFolders && nonMandatoryFolders.length > 0) {
+        for (const subfolder of nonMandatoryFolders) {
+          await fs.mkdir(path.join(nonMandatoryPath, subfolder), { recursive: true });
+        }
+      } else {
+        await fs.mkdir(nonMandatoryPath, { recursive: true });
+      }
+
       return { success: true, path: eventPath };
     } catch (error) {
-      console.error(`Failed to create folder for event "${folderName}":`, error);
+      console.error(`Failed to create folder structure for event "${folderName}":`, error);
       return { success: false, error: error.message };
     }
   });

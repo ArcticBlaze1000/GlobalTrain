@@ -8,7 +8,7 @@ const CreationScreen = () => {
     const [trainers, setTrainers] = useState([]);
     const [incompleteRegisters, setIncompleteRegisters] = useState([]);
     const [activeRegisterId, setActiveRegisterId] = useState(null); // Can be 'new' or an ID from the DB
-
+    
     // Form State
     const [formState, setFormState] = useState({
         courseId: '',
@@ -37,36 +37,61 @@ const CreationScreen = () => {
     // --- FOLDER SYNC LOGIC ---
     const syncEventFolders = async () => {
         console.log('[FolderSync] Starting event folder synchronization...');
-        // 1. Fetch all events (completed and incomplete)
+        
+        // 1. Fetch all events with their trainer's name
         const completed = await window.db.query(`
-            SELECT c.name as course_name, d.start_date 
+            SELECT d.id, d.course_id, d.trainee_ids, c.name as course_name, d.start_date, u.forename || ' ' || u.surname as trainer_name 
             FROM datapack d 
             JOIN courses c ON d.course_id = c.id
+            LEFT JOIN users u ON d.trainer_id = u.id
         `);
         const incomplete = await window.db.query(`
-            SELECT c.name as course_name, r.start_date 
+            SELECT r.id, r.course_id, r.trainees_json, c.name as course_name, r.start_date, u.forename || ' ' || u.surname as trainer_name 
             FROM incomplete_registers r 
             JOIN courses c ON r.course_id = c.id
+            LEFT JOIN users u ON r.trainer_id = u.id
         `);
 
-        const allEvents = [...completed, ...incomplete];
+        // Create a unified list of events to process
+        const allEvents = [
+            ...completed.map(e => ({ ...e, type: 'completed' })),
+            ...incomplete.map(e => ({ ...e, type: 'incomplete' }))
+        ];
         console.log(`[FolderSync] Found ${allEvents.length} total events to check.`);
 
-        // 2. Create a unique set of events to avoid redundant checks
-        const uniqueEvents = allEvents.reduce((acc, event) => {
-            if (event.course_name && event.start_date) {
-                const key = `${event.course_name}|${event.start_date}`;
-                acc.set(key, event);
+        // 2. Process each event to ensure its folder structure exists
+        for (const event of allEvents) {
+            // Check that we have the 3 required pieces of info
+            if (!event.course_name || !event.start_date || !event.trainer_name) {
+                console.log(`[FolderSync] Skipping event ID ${event.id} due to missing info.`);
+                continue;
             }
-            return acc;
-        }, new Map()).values();
 
-        // 3. Ensure a folder exists for each unique event
-        for (const event of uniqueEvents) {
+            // a. Get candidate list
+            let candidates = [];
+            if (event.type === 'completed' && event.trainee_ids) {
+                const traineeIds = event.trainee_ids.split(',');
+                if (traineeIds.length > 0) {
+                     candidates = await window.db.query(`SELECT forename, surname FROM trainees WHERE id IN (${traineeIds.join(',')})`);
+                }
+            } else if (event.type === 'incomplete' && event.trainees_json) {
+                candidates = JSON.parse(event.trainees_json);
+            }
+
+            // b. Get non-mandatory folders for the course
+            const nonMandatoryFolders = await window.db.query(
+                'SELECT folder_name FROM course_folders WHERE course_id = ?',
+                [event.course_id]
+            );
+
+            // c. Call the backend to create the folder structure
             console.log(`[FolderSync] Ensuring folder exists for: ${event.course_name} on ${event.start_date}`);
             await window.electron.ensureEventFolderExists({ 
                 courseName: event.course_name, 
-                startDate: event.start_date 
+                startDate: event.start_date,
+                trainerName: event.trainer_name,
+                candidates: candidates,
+                nonMandatoryFolders: nonMandatoryFolders.map(f => f.folder_name)
             });
         }
         console.log('[FolderSync] Synchronization complete.');
@@ -109,7 +134,7 @@ const CreationScreen = () => {
         }
         handleFormChange('trainees', newTrainees);
     };
-
+    
     const resetForm = () => {
         setFormState({
             courseId: '',
@@ -230,9 +255,12 @@ const CreationScreen = () => {
     };
 
     const handleCreateEvent = async () => {
+        const { courseId, trainerId, startDate, duration, trainees } = formState;
+
         // Validation
-        if (!formState.courseId || !formState.trainerId || !formState.startDate || formState.trainees.length <= 0) {
-            alert('Please fill out all required fields and add at least one trainee.');
+        if (!courseId || !trainerId || !startDate || trainees.length <= 0) {
+             // We can keep a console log for debugging, but remove the user-facing alert
+            console.error('Validation failed: Please fill out all required fields and add at least one trainee.');
             return;
         }
 
@@ -240,13 +268,13 @@ const CreationScreen = () => {
             // 1. Insert the new datapack first, but without the trainee_ids, to get its ID
             const datapackResult = await window.db.run(
                 'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)',
-                [formState.courseId, formState.trainerId, formState.startDate, formState.duration, formState.trainees.length, ''] // trainee_ids is initially empty
+                [courseId, trainerId, startDate, duration, trainees.length, ''] // trainee_ids is initially empty
             );
             const newDatapackId = datapackResult.lastID;
 
             // 2. Insert all trainees, linking them to the new datapack ID
             const insertedTraineeIds = [];
-            for (const trainee of formState.trainees) {
+            for (const trainee of trainees) {
                 if (trainee.forename && trainee.surname) { // Only insert if name is provided
                     const traineeResult = await window.db.run(
                         'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
@@ -268,7 +296,7 @@ const CreationScreen = () => {
                 }
             }
             
-            if (insertedTraineeIds.length !== formState.trainees.length) {
+            if (insertedTraineeIds.length !== trainees.length) {
                 alert('Some trainees were not added because they were missing a forename or surname.');
             }
 
@@ -279,15 +307,22 @@ const CreationScreen = () => {
                 [traineeIdsString, newDatapackId]
             );
 
-            // 4. Show success and clear the form
-            alert('Event created successfully!');
+            // After successfully creating the event, delete the draft.
+            if (activeRegisterId && activeRegisterId !== 'new') {
+                console.log(`[CreationScreen] Event created. Deleting incomplete register with ID: ${activeRegisterId}`);
+                await window.db.run('DELETE FROM incomplete_registers WHERE id = ?', [activeRegisterId]);
+            }
+            
+            // Refresh the list of incomplete registers from the DB
             const fetchedRegisters = await window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC');
             setIncompleteRegisters(fetchedRegisters);
+            
+            // Reset the form to its initial state, clearing the canvas
             resetForm();
-
+            
         } catch (error) {
             console.error('Failed to create event:', error);
-            alert(`An error occurred: ${error.message}`);
+            // Optionally, provide a more user-friendly error message here
         }
     };
 
@@ -302,7 +337,7 @@ const CreationScreen = () => {
              <button onClick={resetForm} className="absolute top-4 right-4 text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
             <h2 className="text-2xl font-bold mb-6 text-gray-800">New Registration Form</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Dropdown
+                <Dropdown
                     label="Course Title"
                     value={formState.courseId}
                     onChange={(val) => handleFormChange('courseId', val)}
@@ -389,7 +424,7 @@ const CreationScreen = () => {
                                         ></textarea>
                                     </div>
                                 )}
-                                </div>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -409,11 +444,11 @@ const CreationScreen = () => {
             {/* Left Column */}
             <div className="w-1/5 bg-white p-6 shadow-md flex flex-col">
                 <div>
-                    <h2 className="text-xl font-bold mb-6">Create</h2>
-                    <button
+                <h2 className="text-xl font-bold mb-6">Create</h2>
+                <button
                         onClick={() => handleSelectRegister('new')}
-                        className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
+                    className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                         New Register
                     </button>
                 </div>
@@ -438,7 +473,7 @@ const CreationScreen = () => {
                                    title="Delete Draft"
                                 >
                                    &times;
-                                </button>
+                </button>
                             </div>
                         ))}
                     </div>
