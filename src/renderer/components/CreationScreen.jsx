@@ -36,7 +36,18 @@ const CreationScreen = () => {
     // --- FORM LOGIC ---
 
     const handleFormChange = (field, value) => {
-        setFormState(prev => ({ ...prev, [field]: value }));
+        setFormState(prev => {
+            const newState = { ...prev, [field]: value };
+
+            // If the course changes, automatically update the duration from the database value
+            if (field === 'courseId') {
+                const selectedCourse = courses.find(c => c.id === parseInt(value, 10));
+                if (selectedCourse) {
+                    newState.duration = selectedCourse.course_length || 1; // Default to 1 if not set
+                }
+            }
+            return newState;
+        });
     };
 
     const handleTraineeChange = (index, field, value) => {
