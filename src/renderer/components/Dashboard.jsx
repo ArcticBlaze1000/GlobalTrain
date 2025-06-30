@@ -67,23 +67,21 @@ const Dashboard = ({ user, onLogout }) => {
         return 'course';
     };
     const [activeTab, setActiveTab] = useState(getDefaultTab());
-    const [signatureModal, setSignatureModal] = useState({ isOpen: false, onSave: null, currentSignature: '' });
+    const [signatureState, setSignatureState] = useState({ isOpen: false, onSave: null, initialData: null });
 
-    const openSignatureModal = (onSave, currentSignature = '') => {
-        setSignatureModal({
+    const openSignatureModal = (onSave, initialData = null) => {
+        setSignatureState({
             isOpen: true,
             onSave: (dataUrl) => {
-                // The onSave from the child component will be wrapped
-                // to also close the modal from here.
                 onSave(dataUrl);
                 closeSignatureModal();
             },
-            currentSignature
+            initialData: initialData
         });
     };
 
     const closeSignatureModal = () => {
-        setSignatureModal({ isOpen: false, onSave: null, currentSignature: '' });
+        setSignatureState({ isOpen: false, onSave: null, initialData: null });
     };
 
     const renderHeader = () => (
@@ -132,10 +130,10 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
             {user.role === 'dev' && <DeveloperTools />}
             <SignatureModal 
-                show={signatureModal.isOpen}
+                show={signatureState.isOpen}
                 onClose={closeSignatureModal}
-                onSave={signatureModal.onSave}
-                signatureData={signatureModal.currentSignature}
+                onSave={signatureState.onSave}
+                signatureData={signatureState.initialData}
             />
         </div>
     );
