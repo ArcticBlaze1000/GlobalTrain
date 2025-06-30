@@ -1,7 +1,8 @@
 import React from 'react';
 
-const TriToggleButton = ({ value, onChange }) => {
+const TriToggleButton = ({ value, onChange, disabled = false }) => {
     const handleClick = () => {
+        if (disabled) return;
         const nextValue = {
             'neutral': 'yes',
             'yes': 'no',
@@ -25,7 +26,8 @@ const TriToggleButton = ({ value, onChange }) => {
         <button
             type="button"
             onClick={handleClick}
-            className="w-8 h-8 flex items-center justify-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-8 h-8 flex items-center justify-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            disabled={disabled}
         >
             {renderState()}
         </button>

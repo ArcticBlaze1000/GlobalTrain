@@ -743,6 +743,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                     disabled={!isEditable}
                                                 />
                                             )}
+                                            {q.input_type === 'checklist' && (
+                                                <select
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'checklist')}
+                                                    className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {(questionOptions[q.field_name] || []).map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            )}
                                             {q.input_type === 'date' && (
                                                 <input
                                                     type="date"
