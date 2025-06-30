@@ -187,79 +187,79 @@ const UsersScreen = ({ currentUser }) => {
         <div className="flex h-full bg-gray-100 p-8 space-x-8">
             {/* Left Column for Users */}
             <div className="flex flex-col w-1/2 space-y-8">
-                {/* User List Table */}
+            {/* User List Table */}
                 <div className="bg-white p-6 rounded-lg shadow-md overflow-y-auto">
-                    <h2 className="text-2xl font-bold mb-4">User Management</h2>
-                    <table className="w-full text-left table-auto">
-                        <thead className="bg-gray-200">
-                            <tr>
-                                <SortableHeader sortKey="id" currentSort={sort} onSort={handleSort}>ID</SortableHeader>
-                                <SortableHeader sortKey="forename" currentSort={sort} onSort={handleSort}>Forename</SortableHeader>
-                                <SortableHeader sortKey="surname" currentSort={sort} onSort={handleSort}>Surname</SortableHeader>
-                                <SortableHeader sortKey="role" currentSort={sort} onSort={handleSort}>Role</SortableHeader>
-                                <th className="px-4 py-2">Actions</th>
+                <h2 className="text-2xl font-bold mb-4">User Management</h2>
+                <table className="w-full text-left table-auto">
+                    <thead className="bg-gray-200">
+                        <tr>
+                            <SortableHeader sortKey="id" currentSort={sort} onSort={handleSort}>ID</SortableHeader>
+                            <SortableHeader sortKey="forename" currentSort={sort} onSort={handleSort}>Forename</SortableHeader>
+                            <SortableHeader sortKey="surname" currentSort={sort} onSort={handleSort}>Surname</SortableHeader>
+                            <SortableHeader sortKey="role" currentSort={sort} onSort={handleSort}>Role</SortableHeader>
+                            <th className="px-4 py-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sortedUsers.map((user) => (
+                            <tr key={user.id} className="border-b hover:bg-gray-50">
+                                <td className="px-4 py-2">{user.id}</td>
+                                <td className="px-4 py-2">{user.forename}</td>
+                                <td className="px-4 py-2">{user.surname}</td>
+                                <td className="px-4 py-2 capitalize">{user.role}</td>
+                                <td className="px-4 py-2">
+                                    <button
+                                        onClick={() => handleDeleteUser(user)}
+                                        className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                                        disabled={(currentUser.role === 'admin' && user.role !== 'trainer') || currentUser.id === user.id}
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {sortedUsers.map((user) => (
-                                <tr key={user.id} className="border-b hover:bg-gray-50">
-                                    <td className="px-4 py-2">{user.id}</td>
-                                    <td className="px-4 py-2">{user.forename}</td>
-                                    <td className="px-4 py-2">{user.surname}</td>
-                                    <td className="px-4 py-2 capitalize">{user.role}</td>
-                                    <td className="px-4 py-2">
-                                        <button
-                                            onClick={() => handleDeleteUser(user)}
-                                            className="text-red-500 hover:text-red-700 disabled:opacity-50"
-                                            disabled={(currentUser.role === 'admin' && user.role !== 'trainer') || currentUser.id === user.id}
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
-                {/* Add User Form */}
+            {/* Add User Form */}
                 <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-xl font-bold mb-4">Add New User</h3>
-                    <form onSubmit={handleAddUser} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium">Forename</label>
-                            <input
-                                type="text"
-                                value={forename}
-                                onChange={(e) => setForename(e.target.value)}
-                                className="w-full p-2 mt-1 border rounded-md"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Surname</label>
-                            <input
-                                type="text"
-                                value={surname}
-                                onChange={(e) => setSurname(e.target.value)}
-                                className="w-full p-2 mt-1 border rounded-md"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Role</label>
-                            <select
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
-                                className="w-full p-2 mt-1 border rounded-md"
-                            >
-                                {currentUser.role === 'dev' && <option value="dev">Dev</option>}
-                                {currentUser.role === 'dev' && <option value="admin">Admin</option>}
-                                <option value="trainer">Trainer</option>
-                            </select>
-                        </div>
-                        <button type="submit" className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                            Add User
-                        </button>
-                    </form>
+                <h3 className="text-xl font-bold mb-4">Add New User</h3>
+                <form onSubmit={handleAddUser} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium">Forename</label>
+                        <input
+                            type="text"
+                            value={forename}
+                            onChange={(e) => setForename(e.target.value)}
+                            className="w-full p-2 mt-1 border rounded-md"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Surname</label>
+                        <input
+                            type="text"
+                            value={surname}
+                            onChange={(e) => setSurname(e.target.value)}
+                            className="w-full p-2 mt-1 border rounded-md"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Role</label>
+                        <select
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            className="w-full p-2 mt-1 border rounded-md"
+                        >
+                            {currentUser.role === 'dev' && <option value="dev">Dev</option>}
+                            {currentUser.role === 'dev' && <option value="admin">Admin</option>}
+                            <option value="trainer">Trainer</option>
+                        </select>
+                    </div>
+                    <button type="submit" className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Add User
+                    </button>
+                </form>
                 </div>
             </div>
 

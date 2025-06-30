@@ -182,6 +182,51 @@ app.on('ready', () => {
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle('audit-event-folders', async (event, { eventPath, numTrainees, numSponsors }) => {
+    const fs = require('fs/promises');
+    const path = require('path');
+    const results = {};
+
+    const adminChecklist = {
+      '1. Email Confirmation to Sponsor': numSponsors,
+      '2. Booking Form': numSponsors,
+      '3. Joining Instructions': numTrainees,
+      '4. Sub Sponsorship Paperwork': 0,
+      '5. Sentinel Report': 1,
+      '6. Sponsor Notification of Results': 1
+    };
+
+    const adminPath = path.join(eventPath, '00 Admin');
+
+    for (const [folder, expectedCount] of Object.entries(adminChecklist)) {
+      const folderPath = path.join(adminPath, folder);
+      try {
+        const files = await fs.readdir(folderPath);
+        // Filter out system files like .DS_Store
+        const actualFiles = files.filter(f => !f.startsWith('.'));
+        const count = actualFiles.length;
+        // Show a cross for 0/0, but a tick for 1/1, 2/1, etc.
+        const isComplete = count >= expectedCount;
+        const status = isComplete && !(count === 0 && expectedCount === 0) ? '✅' : '❌';
+
+        results[folder] = {
+          count,
+          expected: expectedCount,
+          status: status
+        };
+      } catch (error) {
+        // If folder doesn't exist, count is 0
+        results[folder] = {
+          count: 0,
+          expected: expectedCount,
+          // A missing folder for a 0-requirement item should show a cross
+          status: '❌'
+        };
+      }
+    }
+    return results;
+  });
   
   createWindow();
 

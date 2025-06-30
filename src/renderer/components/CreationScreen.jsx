@@ -17,6 +17,8 @@ const CreationScreen = () => {
         duration: 1,
         trainees: []
     });
+    const [folderStatus, setFolderStatus] = useState(null);
+    const [isSubmittable, setIsSubmittable] = useState(false);
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -33,6 +35,26 @@ const CreationScreen = () => {
         fetchData();
         syncEventFolders(); // Run the sync process on component load
     }, []);
+
+    // Effect to check if the form is ready for submission
+    useEffect(() => {
+        const checkSubmittable = () => {
+            const { courseId, trainerId, startDate, trainees } = formState;
+            const formFilled = courseId && trainerId && startDate && trainees.length > 0;
+
+            if (!formFilled || !folderStatus) {
+                setIsSubmittable(false);
+                return;
+            }
+
+            const checklistComplete = Object.values(folderStatus).every(
+                item => item.count >= item.expected
+            );
+
+            setIsSubmittable(formFilled && checklistComplete);
+        };
+        checkSubmittable();
+    }, [formState, folderStatus]);
 
     // --- FOLDER SYNC LOGIC ---
     const syncEventFolders = async () => {
@@ -144,6 +166,7 @@ const CreationScreen = () => {
             trainees: []
         });
         setActiveRegisterId(null);
+        setFolderStatus(null);
     };
     
     // --- DATABASE INTERACTIONS ---
@@ -184,6 +207,43 @@ const CreationScreen = () => {
         };
     }, [formState, debouncedSave]);
 
+    // Effect to audit folder status whenever form state changes
+    useEffect(() => {
+        const auditFolders = async () => {
+            const { courseId, trainerId, startDate, trainees } = formState;
+
+            // Don't run audit if essential info is missing or no register is active
+            if (!courseId || !trainerId || !startDate || !activeRegisterId) {
+                setFolderStatus(null);
+                return;
+            }
+
+            const course = courses.find(c => c.id === parseInt(courseId, 10));
+            const trainer = trainers.find(t => t.id === parseInt(trainerId, 10));
+
+            // Don't run if course/trainer lookups fail
+            if (!course || !trainer) {
+                setFolderStatus(null);
+                return;
+            }
+
+            const docsPath = await window.electron.getDocumentsPath();
+            const trainerName = `${trainer.forename} ${trainer.surname}`;
+            const folderName = `${course.name} - ${startDate.split('-').reverse().join('-')} - ${trainerName}`;
+            const eventPath = `${docsPath}/Global Train Events/${folderName}`;
+
+            const uniqueSponsors = new Set(trainees.map(t => t.sponsor).filter(Boolean));
+
+            const auditResults = await window.electron.auditEventFolders({
+                eventPath: eventPath,
+                numTrainees: trainees.length,
+                numSponsors: uniqueSponsors.size,
+            });
+            setFolderStatus(auditResults);
+        };
+
+        auditFolders();
+    }, [formState, courses, trainers, activeRegisterId]);
 
     const handleSelectRegister = async (id) => {
         console.log(`[CreationScreen] Action: Load Register. ID: ${id}`);
@@ -239,6 +299,8 @@ const CreationScreen = () => {
             console.log("[CreationScreen] Displaying the form.");
             setActiveRegisterId(id);
 
+            // The folder audit is now handled by the useEffect hook watching formState
+            
         } catch (error) {
             console.error(`[CreationScreen] A critical error occurred while loading register ${id}:`, error);
             alert('An unexpected error stopped the register from loading. Please check the developer console for more details.');
@@ -319,7 +381,7 @@ const CreationScreen = () => {
             
             // Reset the form to its initial state, clearing the canvas
             resetForm();
-            
+
         } catch (error) {
             console.error('Failed to create event:', error);
             // Optionally, provide a more user-friendly error message here
@@ -429,10 +491,31 @@ const CreationScreen = () => {
                     </div>
                 </div>
             )}
+            
+            {/* --- DOCUMENT CHECKLIST (MOVED) --- */}
+            {folderStatus && (
+                <div className="mt-8">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-t pt-4">Document Checklist (Admin)</h3>
+                    <div className="space-y-2">
+                        {Object.entries(folderStatus).map(([folder, status]) => (
+                            <div key={folder} className="flex justify-between items-center p-2 rounded-md bg-gray-50">
+                                <span className="font-medium">{folder.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                <span className={`font-bold ${status.status === '✅' ? 'text-green-600' : 'text-red-600'}`}>
+                                    {status.status} {status.count} / {status.expected}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Create Event Button */}
             <div className="mt-8 text-right">
-                <button onClick={handleCreateEvent} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
+                <button 
+                    onClick={handleCreateEvent} 
+                    className={`px-6 py-2 bg-blue-600 text-white font-semibold rounded-md ${!isSubmittable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                    disabled={!isSubmittable}
+                >
                     Create New Event
                 </button>
             </div>

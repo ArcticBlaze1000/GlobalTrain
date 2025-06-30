@@ -13,7 +13,9 @@ contextBridge.exposeInMainWorld('electron', {
   getCssPath: () => ipcRenderer.invoke('get-css-path'),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
   quitApp: () => ipcRenderer.invoke('app-quit'),
+  getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   ensureEventFolderExists: (eventDetails) => ipcRenderer.invoke('ensure-event-folder-exists', eventDetails),
+  auditEventFolders: (auditDetails) => ipcRenderer.invoke('audit-event-folders', auditDetails),
 });
 
 window.addEventListener('DOMContentLoaded', () => {
