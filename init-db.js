@@ -14,7 +14,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
-    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT)` },
+    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
@@ -51,9 +51,9 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4' }, 
-    { name: 'PTS Reset', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4' }, 
-    { name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5' }
+    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4', course_length: 1 }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2 }, 
+    { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5 }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer' },
@@ -150,11 +150,9 @@ const questionnairesToSeed = [
 
     { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'candidate', has_comments: 'NO' },
 
-    { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'trainer', has_comments: 'NO' },
-
     // LeavingForm Questions (document_id = 6)
     { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
-    { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'candidate', has_comments: 'NO' },
+    { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainerl.l;', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'leaving_trainer_signature', access: 'trainer', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO' }
 ];
@@ -217,11 +215,11 @@ const traineesToSeed = [
     { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369', datapack: 5 }
 ];
 const datapackToSeed = [
-    { course_id: 1, trainer_id: 3, start_date: '2025-08-01', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
-    { course_id: 2, trainer_id: 4, start_date: '2025-08-10', duration: 5, total_trainee_count: 3, trainee_ids: '2,3,4' },
-    { course_id: 3, trainer_id: 3, start_date: '2025-09-05', duration: 7, total_trainee_count: 2, trainee_ids: '5,6' },
-    { course_id: 1, trainer_id: 4, start_date: '2025-09-20', duration: 3, total_trainee_count: 2, trainee_ids: '7,8' },
-    { course_id: 3, trainer_id: 3, start_date: '2025-10-01', duration: 4, total_trainee_count: 2, trainee_ids: '9,10' }
+    { course_id: 1, trainer_id: 3, start_date: '2025-06-30', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
+    { course_id: 2, trainer_id: 4, start_date: '2025-06-29', duration: 2, total_trainee_count: 3, trainee_ids: '2,3,4' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-06-26', duration: 5, total_trainee_count: 2, trainee_ids: '5,6' },
+    { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-06-27', duration: 5, total_trainee_count: 2, trainee_ids: '9,10' }
 ];
 
 db.serialize(() => {
@@ -245,6 +243,10 @@ db.serialize(() => {
     const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible) VALUES (?, ?, ?)`);
     documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible));
     docStmt.finalize();
+
+    const courseStmt = db.prepare(`INSERT INTO courses (id, name, doc_ids, competency_ids, course_length) VALUES (?, ?, ?, ?, ?)`);
+    coursesToSeed.forEach(course => courseStmt.run(course.id, course.name, course.doc_ids, course.competency_ids, course.course_length));
+    courseStmt.finalize();
 
     const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
     questionnairesToSeed.forEach(q => questionnaireStmt.run([q.document_id, q.section, q.question_text, q.input_type, q.field_name, q.access, q.has_comments || 'NO']));
@@ -280,12 +282,6 @@ db.all('SELECT id FROM competencies', [], (err, competencies) => {
     const competencyIds = competencies.map(c => c.id);
 
     db.serialize(() => {
-        const courseStmt = db.prepare(`INSERT INTO courses (name, doc_ids, competency_ids) VALUES (?, ?, ?)`);
-        coursesToSeed.forEach(course => {
-            courseStmt.run(course.name, course.doc_ids, course.competency_ids);
-        });
-        courseStmt.finalize();
-
         const datapackStmt = db.prepare(`INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)`);
         datapackToSeed.forEach(dp => datapackStmt.run(Object.values(dp)));
         datapackStmt.finalize();
