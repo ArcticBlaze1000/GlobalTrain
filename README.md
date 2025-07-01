@@ -17,9 +17,9 @@ The core philosophy of this application is **flexibility through a database-driv
 - **Styling**: Tailwind CSS 3.4.17
 
 ### Key Dependencies
-- **PDF Generation**: Puppeteer 24.10.2 and pdf-lib 1.17.1
+- **PDF Generation**: Puppeteer 24.10.2
 - **Digital Signatures**: react-signature-canvas 1.1.0
-- **Utilities**: Lodash 4.17.21, UUID 11.1.0
+- **Utilities**: Lodash 4.17.21
 - **Development**: Vite, PostCSS, Autoprefixer
 
 ---
@@ -28,58 +28,54 @@ The core philosophy of this application is **flexibility through a database-driv
 
 ### **Enhanced Role-Based Access Control (RBAC)**
 A comprehensive login system that tailors the user experience to the logged-in user's role:
-- **Dev**: Full system access including developer tools and debugging features
-- **Admin**: Complete management access including user management and system configuration
-- **Trainer**: Focused view for managing assigned training events and completing documentation
-- **Candidate**: Self-service portal for completing pre-course assessments and viewing personal training data
+- **Dev**: Full system access including developer tools and debugging features.
+- **Admin**: Complete management access including user management and system configuration.
+- **Trainer**: Focused view for managing assigned training events and completing documentation.
+- **Candidate**: Self-service portal for completing pre-course assessments and viewing personal training data.
 
 ### **Dynamic Event & Datapack Management**
-- Create and manage **Courses** (e.g., PTS, PTS Recert, COSS Initial)
-- Assign trainees and a trainer to a specific course instance, creating a **Datapack** that represents a unique training event
-- **Draft Management**: Save incomplete training event registrations as drafts with auto-save functionality
-- **Event Folder Management**: Automatic creation of structured folder systems for each training event
+- Create and manage **Courses** (e.g., PTS, PTS Recert, COSS Initial).
+- Assign trainees and a trainer to a specific course instance, creating a **Datapack** that represents a unique training event.
+- **Draft Management**: Save incomplete training event registrations as drafts with auto-save functionality.
+- **Automatic Folder Management**: On startup, the application synchronizes and creates structured folder systems for all past and present training events, ensuring consistency.
+
+### **Physical Document Validation**
+A unique system that bridges the gap between digital tracking and physical paperwork.
+- **Live File Counting**: Forms can be configured to monitor specific folders on the file system. The UI displays a live status of how many files are present versus how many are expected.
+- **Two Folder Structures Supported**:
+    1.  **Event-Wide**: Checks a central folder for the event (e.g., `.../Non Mandatory Files/PhoneticQuiz/`).
+    2.  **Candidate-Specific**: Checks a subfolder within a specific candidate's directory (e.g., `.../06 Candidate/01 John Doe/PracticalAssessment/`).
+- **Conditional PDF Generation**: The "Generate PDF" button is disabled until the physical file requirements are met, ensuring a complete audit trail.
+- **Persistent Progress**: The completion status is saved to the database, so it persists across application restarts and user sessions.
 
 ### **Database-Driven Document Generation**
-- The structure of all forms and checklists is defined in the database, not in the code
-- Supports a wide variety of input types including:
-  - Standard inputs (text, number, date, time)
-  - Interactive elements (tri-toggle buttons, signature boxes, time capture)
-  - Grid-based inputs (trainee grids, signature grids, competency grids)
-  - Conditional fields and smart forms
+- The structure of all forms and checklists is defined in the database, not in the code.
+- Supports a wide variety of input types including standard inputs, interactive elements (tri-toggles, signatures), and complex data grids.
 
 ### **Comprehensive Document Types**
-Currently supports 8 different document types:
+The application now supports **13 different document types**, each with a specific scope and purpose.
 
-**Course-Scoped Documents:**
-1. **Register** - Attendance tracking and final results
-2. **Training Course Checklist** - Pre-course and learner pack verification
-3. **Training and Welding Track Safety Briefing** - Practical safety training documentation
-
-**Candidate-Scoped Documents:**
-4. **Pre Course** - Equality & diversity information and self-assessment
-5. **Post Course** - Training completion documentation
-6. **Leaving Form** - Documentation for candidates who leave early
-7. **Phonetic Quiz** - Communication skills assessment
-8. **Emergency Phone Call Exercise** - Emergency procedures training
+| #  | Name                                     | Type              | Scope       | Description                                                 |
+|----|------------------------------------------|-------------------|-------------|-------------------------------------------------------------|
+| 1  | Register                                 | Questionnaire     | Course      | Attendance, competency tracking, and final results.         |
+| 2  | Training Course Checklist                | Questionnaire     | Course      | Pre-course and learner pack verification.                   |
+| 3  | Training & Welding Track Safety Briefing | Questionnaire     | Course      | Practical safety training and sign-off.                     |
+| 4  | Pre Course                               | Questionnaire     | Candidate   | Equality, diversity, and self-assessment info.              |
+| 5  | Post Course                              | *Placeholder*     | Candidate   | Future use for post-training documentation.                 |
+| 6  | Leaving Form                             | Questionnaire     | Candidate   | Documentation for candidates who leave a course early.      |
+| 7  | Phonetic Quiz                            | **File-Based**    | Candidate   | Validates scanned copies of the phonetic quiz assessment.   |
+| 8  | Emergency Phone Call Exercise            | **File-Based**    | Candidate   | Validates scanned copies of the emergency call exercise.    |
+| 9  | Progress Record                          | *Placeholder*     | Course      | Future use for tracking overall course progress.            |
+| 10 | Deviation Form                           | *Placeholder*     | Course      | Future use for documenting deviations from the standard.    |
+| 11 | Practical Assessment                     | **File-Based**    | Candidate   | Validates the scanned practical assessment for one trainee. |
+| 12 | Recert Emergency Call Practical          | **File-Based**    | Candidate   | Validates the scanned recertification assessment.           |
+| 13 | Track Walk Delivery Requirements         | *Placeholder*     | Candidate   | Future use for track walk safety requirements.              |
 
 ### **Advanced Form Features**
-- **Real-time Progress Tracking**: Completion percentages calculated and displayed in real-time
-- **Persistent State**: All form data persists across navigation with auto-save functionality
-- **Conditional UI**: Forms adapt based on user input (e.g., Leaving Form only appears when needed)
-- **Digital Signatures**: Integrated signature capture with modal interface
-- **Comment System**: Contextual comments on form fields where appropriate
-
-### **Automated PDF Generation & File Management**
-- Generate professional PDF documents using Puppeteer with pixel-perfect accuracy
-- **Automatic Folder Creation**: Creates structured folder hierarchies for each training event
-- **Document Organization**: Separate folders for admin files, candidate files, and course-specific materials
-- **File System Integration**: Seamless integration with operating system file explorer
-
-### **Enhanced User Experience**
-- **Non-Blocking Feedback**: Smooth user experience with inline messages instead of disruptive pop-ups
-- **Responsive Design**: Tailwind CSS-powered interface that works across different screen sizes
-- **Context-Aware Navigation**: Smart tab system that adapts to user roles
-- **Developer Tools**: Built-in debugging and development tools for system administrators
+- **Real-time Progress Tracking**: Completion percentages are calculated and displayed instantly.
+- **Persistent State**: All form data and completion statuses are saved to the database, persisting across sessions.
+- **Conditional UI**: Forms adapt based on user input (e.g., Leaving Form only appears when needed).
+- **Digital Signatures**: Integrated signature capture with a modal interface.
 
 ---
 
@@ -101,7 +97,7 @@ The application's flexibility comes from its comprehensive SQLite database (`dat
 | `questionnaire_options`  | Stores dropdown options and multiple-choice answers for questionnaire fields.                                                           |
 | `responses`              | Stores all submitted form data with trainee associations and completion tracking.                                                       |
 | `competencies`           | Professional competencies that can be assessed and tracked.                                                                             |
-
+| `document_progress`      | **NEW**: Persists the completion percentage of documents for each trainee, ensuring state is saved across sessions.                        |
 | `permissions`            | Role-based permission system for fine-grained access control.                                                                           |
 
 ### Project Structure
@@ -146,6 +142,8 @@ global-train/
             └── PTS/                 # PTS-specific documents
                 ├── PhoneticQuiz/
                 ├── EmergencyPhoneCallExercise/
+                ├── PracticalAssessment/
+                ├── RecertEmergencyCallPracticalAssessment/
                 └── TrainingAndWeldingTrackSafetyBreifing/
 ```
 

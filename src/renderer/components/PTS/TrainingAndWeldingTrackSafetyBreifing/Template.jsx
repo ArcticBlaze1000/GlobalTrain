@@ -28,7 +28,7 @@ const Template = ({
     return (
         <html lang="en">
         <head>
-            <meta charset="UTF-8" />
+            <meta charSet="UTF-8" />
             <title>Training & Welding Track Safety Briefing</title>
             <style>
                 {`
