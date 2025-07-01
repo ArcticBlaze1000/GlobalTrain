@@ -79,7 +79,7 @@ const questionnairesToSeed = [
     { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
     
     // Dynamically generate from day 1 to 14 days of attendance questions
-    ...Array.from({ length: 14 }, (_, i) => ({
+    ...Array.from({ length: 21 }, (_, i) => ({
         document_id: 1,
         section: 'MAIN',
         question_text: `Day ${i + 1}`,
@@ -161,7 +161,38 @@ const questionnairesToSeed = [
     { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainerl.l;', has_comments: 'NO' },
     { document_id: 6, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'leaving_trainer_signature', access: 'trainer', has_comments: 'NO' },
-    { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO' }
+    { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO' },
+
+    // ProgressRecord Questions (document_id = 9) - Daily time tracking
+    ...Array.from({ length: 21 }, (_, i) => ([
+        {
+            document_id: 9,
+            section: `Day ${i + 1}`,
+            question_text: 'Start Time',
+            input_type: 'time_capture_button',
+            field_name: `day_${i + 1}_start_time`,
+            access: 'trainer',
+            has_comments: 'NO'
+        },
+        {
+            document_id: 9,
+            section: `Day ${i + 1}`,
+            question_text: 'Finish Time',
+            input_type: 'time_capture_button',
+            field_name: `day_${i + 1}_finish_time`,
+            access: 'trainer',
+            has_comments: 'NO'
+        }
+    ])).flat(),
+    {
+        document_id: 9, // ProgressRecord
+        section: 'Comments',
+        question_text: 'Trainer Comments & Signature',
+        input_type: 'dynamic_comments_section',
+        field_name: 'progress_record_comments',
+        access: 'trainer',
+        has_comments: 'NO'
+    }
 ];
 
 const checklistQuestionFieldNames = questionnairesToSeed

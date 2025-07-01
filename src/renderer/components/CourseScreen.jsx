@@ -3,6 +3,7 @@ import { useEvent } from '../context/EventContext';
 import RegisterForm from './General/Register/Form';
 import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './PTS/TrainingAndWeldingTrackSafetyBreifing/Form';
+import ProgressRecordForm from './General/ProgressRecord/Form';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -94,6 +95,14 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                         if (fieldsToExclude.includes(q.field_name)) {
                             return false;
                         }
+
+                        if (q.section && q.section.startsWith('Day ')) {
+                            const dayNumber = parseInt(q.section.split(' ')[1], 10);
+                            if (!isNaN(dayNumber) && dayNumber > eventDuration) {
+                                return false; 
+                            }
+                        }
+                        
                         if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
                             const dayNumber = parseInt(q.field_name.split('_')[1], 10);
                             return !isNaN(dayNumber) && dayNumber <= eventDuration;
@@ -210,6 +219,8 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 return <TrainingCourseChecklistForm {...props} />;
             case 'TrainingAndWeldingTrackSafetyBreifing':
                 return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
+            case 'ProgressRecord':
+                return <ProgressRecordForm {...props} />;
             default:
                 return (
                     <div className="flex items-center justify-center h-full">
