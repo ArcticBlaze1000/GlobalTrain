@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electron', {
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   ensureEventFolderExists: (eventDetails) => ipcRenderer.invoke('ensure-event-folder-exists', eventDetails),
   auditEventFolders: (auditDetails) => ipcRenderer.invoke('audit-event-folders', auditDetails),
+  checkNonMandatoryDocumentCount: (checkDetails) => ipcRenderer.invoke('check-non-mandatory-document-count', checkDetails),
 });
 
 window.addEventListener('DOMContentLoaded', () => {

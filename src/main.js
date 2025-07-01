@@ -227,6 +227,44 @@ app.on('ready', () => {
     }
     return results;
   });
+
+  ipcMain.handle('check-non-mandatory-document-count', async (event, { courseName, startDate, trainerName, documentName, expectedCount }) => {
+    const fs = require('fs/promises');
+    const path = require('path');
+    
+    try {
+      // Build the path to the specific non-mandatory document folder
+      const [year, month, day] = startDate.split('-');
+      const formattedDate = `${day}-${month}-${year}`;
+      const folderName = `${courseName} - ${formattedDate} - ${trainerName}`;
+      const docsPath = app.getPath('documents');
+      const documentFolderPath = path.join(docsPath, 'Global Train Events', folderName, 'Non Mandatory Files', documentName);
+      
+      // Count files in the folder
+      const files = await fs.readdir(documentFolderPath);
+      // Filter out system files like .DS_Store
+      const actualFiles = files.filter(f => !f.startsWith('.'));
+      const count = actualFiles.length;
+      
+      // For non-mandatory docs: exactly expected count = ✅, otherwise ❌
+      const status = count === expectedCount ? '✅' : '❌';
+      
+      return {
+        count,
+        expected: expectedCount,
+        status,
+        folderPath: documentFolderPath
+      };
+    } catch (error) {
+      // If folder doesn't exist or can't be read, count is 0
+      return {
+        count: 0,
+        expected: expectedCount,
+        status: '❌',
+        error: error.message
+      };
+    }
+  });
   
   createWindow();
 

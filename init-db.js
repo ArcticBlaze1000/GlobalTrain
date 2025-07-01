@@ -23,6 +23,7 @@ const tables = [
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
     { name: 'incomplete_registers', schema: `CREATE TABLE IF NOT EXISTS incomplete_registers (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, trainees_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)` },
+    { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
 ];
 
 // --- Seed Data ---
@@ -52,7 +53,7 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
     { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2, non_mandatory_doc_ids: '7,8' }, 
     { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5, non_mandatory_doc_ids: '' }
 ];
@@ -286,8 +287,6 @@ db.serialize(() => {
             UPDATE incomplete_registers SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
         END;
     `);
-
-
 
     // Populate default permissions
     const defaultPermissions = [

@@ -16,7 +16,7 @@ const formatDocName = (name) => {
 
 const CandidateScreen = ({ user, openSignatureModal }) => {
     // Shared state from context
-    const { activeEvent } = useEvent();
+    const { activeEvent, progressState, updateProgress, updateBulkProgress } = useEvent();
 
     // State for data
     const [candidates, setCandidates] = useState([]);
@@ -27,12 +27,15 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     const [selectedCandidateId, setSelectedCandidateId] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
-    const [docProgress, setDocProgress] = useState({});
 
-    // Callback for the form to report its progress
+    // Derive progress for the currently selected candidate from the central state
+    const docProgress = progressState[selectedCandidateId] || {};
+
+    // Callback for the form to report its progress to the central state
     const handleProgressUpdate = useCallback((documentId, percentage) => {
-        setDocProgress(prev => ({ ...prev, [documentId]: percentage }));
-    }, []);
+        if (!selectedCandidateId) return;
+        updateProgress(selectedCandidateId, documentId, percentage);
+    }, [selectedCandidateId, updateProgress]);
 
     const filteredDocuments = documents.filter(doc => {
         if (doc.name === 'LeavingForm') {
@@ -72,75 +75,70 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         const fetchDocumentsAndProgress = async () => {
             if (!activeEvent || !selectedCandidateId) {
                 setDocuments([]);
-                setDocProgress({});
                 return;
             }
 
-            const docIdsResult = await window.db.query(
-                'SELECT doc_ids FROM courses WHERE id = ?',
-                [activeEvent.course_id]
+            // Always fetch the document list for the active course
+            const docIdsResult = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
+            if (!docIdsResult.length) return;
+            const ids = docIdsResult[0].doc_ids.split(',');
+            const docs = await window.db.query(
+                `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate' AND visible LIKE ?`,
+                [...ids, `%${user.role}%`]
             );
-            
-            if (docIdsResult.length > 0) {
-                const ids = docIdsResult[0].doc_ids.split(',');
+            setDocuments(docs);
 
-                // Filter documents based on the 'visible' column for the user's role.
-                const docs = await window.db.query(
-                    `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate' AND visible LIKE ?`,
-                    [...ids, `%${user.role}%`]
-                );
-                setDocuments(docs);
+            // If progress for this candidate is already in our context state, we don't need to re-calculate it.
+            if (progressState[selectedCandidateId]) {
+                return;
+            }
 
-                const progressMap = {};
-                for (const doc of docs) {
-                    const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
+            // --- Fetch persisted and calculate new progress ---
 
-                    // Fetch responses first to determine which questions are truly relevant
-                    const allResponses = await window.db.query(
-                        'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ?',
-                        [activeEvent.id, doc.id, selectedCandidateId]
-                    );
-                    const responsesMap = allResponses.reduce((acc, res) => {
-                        acc[res.field_name] = res.response_data;
-                        return acc;
-                    }, {});
+            // 1. Fetch any progress that was already saved to the database
+            const persistedProgress = await window.db.query(
+                'SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND trainee_id = ?',
+                [activeEvent.id, selectedCandidateId]
+            );
+            const progressMapFromDb = persistedProgress.reduce((acc, row) => {
+                acc[row.document_id] = row.completion_percentage;
+                return acc;
+            }, {});
 
-                    // Filter questions based on the responses to conditional questions
-                    const relevantQuestions = questions.filter(q => {
-                        if (q.field_name === 'pre_disabilities_details') {
-                            return responsesMap['pre_disabilities_q'] === 'Yes';
-                        }
-                        if (q.field_name === 'pre_learning_difficulties_details') {
-                            return responsesMap['pre_learning_difficulties_q'] === 'Yes';
-                        }
-                        return true; // Include all other questions
-                    });
+            // 2. For any documents that had no saved progress, calculate it now
+            const docsToCalculate = docs.filter(doc => progressMapFromDb[doc.id] === undefined);
+            const calculatedProgressMap = {};
 
-                    const totalQuestions = relevantQuestions.length;
-                    
-                    if (totalQuestions === 0) {
-                        progressMap[doc.id] = 100;
-                        continue;
-                    }
-
-                    const relevantQuestionFieldNames = relevantQuestions.map(q => q.field_name);
-                    const responsePlaceholders = relevantQuestionFieldNames.map(() => '?').join(',');
-                    
-                    // Only count completed responses from the set of relevant questions
-                    const completedResponses = await window.db.query(
-                        `SELECT COUNT(*) as count FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ? AND completed = 1 AND field_name IN (${responsePlaceholders})`,
-                        [activeEvent.id, doc.id, selectedCandidateId, ...relevantQuestionFieldNames]
-                    );
-                    
-                    const completedCount = completedResponses[0]?.count || 0;
-                    progressMap[doc.id] = Math.round((completedCount / totalQuestions) * 100);
+            for (const doc of docsToCalculate) {
+                if (['PhoneticQuiz', 'EmergencyPhoneCallExercise', 'Post Course', 'LeavingForm'].includes(doc.name)) {
+                    calculatedProgressMap[doc.id] = 0; // Default file-based docs to 0
+                    continue;
                 }
-                setDocProgress(progressMap);
+
+                const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
+                const relevantQuestions = questions.filter(q => {
+                     if (q.field_name === 'pre_disabilities_details' || q.field_name === 'pre_learning_difficulties_details') {
+                        return false; 
+                    }
+                    return true;
+                });
+
+                if (relevantQuestions.length === 0) {
+                    calculatedProgressMap[doc.id] = 100;
+                } else {
+                    calculatedProgressMap[doc.id] = 0; // Default questionnaire docs to 0 until answered
+                }
+            }
+            
+            // 3. Combine DB progress and newly calculated progress, then update the central state
+            const finalProgressMap = { ...progressMapFromDb, ...calculatedProgressMap };
+            if (Object.keys(finalProgressMap).length > 0) {
+                updateBulkProgress(selectedCandidateId, finalProgressMap);
             }
         };
 
         fetchDocumentsAndProgress();
-    }, [activeEvent, selectedCandidateId, user.role]);
+    }, [activeEvent, selectedCandidateId, user.role, progressState, updateBulkProgress]);
 
     useEffect(() => {
         if (!isLeaving && selectedDocument?.name === 'Leaving Form') {

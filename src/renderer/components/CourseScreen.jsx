@@ -28,7 +28,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             if (!user?.id) return;
 
             let query = `
-                SELECT d.id, d.course_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids, c.competency_ids
+                SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids, c.competency_ids
                 FROM datapack d
                 JOIN courses c ON d.course_id = c.id
             `;
