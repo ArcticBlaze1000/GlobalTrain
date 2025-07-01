@@ -14,7 +14,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
-    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER)` },
+    { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER, non_mandatory_doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
@@ -52,9 +52,9 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4', course_length: 1 }, 
-    { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2 }, 
-    { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5 }
+    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2, non_mandatory_doc_ids: '7,8' }, 
+    { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer' },
@@ -250,8 +250,8 @@ db.serialize(() => {
     documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible));
     docStmt.finalize();
 
-    const courseStmt = db.prepare(`INSERT INTO courses (id, name, doc_ids, competency_ids, course_length) VALUES (?, ?, ?, ?, ?)`);
-    coursesToSeed.forEach(course => courseStmt.run(course.id, course.name, course.doc_ids, course.competency_ids, course.course_length));
+    const courseStmt = db.prepare(`INSERT INTO courses (id, name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (?, ?, ?, ?, ?, ?)`);
+    coursesToSeed.forEach(course => courseStmt.run(course.id, course.name, course.doc_ids, course.competency_ids, course.course_length, course.non_mandatory_doc_ids));
     courseStmt.finalize();
 
     const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -287,26 +287,7 @@ db.serialize(() => {
         END;
     `);
 
-    // Create and populate the course_folders table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS course_folders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_id INTEGER NOT NULL,
-            folder_name TEXT NOT NULL,
-            FOREIGN KEY (course_id) REFERENCES courses(id)
-        );
-    `);
-    
-    const ptsFolders = ['Phonetic Quiz', 'Emergency Phone Call Exercise'];
-    const ptsCourseIds = [1, 2]; // Assuming 1=PTS Initial, 2=PTS Recert
-    const folderStmt = db.prepare('INSERT INTO course_folders (course_id, folder_name) VALUES (?, ?)');
-    
-    ptsCourseIds.forEach(courseId => {
-        ptsFolders.forEach(folderName => {
-            folderStmt.run(courseId, folderName);
-        });
-    });
-    folderStmt.finalize();
+
 
     // Populate default permissions
     const defaultPermissions = [

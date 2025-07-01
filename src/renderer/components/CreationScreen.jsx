@@ -101,10 +101,24 @@ const CreationScreen = () => {
             }
 
             // b. Get non-mandatory folders for the course
-            const nonMandatoryFolders = await window.db.query(
-                'SELECT folder_name FROM course_folders WHERE course_id = ?',
+            let nonMandatoryFolders = [];
+            
+            // Get course data to find non_mandatory_doc_ids
+            const courseData = await window.db.query(
+                'SELECT non_mandatory_doc_ids FROM courses WHERE id = ?',
                 [event.course_id]
             );
+            
+            if (courseData.length > 0 && courseData[0].non_mandatory_doc_ids) {
+                const docIds = courseData[0].non_mandatory_doc_ids.split(',').filter(id => id.trim());
+                if (docIds.length > 0) {
+                    const documents = await window.db.query(
+                        `SELECT name FROM documents WHERE id IN (${docIds.map(() => '?').join(',')})`,
+                        docIds
+                    );
+                    nonMandatoryFolders = documents.map(doc => ({ folder_name: doc.name }));
+                }
+            }
 
             // c. Call the backend to create the folder structure
             console.log(`[FolderSync] Ensuring folder exists for: ${event.course_name} on ${event.start_date}`);

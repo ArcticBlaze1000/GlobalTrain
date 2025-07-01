@@ -92,7 +92,7 @@ The application's flexibility comes from its comprehensive SQLite database (`dat
 | Table                    | Description                                                                                                                              |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `users`                  | Stores user credentials and roles (`dev`, `admin`, `trainer`, `candidate`).                                                             |
-| `courses`                | Defines available training courses with linked document IDs, competencies, and course length.                                           |
+| `courses`                | Defines available training courses with linked document IDs, competencies, course length, and non-mandatory folder specifications.     |
 | `trainees`               | Manages information for all training participants including sponsor details and additional comments.                                     |
 | `datapack`               | Core table representing completed training events. Links courses, trainers, and trainees.                                              |
 | `incomplete_registers`   | Stores draft training event registrations with auto-save and timestamp tracking.                                                        |
@@ -101,7 +101,7 @@ The application's flexibility comes from its comprehensive SQLite database (`dat
 | `questionnaire_options`  | Stores dropdown options and multiple-choice answers for questionnaire fields.                                                           |
 | `responses`              | Stores all submitted form data with trainee associations and completion tracking.                                                       |
 | `competencies`           | Professional competencies that can be assessed and tracked.                                                                             |
-| `course_folders`         | Defines course-specific folder structures for file organization.                                                                        |
+
 | `permissions`            | Role-based permission system for fine-grained access control.                                                                           |
 
 ### Project Structure
