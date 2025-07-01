@@ -1,5 +1,10 @@
 import React from 'react';
 
-const PDFGenerator = () => <div>Recert Emergency Call Practical Assessment PDF Generator placeholder</div>;
+export const generateRecertEmergencyCallPracticalAssessmentPdf = async (datapackId, traineeId) => {
+    alert('PDF generation for Recertification Emergency Call Practical Assessment is not yet implemented.');
+    // In the future, you would fetch data and generate a PDF here.
+};
 
-export default PDFGenerator; 
+const Template = () => <div>Recertification Emergency Call Practical Assessment PDF template placeholder</div>;
+
+export default Template; 

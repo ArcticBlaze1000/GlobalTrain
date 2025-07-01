@@ -120,14 +120,28 @@ const CreationScreen = () => {
                 }
             }
 
-            // c. Call the backend to create the folder structure
+            // d. Get candidate-scoped documents for the course
+            let candidateScopedDocs = [];
+            const courseDocsData = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [event.course_id]);
+            const allDocIds = courseDocsData[0]?.doc_ids?.split(',').filter(id => id.trim());
+
+            if (allDocIds && allDocIds.length > 0) {
+                const candidateDocs = await window.db.query(
+                    `SELECT name FROM documents WHERE id IN (${allDocIds.map(() => '?').join(',')}) AND scope = 'candidate'`,
+                    allDocIds
+                );
+                candidateScopedDocs = candidateDocs.map(doc => doc.name);
+            }
+
+            // e. Call the backend to create the folder structure
             console.log(`[FolderSync] Ensuring folder exists for: ${event.course_name} on ${event.start_date}`);
             await window.electron.ensureEventFolderExists({ 
                 courseName: event.course_name, 
                 startDate: event.start_date,
                 trainerName: event.trainer_name,
                 candidates: candidates,
-                nonMandatoryFolders: nonMandatoryFolders.map(f => f.folder_name)
+                nonMandatoryFolders: nonMandatoryFolders.map(f => f.folder_name),
+                candidateScopedDocs: candidateScopedDocs,
             });
         }
         console.log('[FolderSync] Synchronization complete.');

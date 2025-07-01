@@ -7,6 +7,8 @@ import PostCourseForm from './General/PostCourse/Form';
 import LeavingForm from './General/LeavingForm/Form';
 import PhoneticQuizForm from './PTS/PhoneticQuiz/Form';
 import EmergencyPhoneCallExerciseForm from './PTS/EmergencyPhoneCallExercise/Form';
+import PracticalAssessmentForm from './PTS/PracticalAssessment/Form';
+import RecertEmergencyCallPracticalAssessmentForm from './PTS/RecertEmergencyCallPracticalAssessment/Form';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -110,7 +112,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             const calculatedProgressMap = {};
 
             for (const doc of docsToCalculate) {
-                if (['PhoneticQuiz', 'EmergencyPhoneCallExercise', 'Post Course', 'LeavingForm'].includes(doc.name)) {
+                if (['PhoneticQuiz', 'EmergencyPhoneCallExercise', 'Post Course', 'LeavingForm', 'PracticalAssessment', 'RecertEmergencyCallPracticalAssessment'].includes(doc.name)) {
                     calculatedProgressMap[doc.id] = 0; // Default file-based docs to 0
                     continue;
                 }
@@ -243,6 +245,10 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 return <PhoneticQuizForm {...props} />;
             case 'EmergencyPhoneCallExercise':
                 return <EmergencyPhoneCallExerciseForm {...props} />;
+            case 'PracticalAssessment':
+                return <PracticalAssessmentForm {...props} />;
+            case 'RecertEmergencyCallPracticalAssessment':
+                return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
             default:
                 // Fallback for any other document that might not have a specific form
                 return <QuestionnaireForm {...props} />;

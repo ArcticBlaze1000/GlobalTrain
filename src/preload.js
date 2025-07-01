@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('db', {
   query: (sql, params) => ipcRenderer.invoke('db-query', sql, params),
   run: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
   get: (sql, params) => ipcRenderer.invoke('db-get', sql, params),
+  transaction: (queries) => ipcRenderer.invoke('db-transaction', queries),
 });
 
 contextBridge.exposeInMainWorld('electron', {

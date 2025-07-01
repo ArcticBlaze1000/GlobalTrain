@@ -51,6 +51,33 @@ ipcMain.handle('db-run', async (event, sql, params = []) => {
     });
 });
 
+ipcMain.handle('db-transaction', async (event, queries) => {
+    return new Promise((resolve, reject) => {
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION', (err) => {
+                if (err) return reject(err);
+
+                for (const [sql, params] of queries) {
+                    db.run(sql, params, function(err) {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            return reject(err);
+                        }
+                    });
+                }
+
+                db.run('COMMIT', (err) => {
+                    if (err) {
+                        db.run('ROLLBACK');
+                        return reject(err);
+                    }
+                    resolve();
+                });
+            });
+        });
+    });
+});
+
 ipcMain.handle('get-css-path', async () => {
     if (process.env.NODE_ENV !== 'production') {
         // In development, point to the Vite server
@@ -126,7 +153,7 @@ ipcMain.handle('app-quit', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   ipcMain.handle('get-documents-path', () => app.getPath('documents'));
-  ipcMain.handle('ensure-event-folder-exists', async (event, { courseName, startDate, trainerName, candidates, nonMandatoryFolders }) => {
+  ipcMain.handle('ensure-event-folder-exists', async (event, { courseName, startDate, trainerName, candidates, nonMandatoryFolders, candidateScopedDocs }) => {
     const fs = require('fs/promises');
     const path = require('path');
     
@@ -158,9 +185,16 @@ app.on('ready', () => {
         for (let i = 0; i < candidates.length; i++) {
           const candidate = candidates[i];
           const candidateName = `${candidate.forename} ${candidate.surname}`;
-          // Pad number with leading zero
           const folderPrefix = String(i + 1).padStart(2, '0');
-          await fs.mkdir(path.join(candidateBasePath, `${folderPrefix} ${candidateName}`), { recursive: true });
+          const fullCandidatePath = path.join(candidateBasePath, `${folderPrefix} ${candidateName}`);
+          await fs.mkdir(fullCandidatePath, { recursive: true });
+
+          // Create subfolders for candidate-scoped docs
+          if (candidateScopedDocs && candidateScopedDocs.length > 0) {
+            for (const docFolder of candidateScopedDocs) {
+              await fs.mkdir(path.join(fullCandidatePath, docFolder), { recursive: true });
+            }
+          }
         }
       } else {
         await fs.mkdir(candidateBasePath, { recursive: true });
@@ -228,21 +262,33 @@ app.on('ready', () => {
     return results;
   });
 
-  ipcMain.handle('check-non-mandatory-document-count', async (event, { courseName, startDate, trainerName, documentName, expectedCount }) => {
+  ipcMain.handle('check-non-mandatory-document-count', async (event, { courseName, startDate, trainerName, documentName, expectedCount, candidateName = null }) => {
     const fs = require('fs/promises');
     const path = require('path');
     
     try {
-      // Build the path to the specific non-mandatory document folder
       const [year, month, day] = startDate.split('-');
       const formattedDate = `${day}-${month}-${year}`;
-      const folderName = `${courseName} - ${formattedDate} - ${trainerName}`;
+      const eventFolderName = `${courseName} - ${formattedDate} - ${trainerName}`;
       const docsPath = app.getPath('documents');
-      const documentFolderPath = path.join(docsPath, 'Global Train Events', folderName, 'Non Mandatory Files', documentName);
+      const eventPath = path.join(docsPath, 'Global Train Events', eventFolderName);
+
+      let documentFolderPath;
+      if (candidateName) {
+        const candidateBasePath = path.join(eventPath, '06 Candidate');
+        const allCandidateFolders = await fs.readdir(candidateBasePath);
+        const correctCandidateFolder = allCandidateFolders.find(folder => folder.includes(candidateName));
+        
+        if (!correctCandidateFolder) {
+          throw new Error(`Candidate folder for '${candidateName}' not found in '${candidateBasePath}'.`);
+        }
+        
+        documentFolderPath = path.join(candidateBasePath, correctCandidateFolder, documentName);
+      } else {
+        documentFolderPath = path.join(eventPath, 'Non Mandatory Files', documentName);
+      }
       
-      // Count files in the folder
       const files = await fs.readdir(documentFolderPath);
-      // Filter out system files like .DS_Store
       const actualFiles = files.filter(f => !f.startsWith('.'));
       const count = actualFiles.length;
       

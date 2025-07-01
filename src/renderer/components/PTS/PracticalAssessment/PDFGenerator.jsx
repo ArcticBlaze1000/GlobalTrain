@@ -1,5 +1,10 @@
 import React from 'react';
 
-const PDFGenerator = () => <div>Practical Assessment PDF Generator placeholder</div>;
+export const generatePracticalAssessmentPdf = async (datapackId, traineeId) => {
+    alert('PDF generation for Practical Assessment is not yet implemented.');
+    // In the future, you would fetch data and generate a PDF here.
+};
 
-export default PDFGenerator; 
+const Template = () => <div>Practical Assessment PDF template placeholder</div>;
+
+export default Template; 
