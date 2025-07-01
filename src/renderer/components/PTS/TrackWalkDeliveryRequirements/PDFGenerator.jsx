@@ -1,5 +1,9 @@
 import React from 'react';
 
-const PDFGenerator = () => <div>Track Walk Delivery Requirements PDF Generator placeholder</div>;
+export const generateTrackWalkDeliveryRequirementsPdf = async (datapackId, traineeId) => {
+    alert('PDF generation for Track Walk Delivery Requirements is not yet implemented.');
+};
 
-export default PDFGenerator; 
+const Template = () => <div>Track Walk Delivery Requirements PDF template placeholder</div>;
+
+export default Template; 
