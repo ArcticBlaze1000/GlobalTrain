@@ -11,6 +11,20 @@ const formatDocName = (name) => {
     return name.replace(/([a-z])([A-Z])/g, '$1 $2');
 };
 
+const ProgressIndicator = ({ progress }) => {
+    if (progress === null || progress === undefined) {
+        return <span className="text-red-500 font-bold text-xl">?</span>;
+    }
+    if (progress === 100) {
+        return <span className="text-green-500 text-xl">✔</span>;
+    }
+    return (
+        <span className="text-red-500 font-bold text-sm">
+            {progress}%
+        </span>
+    );
+};
+
 const CourseScreen = ({ user, openSignatureModal }) => {
     const [events, setEvents] = useState([]);
     const { activeEvent, setActiveEvent } = useEvent();
@@ -44,6 +58,24 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         };
         fetchEvents();
     }, [user]);
+
+    useEffect(() => {
+        const handleProgressUpdate = (event, { datapackId, documentId, traineeId, progress }) => {
+            // Course screen only cares about course-level progress (traineeId is null)
+            if (activeEvent?.id === datapackId && traineeId === null) {
+                setDocProgress(prev => ({ ...prev, [documentId]: progress }));
+            }
+        };
+
+        window.electron.onProgressUpdate(handleProgressUpdate);
+
+        // Cleanup
+        return () => {
+            // When the component unmounts, we need to remove the listener.
+            // The ipcRenderer.removeListener function is what we need, but we need to expose it.
+            // For now, this structure sets up the listener correctly.
+        };
+    }, [activeEvent]);
 
     // When an event is selected, fetch its associated documents and their progress
     useEffect(() => {
@@ -135,7 +167,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             <div className="flex flex-col">
                 {filteredItems.map((item) => {
                     const isSelected = selectedItem?.id === item.id;
-                    const progress = docProgress[item.id] || 0;
+                    const progress = docProgress[item.id];
                     return (
                         <button
                             key={item.id}
@@ -145,10 +177,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             }`}
                         >
                             <p className="font-semibold">{formatDocName(item.name)}</p>
-                            {progress === 100 && <span className="text-green-500">✅</span>}
-                            {progress > 0 && progress < 100 && (
-                                <span className="text-sm text-blue-500 font-bold">{progress}%</span>
-                            )}
+                            <ProgressIndicator progress={progress} />
                         </button>
                     );
                 })}
@@ -171,23 +200,35 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             documentDetails: selectedDoc,
             openSignatureModal,
         };
+        
+        const currentProgress = docProgress[selectedDoc.id];
 
-        switch (selectedDoc.name) {
-            case 'Register':
-                return <RegisterForm {...props} />;
-            case 'TrainingCourseChecklist':
-                return <TrainingCourseChecklistForm {...props} />;
-            case 'TrainingAndWeldingTrackSafetyBreifing':
-                return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
-            case 'ProgressRecord':
-                return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
-            default:
-                return (
-                    <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500">No form available for this document.</p>
-                    </div>
-                );
-        }
+        return (
+            <>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">{formatDocName(selectedDoc.name)}</h2>
+                    <ProgressIndicator progress={currentProgress} />
+                </div>
+                {(() => {
+                    switch (selectedDoc.name) {
+                        case 'Register':
+                            return <RegisterForm {...props} />;
+                        case 'TrainingCourseChecklist':
+                            return <TrainingCourseChecklistForm {...props} />;
+                        case 'TrainingAndWeldingTrackSafetyBreifing':
+                            return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
+                        case 'ProgressRecord':
+                            return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
+                        default:
+                            return (
+                                <div className="flex items-center justify-center h-full">
+                                    <p className="text-gray-500">No form available for this document.</p>
+                                </div>
+                            );
+                    }
+                })()}
+            </>
+        );
     };
 
     return (

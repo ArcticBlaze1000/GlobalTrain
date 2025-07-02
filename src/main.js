@@ -155,9 +155,6 @@ app.on('ready', () => {
   ipcMain.handle('get-documents-path', () => app.getPath('documents'));
   
   ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
-    console.log('--- Recalculating Progress ---');
-    console.log(`Datapack: ${datapackId}, Document: ${documentId}, Trainee: ${traineeId}`);
-
     // Fetch datapack details first to get duration and trainee IDs
     const datapack = await new Promise((resolve, reject) => {
         db.get('SELECT trainee_ids, duration FROM datapack WHERE id = ?', [datapackId], (err, row) => {
@@ -175,7 +172,6 @@ app.on('ready', () => {
     });
 
     if (questions.length === 0) {
-        console.log('No questions found for this document. Returning 100%.');
         return 100;
     }
 
@@ -214,10 +210,8 @@ app.on('ready', () => {
             }
         }
     }
-    console.log(`Found ${activeQuestions.length} active questions.`);
 
     if (activeQuestions.length === 0) {
-        console.log('No active questions. Returning 100%.');
         return 100; // No required questions, so it's 100% complete.
     }
 
@@ -261,11 +255,9 @@ app.on('ready', () => {
             completedCount++;
         }
     }
-    console.log(`Found ${completedCount} completed questions.`);
     
     // 5. Calculate percentage.
-    const percentage = Math.round((completedCount / activeQuestions.length) * 100);
-    console.log(`Final calculated percentage: ${percentage}%`);
+    const percentage = activeQuestions.length > 0 ? Math.round((completedCount / activeQuestions.length) * 100) : 100;
 
     // 6. Build a transaction to update both document_progress and the responses completed flag.
     const queries = [];
@@ -310,7 +302,18 @@ app.on('ready', () => {
                         db.run('ROLLBACK');
                         return reject(err);
                     }
-                    console.log('--- Database transaction successful. ---');
+                    
+                    // After a successful commit, send the new progress to the renderer.
+                    const window = BrowserWindow.getFocusedWindow();
+                    if (window) {
+                        window.webContents.send('progress-updated', {
+                            datapackId,
+                            documentId,
+                            traineeId,
+                            progress: percentage
+                        });
+                    }
+
                     resolve();
                 });
             });

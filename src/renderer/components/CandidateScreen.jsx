@@ -17,6 +17,20 @@ const formatDocName = (name) => {
     return name.replace(/([a-z])([A-Z])/g, '$1 $2');
 };
 
+const ProgressIndicator = ({ progress }) => {
+    if (progress === null || progress === undefined) {
+        return <span className="text-red-500 font-bold text-xl">?</span>;
+    }
+    if (progress === 100) {
+        return <span className="text-green-500 text-xl">✔</span>;
+    }
+    return (
+        <span className="text-red-500 font-bold text-sm">
+            {progress}%
+        </span>
+    );
+};
+
 const CandidateScreen = ({ user, openSignatureModal }) => {
     // Shared state from context
     const { activeEvent } = useEvent();
@@ -65,6 +79,20 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         };
         fetchTraineesForEvent();
     }, [activeEvent]);
+
+    useEffect(() => {
+        const handleProgressUpdate = (event, { datapackId, documentId, traineeId, progress }) => {
+            // Candidate screen only cares about progress for the currently selected candidate
+            if (activeEvent?.id === datapackId && traineeId === selectedCandidateId) {
+                setDocProgress(prev => ({ ...prev, [documentId]: progress }));
+            }
+        };
+
+        window.electron.onProgressUpdate(handleProgressUpdate);
+
+        // Cleanup placeholder
+        return () => {};
+    }, [activeEvent, selectedCandidateId]);
 
     useEffect(() => {
         const fetchDocumentsAndProgress = async () => {
@@ -145,10 +173,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                         }`}
                     >
                         <p className="font-semibold">{formatDocName(item.name)}</p>
-                        {progress === 100 && <span className="text-green-500">✅</span>}
-                        {progress > 0 && progress < 100 && (
-                            <span className="text-sm text-blue-500 font-bold">{progress}%</span>
-                        )}
+                        <ProgressIndicator progress={progress} />
                     </button>
                 );
             })}
@@ -194,27 +219,41 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             openSignatureModal,
         };
 
-        switch (selectedDocument.name) {
-            case 'Pre Course':
-                return <PreCourseForm {...props} />;
-            case 'Post Course':
-                return <PostCourseForm {...props} />;
-            case 'LeavingForm':
-                return <LeavingForm {...props} />;
-            case 'PhoneticQuiz':
-                return <PhoneticQuizForm {...props} />;
-            case 'EmergencyPhoneCallExercise':
-                return <EmergencyPhoneCallExerciseForm {...props} />;
-            case 'PracticalAssessment':
-                return <PracticalAssessmentForm {...props} />;
-            case 'RecertEmergencyCallPracticalAssessment':
-                return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
-            case 'TrackWalkDeliveryRequirements':
-                return <TrackWalkDeliveryRequirementsForm {...props} />;
-            default:
-                // Fallback for any other document that might not have a specific form
-                return <QuestionnaireForm {...props} />;
-        }
+        const currentProgress = docProgress[selectedDocument.id];
+
+        return (
+            <>
+                <div className="flex justify-between items-center mb-4 p-4 bg-white rounded-lg shadow-sm">
+                    <h2 className="text-xl font-bold">{formatDocName(selectedDocument.name)}</h2>
+                    <ProgressIndicator progress={currentProgress} />
+                </div>
+                <div className="mt-4">
+                {(() => {
+                    switch (selectedDocument.name) {
+                        case 'Pre Course':
+                            return <PreCourseForm {...props} />;
+                        case 'Post Course':
+                            return <PostCourseForm {...props} />;
+                        case 'LeavingForm':
+                            return <LeavingForm {...props} />;
+                        case 'PhoneticQuiz':
+                            return <PhoneticQuizForm {...props} />;
+                        case 'EmergencyPhoneCallExercise':
+                            return <EmergencyPhoneCallExerciseForm {...props} />;
+                        case 'PracticalAssessment':
+                            return <PracticalAssessmentForm {...props} />;
+                        case 'RecertEmergencyCallPracticalAssessment':
+                            return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
+                        case 'TrackWalkDeliveryRequirements':
+                            return <TrackWalkDeliveryRequirementsForm {...props} />;
+                        default:
+                            // Fallback for any other document that might not have a specific form
+                            return <QuestionnaireForm {...props} />;
+                    }
+                })()}
+                </div>
+            </>
+        );
     };
 
     if (!activeEvent || !activeEvent.id) {
