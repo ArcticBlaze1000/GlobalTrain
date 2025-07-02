@@ -19,26 +19,18 @@ const formatDocName = (name) => {
 
 const CandidateScreen = ({ user, openSignatureModal }) => {
     // Shared state from context
-    const { activeEvent, progressState, updateProgress, updateBulkProgress } = useEvent();
+    const { activeEvent } = useEvent();
 
     // State for data
     const [candidates, setCandidates] = useState([]);
     const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
     const [documents, setDocuments] = useState([]);
+    const [docProgress, setDocProgress] = useState({}); // Local state for progress
 
     // State for form controls
     const [selectedCandidateId, setSelectedCandidateId] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
-
-    // Derive progress for the currently selected candidate from the central state
-    const docProgress = progressState[selectedCandidateId] || {};
-
-    // Callback for the form to report its progress to the central state
-    const handleProgressUpdate = useCallback((documentId, percentage) => {
-        if (!selectedCandidateId) return;
-        updateProgress(selectedCandidateId, documentId, percentage);
-    }, [selectedCandidateId, updateProgress]);
 
     const filteredDocuments = documents.filter(doc => {
         if (doc.name === 'LeavingForm') {
@@ -78,70 +70,38 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         const fetchDocumentsAndProgress = async () => {
             if (!activeEvent || !selectedCandidateId) {
                 setDocuments([]);
+                setDocProgress({});
                 return;
             }
 
-            // Always fetch the document list for the active course
+            // 1. Fetch the course to get the list of document IDs.
             const docIdsResult = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
             if (!docIdsResult.length) return;
             const ids = docIdsResult[0].doc_ids.split(',');
+
+            // 2. Fetch the actual document details, filtered by scope and user role visibility.
             const docs = await window.db.query(
                 `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate' AND visible LIKE ?`,
                 [...ids, `%${user.role}%`]
             );
             setDocuments(docs);
 
-            // If progress for this candidate is already in our context state, we don't need to re-calculate it.
-            if (progressState[selectedCandidateId]) {
-                return;
-            }
-
-            // --- Fetch persisted and calculate new progress ---
-
-            // 1. Fetch any progress that was already saved to the database
+            // 3. Fetch all progress for this candidate's documents directly from the `document_progress` table.
             const persistedProgress = await window.db.query(
                 'SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND trainee_id = ?',
                 [activeEvent.id, selectedCandidateId]
             );
+
+            // 4. Map the results into the local state object.
             const progressMapFromDb = persistedProgress.reduce((acc, row) => {
                 acc[row.document_id] = row.completion_percentage;
                 return acc;
             }, {});
-
-            // 2. For any documents that had no saved progress, calculate it now
-            const docsToCalculate = docs.filter(doc => progressMapFromDb[doc.id] === undefined);
-            const calculatedProgressMap = {};
-
-            for (const doc of docsToCalculate) {
-                if (['PhoneticQuiz', 'EmergencyPhoneCallExercise', 'Post Course', 'LeavingForm', 'PracticalAssessment', 'RecertEmergencyCallPracticalAssessment', 'TrackWalkDeliveryRequirements'].includes(doc.name)) {
-                    calculatedProgressMap[doc.id] = 0; // Default file-based docs to 0
-                    continue;
-                }
-
-                const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
-                const relevantQuestions = questions.filter(q => {
-                     if (q.field_name === 'pre_disabilities_details' || q.field_name === 'pre_learning_difficulties_details') {
-                        return false; 
-                    }
-                    return true;
-                });
-
-                if (relevantQuestions.length === 0) {
-                    calculatedProgressMap[doc.id] = 100;
-                } else {
-                    calculatedProgressMap[doc.id] = 0; // Default questionnaire docs to 0 until answered
-                }
-            }
-            
-            // 3. Combine DB progress and newly calculated progress, then update the central state
-            const finalProgressMap = { ...progressMapFromDb, ...calculatedProgressMap };
-            if (Object.keys(finalProgressMap).length > 0) {
-                updateBulkProgress(selectedCandidateId, finalProgressMap);
-            }
+            setDocProgress(progressMapFromDb);
         };
 
         fetchDocumentsAndProgress();
-    }, [activeEvent, selectedCandidateId, user.role, progressState, updateBulkProgress]);
+    }, [activeEvent, selectedCandidateId, user.role]);
 
     useEffect(() => {
         if (!isLeaving && selectedDocument?.name === 'Leaving Form') {
@@ -231,7 +191,6 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             eventDetails: activeEvent,
             documentDetails: selectedDocument,
             selectedTraineeId: selectedCandidateId,
-            onProgressUpdate: handleProgressUpdate,
             openSignatureModal,
         };
 

@@ -19,11 +19,6 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
     const [isDeviationFormRequired, setIsDeviationFormRequired] = useState(false);
 
-    // Callback for the form to report its progress
-    const handleProgressUpdate = useCallback((documentId, percentage) => {
-        setDocProgress(prev => ({ ...prev, [documentId]: percentage }));
-    }, []);
-
     // Fetch events based on user role
     useEffect(() => {
         const fetchEvents = async () => {
@@ -50,7 +45,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         fetchEvents();
     }, [user]);
 
-    // When an event is selected, fetch its associated documents
+    // When an event is selected, fetch its associated documents and their progress
     useEffect(() => {
         const fetchDocumentsAndProgress = async () => {
             if (!activeEvent) {
@@ -59,11 +54,12 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 return;
             }
 
+            // 1. Fetch the course to get the list of document IDs.
             const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
             const docIds = course[0]?.doc_ids?.split(',');
 
             if (docIds && docIds[0] !== '') {
-                // Filter documents based on the 'visible' column for the user's role.
+                // 2. Fetch the actual document details, filtered by scope and user role visibility.
                 const placeholders = docIds.map(() => '?').join(',');
                 const docs = await window.db.query(
                     `SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course' AND visible LIKE ?`,
@@ -71,66 +67,17 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 );
                 setDocuments(docs);
                 
-                // Fetch all data needed for calculation up front
-                const datapackDetails = await window.db.query('SELECT trainee_ids, duration FROM datapack WHERE id = ?', [activeEvent.id]);
-                const traineeIds = datapackDetails[0]?.trainee_ids?.split(',') || [];
-                const eventDuration = datapackDetails[0]?.duration || 0;
-                const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature'];
+                // 3. Fetch all progress for this event's documents directly from the `document_progress` table.
+                const progressResults = await window.db.query(
+                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ?`,
+                    [activeEvent.id]
+                );
 
-                const progressMap = {};
-                for (const doc of docs) {
-                    const questions = await window.db.query('SELECT * FROM questionnaires WHERE document_id = ?', [doc.id]);
-                    const responsesResult = await window.db.query('SELECT * FROM responses WHERE datapack_id = ? AND document_id = ?', [activeEvent.id, doc.id]);
-                    const responses = responsesResult.reduce((acc, res) => {
-                        try {
-                            const isGrid = res.field_name.includes('_grid');
-                            const data = isGrid ? JSON.parse(res.response_data || '{}') : res.response_data;
-                            acc[res.field_name] = { ...res, data };
-                        } catch {
-                            acc[res.field_name] = { ...res, data: {} };
-                        }
-                        return acc;
-                    }, {});
-
-                    const relevantQuestions = questions.filter(q => {
-                        if (fieldsToExclude.includes(q.field_name)) {
-                            return false;
-                        }
-
-                        if (q.section && q.section.startsWith('Day ')) {
-                            const dayNumber = parseInt(q.section.split(' ')[1], 10);
-                            if (!isNaN(dayNumber) && dayNumber > eventDuration) {
-                                return false; 
-                            }
-                        }
-                        
-                        if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
-                            const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                            return !isNaN(dayNumber) && dayNumber <= eventDuration;
-                        }
-                        return true;
-                    });
-                    
-                    if (relevantQuestions.length === 0) {
-                        progressMap[doc.id] = 100;
-                        continue;
-                    }
-
-                    const completedCount = relevantQuestions.filter(q => {
-                        const response = responses[q.field_name];
-                        if (!response) return false;
-                        
-                        if (q.input_type.includes('_grid')) {
-                            return !!response.completed;
-                        }
-
-                        if (q.input_type === 'checkbox') return response.data === 'true';
-                        if (q.input_type === 'tri_toggle') return response.data !== 'neutral' && response.data !== '';
-                        return response.data && String(response.data).trim() !== '';
-                    }).length;
-
-                    progressMap[doc.id] = Math.round((completedCount / relevantQuestions.length) * 100);
-                }
+                // 4. Map the results into the state object.
+                const progressMap = progressResults.reduce((acc, row) => {
+                    acc[row.document_id] = row.completion_percentage;
+                    return acc;
+                }, {});
                 setDocProgress(progressMap);
 
             } else {
@@ -222,7 +169,6 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             user: user,
             eventDetails: activeEvent,
             documentDetails: selectedDoc,
-            onProgressUpdate: handleProgressUpdate,
             openSignatureModal,
         };
 

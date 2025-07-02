@@ -16,7 +16,7 @@ const tables = [
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER, non_mandatory_doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT)` },
-    { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', FOREIGN KEY (document_id) REFERENCES documents(id))` },
+    { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', required TEXT DEFAULT 'yes', dependency TEXT DEFAULT '', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
@@ -73,9 +73,9 @@ const documentsToSeed = [
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
-    { document_id: 1, section: 'HEADER', question_text: 'NWR Toolkit No', input_type: 'number', field_name: 'nwr_toolkit_no', access: 'trainer' },
-    { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer' },  
-    { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer' },
+    { document_id: 1, section: 'HEADER', question_text: 'NWR Toolkit No', input_type: 'number', field_name: 'nwr_toolkit_no', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 1, section: 'HEADER', question_text: 'Resources Fit For Purpose', input_type: 'checkbox', field_name: 'resources_fit_for_purpose', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },  
+    { document_id: 1, section: 'HEADER', question_text: 'Resources', input_type: 'dropdown', field_name: 'resources', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
     
     // Dynamically generate from day 1 to 14 days of attendance questions
     ...Array.from({ length: 21 }, (_, i) => ({
@@ -85,82 +85,84 @@ const questionnairesToSeed = [
         input_type: 'signature_grid',
         field_name: `day_${i + 1}_attendance`,
         access: 'trainer',
-        has_comments: 'NO'
+        has_comments: 'NO',
+        required: 'yes',
+        dependency: ''
     })),
-    { document_id: 1, section: 'HEADER', question_text: 'Level of spoken English adequate', input_type: 'trainee_dropdown_grid', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO' },
-    { document_id: 1, section: 'MAIN', question_text: 'Final Result', input_type: 'trainee_dropdown_grid', field_name: 'final_result', access: 'trainer', has_comments: 'NO' },
-    { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified Date', input_type: 'trainee_date_grid', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO' },
+    { document_id: 1, section: 'HEADER', question_text: 'Level of spoken English adequate', input_type: 'trainee_dropdown_grid', field_name: 'level_of_spoken_english_adequate', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 1, section: 'MAIN', question_text: 'Final Result', input_type: 'trainee_dropdown_grid', field_name: 'final_result', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 1, section: 'MAIN', question_text: 'Sentinel Notified Date', input_type: 'trainee_date_grid', field_name: 'sentinel_notified_date', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // New comment and signature sections for the Register
-    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Comments', input_type: 'textarea', field_name: 'trainer_comments', access: 'trainer' },
-    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'trainer_signature', access: 'trainer' },
-    { document_id: 1, section: 'FOOTER', question_text: 'Admin Comments', input_type: 'textarea', field_name: 'admin_comments', access: 'admin' },
-    { document_id: 1, section: 'FOOTER', question_text: 'Admin Signature', input_type: 'signature_box', field_name: 'admin_signature', access: 'admin' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Comments', input_type: 'textarea', field_name: 'trainer_comments', access: 'trainer', has_comments: 'NO', required: 'no', dependency: '' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'trainer_signature', access: 'trainer', has_comments: 'NO', required: 'dependant', dependency: 'trainer_comments' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Admin Comments', input_type: 'textarea', field_name: 'admin_comments', access: 'admin', has_comments: 'NO', required: 'no', dependency: '' },
+    { document_id: 1, section: 'FOOTER', question_text: 'Admin Signature', input_type: 'signature_box', field_name: 'admin_signature', access: 'admin', has_comments: 'NO', required: 'dependant', dependency: 'admin_comments' },
 
     // TrainingCourseChecklist Questions (document_id = 2)
     // -- PRE COURSE CHECKS --
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Trainer Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'tc_sentinel', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Course Attendance Form (Ensure NWR Toolkit Red are completed)', input_type: 'tri_toggle', field_name: 'caf_nwr', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Progress Record', input_type: 'tri_toggle', field_name: 'progress_record', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval', input_type: 'tri_toggle', field_name: 'sponsorship_approval', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Booking Form', input_type: 'tri_toggle', field_name: 'booking_form', access: 'admin', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Joining Instructions', input_type: 'tri_toggle', field_name: 'joining_instructions', access: 'admin', has_comments: 'YES'  },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Practical Track Visit Briefing Forms and SWP', input_type: 'tri_toggle', field_name: 'track_visit_swp', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Notification Report', input_type: 'tri_toggle', field_name: 'sentinel_notification', access: 'admin', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Sepite in Reports', input_type: 'tri_toggle', field_name: 'sentinel_reports', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Issued/Updated log books', input_type: 'tri_toggle', field_name: 'log_books', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Global Train Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'gtc_sentinel', access: 'admin', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Trainer Capability (Sentinel)', input_type: 'tri_toggle', field_name: 'tc_sentinel', access: 'admin', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Course Attendance Form (Ensure NWR Toolkit Red are completed)', input_type: 'tri_toggle', field_name: 'caf_nwr', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Progress Record', input_type: 'tri_toggle', field_name: 'progress_record', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'For Trainers Sub Sponsored: Sub Sponsorship Paperwork and Approval', input_type: 'tri_toggle', field_name: 'sponsorship_approval', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Booking Form', input_type: 'tri_toggle', field_name: 'booking_form', access: 'admin', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Joining Instructions', input_type: 'tri_toggle', field_name: 'joining_instructions', access: 'admin', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Practical Track Visit Briefing Forms and SWP', input_type: 'tri_toggle', field_name: 'track_visit_swp', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Notification Report', input_type: 'tri_toggle', field_name: 'sentinel_notification', access: 'admin', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Sentinel Sepite in Reports', input_type: 'tri_toggle', field_name: 'sentinel_reports', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'PRE COURSE CHECKS', question_text: 'Issued/Updated log books', input_type: 'tri_toggle', field_name: 'log_books', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
     // -- LEARNER PACKS --
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Delegate ID Form', input_type: 'tri_toggle', field_name: 'delegate_id', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Candidate Sentinel Printout', input_type: 'tri_toggle', field_name: 'candidate_sentinel', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Log books entries, electronic, paper', input_type: 'tri_toggle', field_name: 'log_book_entries', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Learner Questionnaire and Feedback Form', input_type: 'tri_toggle', field_name: 'feedback_form', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'tri_toggle', field_name: 'course_docs', access: 'trainer', has_comments: 'YES'  },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES' },
-    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Delegate ID Form', input_type: 'tri_toggle', field_name: 'delegate_id', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Candidate Sentinel Printout', input_type: 'tri_toggle', field_name: 'candidate_sentinel', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Log books entries, electronic, paper', input_type: 'tri_toggle', field_name: 'log_book_entries', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Learner Questionnaire and Feedback Form', input_type: 'tri_toggle', field_name: 'feedback_form', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Course Documentation', input_type: 'tri_toggle', field_name: 'course_docs', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Post Course Training / Assessment Cycle (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'assessment_cycle', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Certificate of Competence (all Sentinel Courses)', input_type: 'tri_toggle', field_name: 'cert_of_competence', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
+    { document_id: 2, section: 'LEARNER PACKS', question_text: 'Issued Certificate/s', input_type: 'tri_toggle', field_name: 'issued_certs', access: 'trainer', has_comments: 'YES', required: 'yes', dependency: '' },
 
     // TrainingAndWeldingTrackSafetyBreifing Questions (document_id = 3)
-    { document_id: 3, section: 'HEADER', question_text: 'Start Time', input_type: 'time_capture_button', field_name: 'start_time', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'HEADER', question_text: 'Finish Time', input_type: 'time_capture_button', field_name: 'finish_time', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'HEADER', question_text: 'Start Time', input_type: 'time_capture_button', field_name: 'start_time', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'HEADER', question_text: 'Finish Time', input_type: 'time_capture_button', field_name: 'finish_time', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
     
     // Practical Elements
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Crosses the line correctly', input_type: 'checkbox', field_name: 'prac_crosses_line', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 1.25m (4ft) from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_1_25m', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2m (6ft 6") from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_2m', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates on or near the line', input_type: 'checkbox', field_name: 'prac_near_line', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2.75m (9ft)', input_type: 'checkbox', field_name: 'prac_dist_2_75m', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies or states Limited Clearance, No Refuges, No Safe Access while trains are running signs', input_type: 'checkbox', field_name: 'prac_limited_clearance', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies local examples of signalling equipment (e.g. IRJs for track signalling, axle counters, AWS magnets etc).', input_type: 'checkbox', field_name: 'prac_signalling_equipment', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates distance for tool', input_type: 'checkbox', field_name: 'prac_tool_distance', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates emergency detonator protection', input_type: 'checkbox', field_name: 'prac_detonator_protection', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies overhead line equipment', input_type: 'checkbox', field_name: 'prac_overhead_line_equipment', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Acknowledges warnings', input_type: 'checkbox', field_name: 'prac_acknowledges_warnings', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies hazards at station', input_type: 'checkbox', field_name: 'prac_hazards_at_station', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies equipment at station', input_type: 'checkbox', field_name: 'prac_equipment_at_station', access: 'trainer', has_comments: 'NO' },
-    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies landmarks that can be used for emergency call location', input_type: 'checkbox', field_name: 'prac_emergency_landmarks', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Crosses the line correctly', input_type: 'checkbox', field_name: 'prac_crosses_line', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 1.25m (4ft) from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_1_25m', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2m (6ft 6") from the nearest rail', input_type: 'checkbox', field_name: 'prac_dist_2m', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates on or near the line', input_type: 'checkbox', field_name: 'prac_near_line', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates 2.75m (9ft)', input_type: 'checkbox', field_name: 'prac_dist_2_75m', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies or states Limited Clearance, No Refuges, No Safe Access while trains are running signs', input_type: 'checkbox', field_name: 'prac_limited_clearance', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies local examples of signalling equipment (e.g. IRJs for track signalling, axle counters, AWS magnets etc).', input_type: 'checkbox', field_name: 'prac_signalling_equipment', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates distance for tool', input_type: 'checkbox', field_name: 'prac_tool_distance', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Demonstrates emergency detonator protection', input_type: 'checkbox', field_name: 'prac_detonator_protection', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies overhead line equipment', input_type: 'checkbox', field_name: 'prac_overhead_line_equipment', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Acknowledges warnings', input_type: 'checkbox', field_name: 'prac_acknowledges_warnings', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies hazards at station', input_type: 'checkbox', field_name: 'prac_hazards_at_station', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies equipment at station', input_type: 'checkbox', field_name: 'prac_equipment_at_station', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 3, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies landmarks that can be used for emergency call location', input_type: 'checkbox', field_name: 'prac_emergency_landmarks', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
-    { document_id: 3, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'briefing_trainer_signature', access: 'trainer', has_comments: 'NO' },
+    { document_id: 3, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'briefing_trainer_signature', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // Pre-Course Questions (document_id = 4)
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Gender', input_type: 'dropdown', field_name: 'pre_gender', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Age', input_type: 'dropdown', field_name: 'pre_age', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Nationality', input_type: 'dropdown', field_name: 'pre_nationality', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Ethnicity', input_type: 'dropdown', field_name: 'pre_ethnicity', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Gender', input_type: 'dropdown', field_name: 'pre_gender', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Age', input_type: 'dropdown', field_name: 'pre_age', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Nationality', input_type: 'dropdown', field_name: 'pre_nationality', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 4, section: 'EQUALITY & DIVERSITY', question_text: 'Ethnicity', input_type: 'dropdown', field_name: 'pre_ethnicity', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
     
-    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any disabilities or health issues that you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_disabilities_q', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_disabilities_details', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any learning difficulties you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_learning_difficulties_q', access: 'candidate', has_comments: 'NO' },
-    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_learning_difficulties_details', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any disabilities or health issues that you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_disabilities_q', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_disabilities_details', access: 'candidate', has_comments: 'NO', required: 'dependant', dependency: 'pre_disabilities_q' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'Do you have any learning difficulties you would like to make us aware of?', input_type: 'dropdown', field_name: 'pre_learning_difficulties_q', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 4, section: 'SUPPORT', question_text: 'If yes please provide details:', input_type: 'textarea', field_name: 'pre_learning_difficulties_details', access: 'candidate', has_comments: 'NO', required: 'dependant', dependency: 'pre_learning_difficulties_q' },
 
-    { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'candidate', has_comments: 'NO' },
+    { document_id: 4, section: 'SELF-ASSESSMENT', question_text: 'Please consider the level of confidence and understanding you have in relation to the course you are about to undertake', input_type: 'dropdown', field_name: 'pre_self_assessment_score', access: 'candidate', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // LeavingForm Questions (document_id = 6)
-    { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO' },
-    { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainerl.l;', has_comments: 'NO' },
-    { document_id: 6, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'leaving_trainer_signature', access: 'trainer', has_comments: 'NO' },
-    { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO' },
+    { document_id: 6, section: 'MAIN', question_text: 'Reasons for leaving', input_type: 'textarea', field_name: 'leaving_reasons', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 6, section: 'MAIN', question_text: 'Candidate Signature', input_type: 'signature_box', field_name: 'leaving_candidate_signature', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 6, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'leaving_trainer_signature', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 6, section: 'MAIN', question_text: 'Date of leaving', input_type: 'date', field_name: 'leaving_date', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // ProgressRecord Questions (document_id = 9) - Daily time tracking
     ...Array.from({ length: 21 }, (_, i) => ([
@@ -171,7 +173,9 @@ const questionnairesToSeed = [
             input_type: 'time_capture_button',
             field_name: `day_${i + 1}_start_time`,
             access: 'trainer',
-            has_comments: 'NO'
+            has_comments: 'NO',
+            required: 'yes',
+            dependency: ''
         },
         {
             document_id: 9,
@@ -180,7 +184,9 @@ const questionnairesToSeed = [
             input_type: 'time_capture_button',
             field_name: `day_${i + 1}_finish_time`,
             access: 'trainer',
-            has_comments: 'NO'
+            has_comments: 'NO',
+            required: 'yes',
+            dependency: ''
         }
     ])).flat(),
     {
@@ -190,7 +196,9 @@ const questionnairesToSeed = [
         input_type: 'dynamic_comments_section',
         field_name: 'progress_record_comments',
         access: 'trainer',
-        has_comments: 'NO'
+        has_comments: 'NO',
+        required: 'no',
+        dependency: ''
     }
 ];
 
@@ -230,7 +238,9 @@ competenciesToSeed.forEach(comp => {
         input_type: 'trainee_yes_no_grid',
         field_name: field_name,
         access: 'trainer',
-        has_comments: 'NO'
+        has_comments: 'NO',
+        required: 'yes',
+        dependency: ''
     });
     questionnaireOptionsToSeed.push(
         { question_field_name: field_name, option_value: 'Competent' },
@@ -288,8 +298,18 @@ db.serialize(() => {
     coursesToSeed.forEach(course => courseStmt.run(course.id, course.name, course.doc_ids, course.competency_ids, course.course_length, course.non_mandatory_doc_ids));
     courseStmt.finalize();
 
-    const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    questionnairesToSeed.forEach(q => questionnaireStmt.run([q.document_id, q.section, q.question_text, q.input_type, q.field_name, q.access, q.has_comments || 'NO']));
+    const questionnaireStmt = db.prepare(`INSERT INTO questionnaires (document_id, section, question_text, input_type, field_name, access, has_comments, required, dependency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    questionnairesToSeed.forEach(q => questionnaireStmt.run([
+        q.document_id, 
+        q.section, 
+        q.question_text, 
+        q.input_type, 
+        q.field_name, 
+        q.access, 
+        q.has_comments,
+        q.required,
+        q.dependency
+    ]));
     questionnaireStmt.finalize();
 
     const questionnaireOptionsStmt = db.prepare(`INSERT INTO questionnaire_options (question_field_name, option_value) VALUES (?, ?)`);

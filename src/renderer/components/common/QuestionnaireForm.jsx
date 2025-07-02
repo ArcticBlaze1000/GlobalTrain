@@ -71,7 +71,7 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
@@ -181,12 +181,21 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         initializeForm();
     }, [documentId, datapackId, eventDetails, selectedTraineeId]);
     
-    const debouncedSave = useCallback(debounce(async (fieldName, value, isComplete) => {
+    const triggerRecalculation = useCallback(() => {
+        window.electron.recalculateAndUpdateProgress({
+            datapackId,
+            documentId,
+            traineeId: documentDetails.scope === 'candidate' ? selectedTraineeId : null,
+        });
+    }, [datapackId, documentId, selectedTraineeId, documentDetails.scope]);
+
+    const debouncedSave = useCallback(debounce(async (fieldName, value) => {
         await window.db.run(
-            'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
-            [value, isComplete, datapackId, documentId, fieldName]
+            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [value, datapackId, documentId, fieldName]
         );
-    }, 500), [datapackId, documentId]);
+        triggerRecalculation();
+    }, 500), [datapackId, documentId, triggerRecalculation]);
 
     const debouncedCommentSave = useCallback(debounce(async (fieldName, comments) => {
         await window.db.run(
@@ -195,12 +204,13 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         );
     }, 500), [datapackId, documentId]);
 
-    const debouncedGridSave = useCallback(debounce(async (fieldName, gridData, isComplete) => {
+    const debouncedGridSave = useCallback(debounce(async (fieldName, gridData) => {
         await window.db.run(
-            'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
-            [JSON.stringify(gridData), isComplete, datapackId, documentId, fieldName]
+            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [JSON.stringify(gridData), datapackId, documentId, fieldName]
         );
-    }, 500), [datapackId, documentId]);
+        triggerRecalculation();
+    }, 500), [datapackId, documentId, triggerRecalculation]);
 
     // Effect to flush pending saves on unmount
     useEffect(() => {
@@ -224,109 +234,112 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         const currentData = responses[fieldName]?.data || { comments: [], signature: '' };
         const newData = { ...currentData, [part]: value };
 
-        // We don't care about 'completed' status for this field, so we just save the data.
         const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: newData } };
         setResponses(newResponses);
 
         const valueToSave = JSON.stringify(newData);
-        debouncedSave(fieldName, valueToSave, false); // Mark as not complete for progress calc
+        debouncedSave(fieldName, valueToSave);
     };
     
-    const totalDeviation = useMemo(() => {
-        if (documentDetails?.name !== 'ProgressRecord' || !eventDetails?.duration) {
-            return null;
-        }
-        let total = 0;
-        for (let i = 1; i <= eventDetails.duration; i++) {
-            const startTimeStr = responses[`day_${i}_start_time`]?.data;
-            const finishTimeStr = responses[`day_${i}_finish_time`]?.data;
-            if (startTimeStr && finishTimeStr) {
-                const startMinutes = parseTime(startTimeStr);
-                const finishMinutes = parseTime(finishTimeStr);
-                if (startMinutes !== null && finishMinutes !== null && finishMinutes >= startMinutes) {
-                    total += (finishMinutes - startMinutes) - (6 * 60);
-                }
-            }
-        }
-        return formatDeviation(total);
-    }, [responses, eventDetails, documentDetails]);
-
-    useEffect(() => {
-        if (documentDetails?.name === 'ProgressRecord' && onDeviationUpdate && totalDeviation !== null) {
-            const allowedDeviation = (eventDetails?.duration || 0) * 30;
-            const actualDeviationMinutes = Math.abs(parseDeviation(totalDeviation));
-            onDeviationUpdate(actualDeviationMinutes > allowedDeviation);
-        }
-    }, [totalDeviation, documentDetails, eventDetails, onDeviationUpdate]);
-
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
         const originalValue = responses[fieldName]?.data?.[traineeId];
-        
-        setResponses(currentResponses => {
-            const newResponses = JSON.parse(JSON.stringify(currentResponses)); // Deep copy for safety
+        // Create a mutable copy of the responses state to stage all UI changes
+        const newResponses = JSON.parse(JSON.stringify(responses));
 
-            const updateAndRecalculateCompletion = (field, trainee, val) => {
-                const gridData = newResponses[field]?.data || {};
-                gridData[trainee] = val;
+        // A list to keep track of all database updates to perform
+        const updatesToSave = [];
 
-                let isComplete = false;
-                if (field.includes('signature')) {
-                    isComplete = trainees.every(t => {
-                        const status = gridData[t.id];
-                        return status === 'absent' || status === 'skip' || (typeof status === 'string' && status.startsWith('data:image'));
-                    });
-                } else {
-                    isComplete = trainees.every(t => gridData[t.id] !== undefined && String(gridData[t.id]).trim() !== '');
-                }
+        // Helper to stage an update for a grid cell.
+        // This updates the local 'newResponses' object for an immediate UI update.
+        // It also adds the change to a queue to be saved to the database.
+        const stageUpdate = (field, trainee, val) => {
+            const gridData = newResponses[field]?.data || {};
+            gridData[trainee] = val;
+            newResponses[field] = { ...(newResponses[field] || {}), data: gridData };
+            updatesToSave.push({ field, gridData });
+        };
 
-                newResponses[field] = { ...(newResponses[field] || {}), data: gridData, completed: isComplete };
-                debouncedGridSave(field, gridData, isComplete);
-    };
-    
-            updateAndRecalculateCompletion(fieldName, traineeId, value);
-            
-            if (inputType === 'signature_grid') {
-                const dayNumber = parseInt(fieldName.split('_')[1], 10);
+        // Stage the update that was directly changed by the user
+        stageUpdate(fieldName, traineeId, value);
 
+        // If it's a signature grid, handle the cascading "absent" logic
+        if (inputType === 'signature_grid') {
+            const dayNumberMatch = fieldName.match(/day_(\d+)_/);
+            if (dayNumberMatch) {
+                const currentDay = parseInt(dayNumberMatch[1], 10);
                 const allSignatureQuestions = questions
-                    .filter(q => q.input_type === 'signature_grid')
-                    .sort((a, b) => parseInt(a.field_name.split('_')[1], 10) - parseInt(b.field_name.split('_')[1], 10));
+                    .filter(q => q.input_type === 'signature_grid' && q.field_name.startsWith('day_'))
+                    .sort((a, b) => parseInt(a.field_name.match(/day_(\d+)_/)[1], 10) - parseInt(b.field_name.match(/day_(\d+)_/)[1], 10));
 
+                // If trainee is marked absent, mark all subsequent days as absent
                 if (value === 'absent') {
                     allSignatureQuestions.forEach(q => {
-                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
-                        if (questionDay > dayNumber) {
-                            updateAndRecalculateCompletion(q.field_name, traineeId, 'absent');
+                        const day = parseInt(q.field_name.match(/day_(\d+)_/)[1], 10);
+                        if (day > currentDay) {
+                           stageUpdate(q.field_name, traineeId, 'absent');
                         }
                     });
+                // If trainee was absent but is now present/signed, clear subsequent auto-filled absent marks
                 } else if (originalValue === 'absent') {
                     allSignatureQuestions.forEach(q => {
-                        const questionDay = parseInt(q.field_name.split('_')[1], 10);
-                        if (questionDay > dayNumber && (newResponses[q.field_name]?.data?.[traineeId] === 'absent')) {
-                            // If the user was marked absent and is now being signed in, clear subsequent 'absent' marks
-                                updateAndRecalculateCompletion(q.field_name, traineeId, '');
+                        const day = parseInt(q.field_name.match(/day_(\d+)_/)[1], 10);
+                        if (day > currentDay && newResponses[q.field_name]?.data?.[traineeId] === 'absent') {
+                            // Clear the value to 'Present'
+                            stageUpdate(q.field_name, traineeId, '');
                         }
                     });
                 }
             }
-            
-            return newResponses;
-        });
+        }
+
+        // Update the React state immediately for UI responsiveness
+        setResponses(newResponses);
+
+        // Asynchronously save all staged updates to the database
+        const saveAllUpdates = async () => {
+            // Use a Map to ensure we only save the final state for each field,
+            // preventing redundant writes if a field were updated multiple times in the logic.
+            const finalUpdates = new Map();
+            for (const update of updatesToSave) {
+                finalUpdates.set(update.field, update.gridData);
+            }
+
+            for (const [field, gridData] of finalUpdates.entries()) {
+                await window.db.run(
+                    'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                    [JSON.stringify(gridData), datapackId, documentId, field]
+                );
+            }
+
+            // Trigger a single recalculation after all updates are done
+            if (finalUpdates.size > 0) {
+                triggerRecalculation();
+            }
+        };
+
+        // Fire and forget the save operation
+        saveAllUpdates();
     };
 
     const handleInputChange = (fieldName, value, inputType) => {
-        let isComplete;
-        if (inputType === 'tri_toggle') {
-            isComplete = value !== 'neutral';
+        let responseData;
+        if (inputType === 'checkbox') {
+            responseData = value;
         } else {
-            isComplete = inputType === 'checkbox' ? value : !!String(value).trim();
+            responseData = value;
         }
 
-        const newResponses = { ...responses, [fieldName]: { ...responses[fieldName], data: value, completed: isComplete } };
+        const newResponses = {
+            ...responses,
+            [fieldName]: {
+                ...responses[fieldName],
+                data: responseData
+            }
+        };
         setResponses(newResponses);
-    
-        const valueToSave = inputType === 'checkbox' ? String(value) : value;
-        debouncedSave(fieldName, valueToSave, isComplete);
+
+        const valueToSave = inputType === 'checkbox' ? String(responseData) : responseData;
+        debouncedSave(fieldName, valueToSave);
     };
 
     const handleCommentChange = (fieldName, comments) => {
@@ -339,58 +352,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         setOpenComments(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
     };
     
-    // Centralized calculation for progress
-    const progress = useMemo(() => {
-        const fieldsToExclude = ['trainer_comments', 'trainer_signature', 'admin_comments', 'admin_signature', 'progress_record_comments'];
-        
-        const relevantQuestions = questions.filter(q => {
-            if (fieldsToExclude.includes(q.field_name)) {
-                return false;
-            }
-
-            if (q.section.startsWith('Day ')) {
-                const dayNumber = parseInt(q.section.split(' ')[1], 10);
-                if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
-                    return false; 
-                }
-            }
-
-            // Filter out attendance grids for days beyond the event duration
-            if (q.input_type === 'attendance_grid' || q.input_type === 'signature_grid') {
-                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                return !isNaN(dayNumber) && dayNumber <= (eventDetails.duration || 0);
-            }
-            // Add other filtering for conditional questions if needed
-            return true;
-        });
-
-        if (relevantQuestions.length === 0) return 100;
-
-        const completedCount = relevantQuestions.filter(q => {
-            const response = responses[q.field_name];
-            if (!response) return false;
-            
-            // Re-using the logic from handleGridInputChange for consistency
-            if (q.input_type.includes('_grid')) {
-                return response.completed; // The completed flag is now correctly set by handlers
-            }
-
-            if (q.input_type === 'checkbox') return response.data === true;
-            if (q.input_type === 'tri_toggle') return response.data !== 'neutral';
-            
-            return response.data && String(response.data).trim() !== '';
-        }).length;
-
-        return Math.round((completedCount / relevantQuestions.length) * 100);
-    }, [questions, responses, trainees, eventDetails]);
-
-    // Effect to report progress whenever it changes
-    useEffect(() => {
-        if (onProgressUpdate) {
-            onProgressUpdate(documentId, progress);
-        }
-    }, [progress, documentId, onProgressUpdate]);
-
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
     const handleGenerateAndCache = () => {
@@ -476,7 +437,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         setResponses(newResponses);
     
         const valueToSave = JSON.stringify(updatedGridData);
-        debouncedSave(fieldName, valueToSave, isComplete);
+        debouncedSave(fieldName, valueToSave);
     };
 
     return (
@@ -485,12 +446,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 <div>
                     <h2 className="text-lg font-bold text-gray-800">{eventDetails.courseName}</h2>
                     <p className="text-sm text-gray-600">{documentDetails.name} — {formatDate(eventDetails.start_date)}</p>
-                </div>
-                <div className="w-1/4">
-                    <p className="font-bold text-sm text-right mb-1">Completion: {progress}%</p>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-                    </div>
                 </div>
             </div>
 
@@ -1177,21 +1132,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 );
             })}
             
-            {totalDeviation !== null && (
-                <div className="mt-6">
-                    <h3 className="text-md font-bold text-gray-500 mb-2 mt-4">Total Deviation</h3>
-                    <div className="p-4 bg-gray-50 rounded-lg border flex justify-end">
-                        <span className="font-bold text-lg">{totalDeviation}</span>
-                    </div>
-                </div>
-            )}
-            
             {showPdfButton && (
                 <div className="pt-4 flex justify-end">
                     <button 
                         onClick={handleGenerateAndCache}
-                        className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        disabled={progress < 100}
+                        className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
                     >
                         {pdfButtonText}
                     </button>
