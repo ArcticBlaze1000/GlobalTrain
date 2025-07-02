@@ -6,8 +6,7 @@ const CreationScreen = () => {
     // --- STATE MANAGEMENT ---
     const [courses, setCourses] = useState([]);
     const [trainers, setTrainers] = useState([]);
-    const [incompleteRegisters, setIncompleteRegisters] = useState([]);
-    const [activeRegisterId, setActiveRegisterId] = useState(null); // Can be 'new' or an ID from the DB
+    const [activeRegisterId, setActiveRegisterId] = useState('new'); // Always in 'new' state now
     
     // Form State
     const [formState, setFormState] = useState({
@@ -17,23 +16,19 @@ const CreationScreen = () => {
         duration: 1,
         trainees: []
     });
-    const [folderStatus, setFolderStatus] = useState(null);
     const [isSubmittable, setIsSubmittable] = useState(false);
 
     // --- DATA FETCHING ---
     useEffect(() => {
         const fetchData = async () => {
-            const [fetchedCourses, fetchedTrainers, fetchedRegisters] = await Promise.all([
+            const [fetchedCourses, fetchedTrainers] = await Promise.all([
                 window.db.query('SELECT id, name, course_length FROM courses'),
                 window.db.query("SELECT id, forename, surname FROM users WHERE role = 'trainer'"),
-                window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC')
             ]);
             setCourses(fetchedCourses);
             setTrainers(fetchedTrainers);
-            setIncompleteRegisters(fetchedRegisters);
         };
         fetchData();
-        syncEventFolders(); // Run the sync process on component load
     }, []);
 
     // Effect to check if the form is ready for submission
@@ -41,111 +36,10 @@ const CreationScreen = () => {
         const checkSubmittable = () => {
             const { courseId, trainerId, startDate, trainees } = formState;
             const formFilled = courseId && trainerId && startDate && trainees.length > 0;
-
-            if (!formFilled || !folderStatus) {
-                setIsSubmittable(false);
-                return;
-            }
-
-            const checklistComplete = Object.values(folderStatus).every(
-                item => item.count >= item.expected
-            );
-
-            setIsSubmittable(formFilled && checklistComplete);
+            setIsSubmittable(formFilled);
         };
         checkSubmittable();
-    }, [formState, folderStatus]);
-
-    // --- FOLDER SYNC LOGIC ---
-    const syncEventFolders = async () => {
-        console.log('[FolderSync] Starting event folder synchronization...');
-        
-        // 1. Fetch all events with their trainer's name
-        const completed = await window.db.query(`
-            SELECT d.id, d.course_id, d.trainee_ids, c.name as course_name, d.start_date, u.forename || ' ' || u.surname as trainer_name 
-            FROM datapack d 
-            JOIN courses c ON d.course_id = c.id
-            LEFT JOIN users u ON d.trainer_id = u.id
-        `);
-        const incomplete = await window.db.query(`
-            SELECT r.id, r.course_id, r.trainees_json, c.name as course_name, r.start_date, u.forename || ' ' || u.surname as trainer_name 
-            FROM incomplete_registers r 
-            JOIN courses c ON r.course_id = c.id
-            LEFT JOIN users u ON r.trainer_id = u.id
-        `);
-
-        // Create a unified list of events to process
-        const allEvents = [
-            ...completed.map(e => ({ ...e, type: 'completed' })),
-            ...incomplete.map(e => ({ ...e, type: 'incomplete' }))
-        ];
-        console.log(`[FolderSync] Found ${allEvents.length} total events to check.`);
-
-        // 2. Process each event to ensure its folder structure exists
-        for (const event of allEvents) {
-            // Check that we have the 3 required pieces of info
-            if (!event.course_name || !event.start_date || !event.trainer_name) {
-                console.log(`[FolderSync] Skipping event ID ${event.id} due to missing info.`);
-                continue;
-            }
-
-            // a. Get candidate list
-            let candidates = [];
-            if (event.type === 'completed' && event.trainee_ids) {
-                const traineeIds = event.trainee_ids.split(',');
-                if (traineeIds.length > 0) {
-                     candidates = await window.db.query(`SELECT forename, surname FROM trainees WHERE id IN (${traineeIds.join(',')})`);
-                }
-            } else if (event.type === 'incomplete' && event.trainees_json) {
-                candidates = JSON.parse(event.trainees_json);
-            }
-
-            // b. Get non-mandatory folders for the course
-            let nonMandatoryFolders = [];
-            
-            // Get course data to find non_mandatory_doc_ids
-            const courseData = await window.db.query(
-                'SELECT non_mandatory_doc_ids FROM courses WHERE id = ?',
-                [event.course_id]
-            );
-            
-            if (courseData.length > 0 && courseData[0].non_mandatory_doc_ids) {
-                const docIds = courseData[0].non_mandatory_doc_ids.split(',').filter(id => id.trim());
-                if (docIds.length > 0) {
-                    const documents = await window.db.query(
-                        `SELECT name FROM documents WHERE id IN (${docIds.map(() => '?').join(',')})`,
-                        docIds
-                    );
-                    nonMandatoryFolders = documents.map(doc => ({ folder_name: doc.name }));
-                }
-            }
-
-            // d. Get candidate-scoped documents for the course
-            let candidateScopedDocs = [];
-            const courseDocsData = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [event.course_id]);
-            const allDocIds = courseDocsData[0]?.doc_ids?.split(',').filter(id => id.trim());
-
-            if (allDocIds && allDocIds.length > 0) {
-                const candidateDocs = await window.db.query(
-                    `SELECT name FROM documents WHERE id IN (${allDocIds.map(() => '?').join(',')}) AND scope = 'candidate'`,
-                    allDocIds
-                );
-                candidateScopedDocs = candidateDocs.map(doc => doc.name);
-            }
-
-            // e. Call the backend to create the folder structure
-            console.log(`[FolderSync] Ensuring folder exists for: ${event.course_name} on ${event.start_date}`);
-            await window.electron.ensureEventFolderExists({ 
-                courseName: event.course_name, 
-                startDate: event.start_date,
-                trainerName: event.trainer_name,
-                candidates: candidates,
-                nonMandatoryFolders: nonMandatoryFolders.map(f => f.folder_name),
-                candidateScopedDocs: candidateScopedDocs,
-            });
-        }
-        console.log('[FolderSync] Synchronization complete.');
-    };
+    }, [formState]);
 
     // --- FORM LOGIC ---
 
@@ -193,157 +87,10 @@ const CreationScreen = () => {
             duration: 1,
             trainees: []
         });
-        setActiveRegisterId(null);
-        setFolderStatus(null);
+        setActiveRegisterId('new');
     };
     
     // --- DATABASE INTERACTIONS ---
-
-    const saveDraft = async (stateToSave) => {
-        const { courseId, trainerId, startDate, duration, trainees } = stateToSave;
-        const traineesJson = JSON.stringify(trainees);
-
-        if (activeRegisterId && activeRegisterId !== 'new') {
-            // Update existing draft
-            await window.db.run(
-                'UPDATE incomplete_registers SET course_id = ?, trainer_id = ?, start_date = ?, duration = ?, trainees_json = ? WHERE id = ?',
-                [courseId, trainerId, startDate, duration, traineesJson, activeRegisterId]
-            );
-        } else {
-            // Create new draft
-            const result = await window.db.run(
-                'INSERT INTO incomplete_registers (course_id, trainer_id, start_date, duration, trainees_json) VALUES (?, ?, ?, ?, ?)',
-                [courseId, trainerId, startDate, duration, traineesJson]
-            );
-            setActiveRegisterId(result.lastID); // Set the new ID as active
-        }
-        // Refresh the list
-        const fetchedRegisters = await window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC');
-        setIncompleteRegisters(fetchedRegisters);
-    };
-    
-    // Debounced save function
-    const debouncedSave = useCallback(debounce(saveDraft, 1500), [activeRegisterId]);
-
-    useEffect(() => {
-        if (activeRegisterId) { // Only save if a register is active
-            debouncedSave(formState);
-        }
-        // Cleanup function to cancel any pending saves when component unmounts or dependencies change
-        return () => {
-            debouncedSave.cancel();
-        };
-    }, [formState, debouncedSave]);
-
-    // --- FOLDER AUDIT ---
-    const runFolderAudit = useCallback(async () => {
-        const { courseId, trainerId, startDate, trainees } = formState;
-
-        // Don't run audit if essential info is missing or no register is active
-        if (!courseId || !trainerId || !startDate || !activeRegisterId) {
-            setFolderStatus(null);
-            return;
-        }
-
-        const course = courses.find(c => c.id === parseInt(courseId, 10));
-        const trainer = trainers.find(t => t.id === parseInt(trainerId, 10));
-
-        // Don't run if course/trainer lookups fail
-        if (!course || !trainer) {
-            setFolderStatus(null);
-            return;
-        }
-
-        const docsPath = await window.electron.getDocumentsPath();
-        const trainerName = `${trainer.forename} ${trainer.surname}`;
-        const folderName = `${course.name} - ${startDate.split('-').reverse().join('-')} - ${trainerName}`;
-        const eventPath = `${docsPath}/Global Train Events/${folderName}`;
-
-        const uniqueSponsors = new Set(trainees.map(t => t.sponsor).filter(Boolean));
-
-        const auditResults = await window.electron.auditEventFolders({
-            eventPath: eventPath,
-            numTrainees: trainees.length,
-            numSponsors: uniqueSponsors.size,
-        });
-        setFolderStatus(auditResults);
-    }, [formState, courses, trainers, activeRegisterId]); // Dependencies for useCallback
-
-    // Effect to audit folder status whenever form state changes
-    useEffect(() => {
-        runFolderAudit();
-    }, [runFolderAudit]);
-
-    const handleSelectRegister = async (id) => {
-        console.log(`[CreationScreen] Action: Load Register. ID: ${id}`);
-
-        // Handle creating a completely new, blank register
-        if (id === 'new') {
-            console.log("[CreationScreen] Creating a new, blank register form.");
-            resetForm();
-            setActiveRegisterId('new');
-            return;
-        }
-
-        try {
-            // 1. Locate the row of info related to the incomplete form id
-            console.log(`[CreationScreen] Fetching register ${id} from the database...`);
-            const results = await window.db.query('SELECT * FROM incomplete_registers WHERE id = ?', [id]);
-            const register = results[0]; // .query returns an array, so we take the first element
-
-            if (!register) {
-                console.error(`[CreationScreen] Error: No register found with ID ${id}.`);
-                alert('Could not find the selected register. It may have been deleted.');
-                return;
-            }
-            console.log(`[CreationScreen] Found register data:`, register);
-
-            // 2. Take the info from there and prepopulate the boxes
-            let trainees = [];
-            if (register.trainees_json) {
-                try {
-                    trainees = JSON.parse(register.trainees_json);
-                    if (!Array.isArray(trainees)) {
-                         console.warn(`[CreationScreen] Parsed trainee data is not an array. Defaulting to empty.`, trainees);
-                         trainees = [];
-                    }
-                } catch (e) {
-                    console.error(`[CreationScreen] Error parsing trainee JSON for register ${id}.`, e);
-                    alert('Could not load trainee details for this register due to invalid data. Starting with a blank list.');
-                }
-            }
-
-            const newState = {
-                courseId: register.course_id || '',
-                trainerId: register.trainer_id || '',
-                startDate: register.start_date || '',
-                duration: register.duration || 1,
-                trainees: trainees
-            };
-
-            console.log("[CreationScreen] Populating form with new state:", newState);
-            setFormState(newState);
-
-            // 3. Open the data entry canvas
-            console.log("[CreationScreen] Displaying the form.");
-            setActiveRegisterId(id);
-
-            // The folder audit is now handled by the useEffect hook watching formState
-            
-        } catch (error) {
-            console.error(`[CreationScreen] A critical error occurred while loading register ${id}:`, error);
-            alert('An unexpected error stopped the register from loading. Please check the developer console for more details.');
-        }
-    };
-    
-    const handleDeleteRegister = async (e, id) => {
-        e.stopPropagation();
-        await window.db.run('DELETE FROM incomplete_registers WHERE id = ?', [id]);
-        setIncompleteRegisters(prev => prev.filter(r => r.id !== id));
-        if (activeRegisterId === id) {
-            resetForm();
-        }
-    };
 
     const handleCreateEvent = async () => {
         const { courseId, trainerId, startDate, duration, trainees } = formState;
@@ -398,16 +145,6 @@ const CreationScreen = () => {
                 [traineeIdsString, newDatapackId]
             );
 
-            // After successfully creating the event, delete the draft.
-            if (activeRegisterId && activeRegisterId !== 'new') {
-                console.log(`[CreationScreen] Event created. Deleting incomplete register with ID: ${activeRegisterId}`);
-                await window.db.run('DELETE FROM incomplete_registers WHERE id = ?', [activeRegisterId]);
-            }
-            
-            // Refresh the list of incomplete registers from the DB
-            const fetchedRegisters = await window.db.query('SELECT r.id, r.updated_at, r.start_date, c.name as course_name FROM incomplete_registers r LEFT JOIN courses c ON r.course_id = c.id ORDER BY r.updated_at DESC');
-            setIncompleteRegisters(fetchedRegisters);
-            
             // Reset the form to its initial state, clearing the canvas
             resetForm();
 
@@ -521,31 +258,6 @@ const CreationScreen = () => {
                 </div>
             )}
             
-            {/* --- DOCUMENT CHECKLIST (MOVED) --- */}
-            {folderStatus && (
-                <div className="mt-8">
-                    <div className="flex items-center justify-between mb-4 border-t pt-4">
-                        <h3 className="text-lg font-bold text-gray-800">Document Checklist (Admin)</h3>
-                        <button 
-                            onClick={runFolderAudit}
-                            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                        >
-                            Refresh
-                        </button>
-                    </div>
-                    <div className="space-y-2">
-                        {Object.entries(folderStatus).map(([folder, status]) => (
-                            <div key={folder} className="flex justify-between items-center p-2 rounded-md bg-gray-50">
-                                <span className="font-medium">{folder.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                <span className={`font-bold ${status.status === '✅' ? 'text-green-600' : 'text-red-600'}`}>
-                                    {status.status} {status.count} / {status.expected}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* Create Event Button */}
             <div className="mt-8 text-right">
                 <button 
@@ -566,37 +278,11 @@ const CreationScreen = () => {
                 <div>
                 <h2 className="text-xl font-bold mb-6">Create</h2>
                 <button
-                        onClick={() => handleSelectRegister('new')}
+                        onClick={resetForm}
                     className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                         New Register
                     </button>
-                </div>
-                <div className="mt-8 border-t pt-4">
-                    <h3 className="text-lg font-semibold mb-4">Incomplete Registers</h3>
-                    <div className="space-y-2">
-                        {incompleteRegisters.map(reg => (
-                            <div 
-                                key={reg.id} 
-                                onClick={() => handleSelectRegister(reg.id)}
-                                className={`p-3 rounded-md cursor-pointer border flex justify-between items-center ${activeRegisterId === reg.id ? 'bg-blue-100 border-blue-400' : 'hover:bg-gray-50'}`}
-                            >
-                                <div>
-                                    <p className="font-semibold">{reg.course_name || 'Untitled'}{reg.start_date ? `: ${formatDate(reg.start_date)}` : ''}</p>
-                                    <p className="text-sm text-gray-500">
-                                        Last saved: {new Date(reg.updated_at.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                                <button
-                                   onClick={(e) => handleDeleteRegister(e, reg.id)}
-                                   className="text-red-500 hover:text-red-700 font-bold"
-                                   title="Delete Draft"
-                                >
-                                   &times;
-                </button>
-                            </div>
-                        ))}
-                    </div>
                 </div>
             </div>
 

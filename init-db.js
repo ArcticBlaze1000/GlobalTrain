@@ -22,7 +22,6 @@ const tables = [
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
-    { name: 'incomplete_registers', schema: `CREATE TABLE IF NOT EXISTS incomplete_registers (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, trainees_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)` },
     { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
 ];
 
@@ -263,6 +262,9 @@ const datapackToSeed = [
 db.serialize(() => {
     // Drop and create tables
     console.log('Dropping all tables...');
+    db.run(`DROP TABLE IF EXISTS course_folders`);
+    db.run(`DROP TABLE IF EXISTS incomplete_registers`);
+    db.run(`DROP TRIGGER IF EXISTS update_incomplete_registers_updated_at`);
     tables.forEach(table => {
         db.run(`DROP TABLE IF EXISTS ${table.name}`);
     });
@@ -308,16 +310,6 @@ db.serialize(() => {
     db.run("UPDATE trainees SET additional_comments = 'Allergic to nuts.' WHERE id = 5");
     db.run("UPDATE trainees SET additional_comments = 'Anxious in group settings.' WHERE id = 7");
     db.run("UPDATE trainees SET additional_comments = 'Colour-blind (red-green).' WHERE id = 9");
-
-    // Create a trigger to update the updated_at column on row update
-    db.run(`
-        CREATE TRIGGER IF NOT EXISTS update_incomplete_registers_updated_at
-        AFTER UPDATE ON incomplete_registers
-        FOR EACH ROW
-        BEGIN
-            UPDATE incomplete_registers SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-        END;
-    `);
 
     // Populate default permissions
     const defaultPermissions = [
