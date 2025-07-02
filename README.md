@@ -17,9 +17,9 @@ The core philosophy of this application is **flexibility through a database-driv
 - **Styling**: Tailwind CSS 3.4.17
 
 ### Key Dependencies
-- **PDF Generation**: Puppeteer 24.10.2
-- **Digital Signatures**: react-signature-canvas 1.1.0
-- **Utilities**: Lodash 4.17.21
+- **PDF Generation**: Puppeteer 24.10.2, pdf-lib 1.17.1
+- **Digital Signatures**: react-signature-canvas 1.1.0-alpha.2
+- **Utilities**: Lodash 4.17.21, uuid 11.1.0
 - **Development**: Vite, PostCSS, Autoprefixer
 
 ---
@@ -65,11 +65,11 @@ The application now supports **13 different document types**, each with a specif
 | 6  | Leaving Form                             | Questionnaire     | Candidate   | Documentation for candidates who leave a course early.      |
 | 7  | Phonetic Quiz                            | **File-Based**    | Candidate   | Validates scanned copies of the phonetic quiz assessment.   |
 | 8  | Emergency Phone Call Exercise            | **File-Based**    | Candidate   | Validates scanned copies of the emergency call exercise.    |
-| 9  | Progress Record                          | *Placeholder*     | Course      | Future use for tracking overall course progress.            |
+| 9  | Progress Record                          | Questionnaire     | Course      | Tracks overall course progress via a dynamic questionnaire. |
 | 10 | Deviation Form                           | *Placeholder*     | Course      | Future use for documenting deviations from the standard.    |
 | 11 | Practical Assessment                     | **File-Based**    | Candidate   | Validates the scanned practical assessment for one trainee. |
 | 12 | Recert Emergency Call Practical          | **File-Based**    | Candidate   | Validates the scanned recertification assessment.           |
-| 13 | Track Walk Delivery Requirements         | *Placeholder*     | Candidate   | Future use for track walk safety requirements.              |
+| 13 | Track Walk Delivery Requirements         | **File-Based**    | Candidate   | Validates scanned copies of track walk safety checks.       |
 
 ### **Advanced Form Features**
 - **Real-time Progress Tracking**: Completion percentages are calculated and displayed instantly.
