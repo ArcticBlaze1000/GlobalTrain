@@ -18,6 +18,10 @@ const LoginScreen = ({ onLogin }) => {
 
             if (users.length > 0) {
                 const user = users[0];
+
+                // Fire and forget the initialization process. We don't need to wait for it.
+                window.electron.initializeUserSession(user);
+
                 // Pass the entire user object on successful login
                 onLogin({
                     id: user.id,

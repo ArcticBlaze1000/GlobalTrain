@@ -148,11 +148,99 @@ ipcMain.handle('app-quit', () => {
     app.quit();
 });
 
+// Helper function to run a database query and return a promise
+const queryDb = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                console.error('DB Query Error:', err.message);
+                reject(err);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
+};
+
+// Helper function for date formatting
+const formatDate = (date, format) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const monthName = d.toLocaleString('default', { month: 'long' });
+
+    if (format === 'mm. month yyyy') {
+        return `${month}. ${monthName} ${year}`;
+    }
+    if (format === 'dd.mm.yyyy') {
+        return `${day}.${month}.${year}`;
+    }
+    return date;
+};
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   ipcMain.handle('get-documents-path', () => app.getPath('documents'));
+  
+  ipcMain.handle('initialize-user-session', async (event, user) => {
+    if (!user || !user.id) return;
+
+    try {
+        // 1. Fetch all events from the database, regardless of the user.
+        const eventsQuery = `
+            SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.trainee_ids, u.forename, u.surname
+            FROM datapack d
+            JOIN courses c ON d.course_id = c.id
+            JOIN users u ON d.trainer_id = u.id
+        `;
+
+        const events = await queryDb(eventsQuery);
+        const documentsPath = app.getPath('documents');
+        const baseDir = path.join(documentsPath, 'Global Train Trainers', 'Training');
+
+        // 2. Loop through each event and ensure its folder structure exists.
+        for (const event of events) {
+            // 2a. Create month and specific event folders
+            const monthFolderName = formatDate(event.start_date, 'mm. month yyyy');
+            const trainerInitial = event.forename ? event.forename.charAt(0) : '';
+            const specificFolderName = `${formatDate(event.start_date, 'dd.mm.yyyy')} ${event.courseName} ${trainerInitial} ${event.surname}`;
+            const eventDir = path.join(baseDir, monthFolderName, specificFolderName);
+
+            // 2b. Create Admin subfolders
+            const adminDir = path.join(eventDir, 'Admin');
+            const bookingFormDir = path.join(adminDir, 'Booking Form and Joining Instructions');
+            const subSponsorDir = path.join(adminDir, 'Sub Sponsor Request');
+
+            // 2c. Create Candidate subfolders
+            const candidateDir = path.join(eventDir, 'Candidate');
+            const courseDocsDir = path.join(candidateDir, 'Course Documentation');
+            const exercisesDir = path.join(candidateDir, 'Additional Exercsies Contents');
+
+            fs.mkdirSync(bookingFormDir, { recursive: true });
+            fs.mkdirSync(subSponsorDir, { recursive: true });
+            fs.mkdirSync(courseDocsDir, { recursive: true });
+            fs.mkdirSync(exercisesDir, { recursive: true });
+
+            // 2d. Create numbered folders for each candidate
+            if (event.trainee_ids) {
+                const traineeIds = event.trainee_ids.split(',');
+                const trainees = await queryDb(`SELECT forename, surname FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+                
+                trainees.forEach((trainee, index) => {
+                    const candidateFolderName = `${String(index + 1).padStart(2, '0')} ${trainee.forename} ${trainee.surname}`;
+                    const specificCandidateDir = path.join(candidateDir, candidateFolderName);
+                    fs.mkdirSync(specificCandidateDir, { recursive: true });
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Failed during user session initialization:', error);
+        // Optionally, you could return an error to the renderer process
+    }
+  });
   
   ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
     // Fetch datapack details first to get duration and trainee IDs

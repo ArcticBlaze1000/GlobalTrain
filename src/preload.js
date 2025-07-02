@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('db', {
 contextBridge.exposeInMainWorld('electron', {
   recalculateAndUpdateProgress: (args) => ipcRenderer.invoke('recalculate-and-update-progress', args),
   onProgressUpdate: (callback) => ipcRenderer.on('progress-updated', callback),
+  initializeUserSession: (user) => ipcRenderer.invoke('initialize-user-session', user),
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   generatePdfFromHtml: (html, datapackId, options) => ipcRenderer.invoke('generate-pdf-from-html', html, datapackId, options),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
