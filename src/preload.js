@@ -17,7 +17,14 @@ contextBridge.exposeInMainWorld('electron', {
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
   getCssPath: () => ipcRenderer.invoke('get-css-path'),
-  quitApp: () => ipcRenderer.invoke('app-quit')
+  quitApp: () => ipcRenderer.invoke('app-quit'),
+  // Course Management
+  getCourses: () => ipcRenderer.invoke('get-courses'),
+  getDocuments: () => ipcRenderer.invoke('get-documents'),
+  getCompetencies: () => ipcRenderer.invoke('get-competencies'),
+  addCourse: (course) => ipcRenderer.invoke('add-course', course),
+  updateCourse: (course) => ipcRenderer.invoke('update-course', course),
+  deleteCourse: (id) => ipcRenderer.invoke('delete-course', id),
 });
 
 window.addEventListener('DOMContentLoaded', () => {

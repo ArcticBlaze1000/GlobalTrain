@@ -411,6 +411,54 @@ app.on('ready', () => {
     return percentage;
   });
   
+  ipcMain.handle('get-courses', async () => {
+    return queryDb('SELECT * FROM courses ORDER BY name');
+  });
+
+  ipcMain.handle('get-documents', async () => {
+    return queryDb('SELECT id, name FROM documents ORDER BY name');
+  });
+
+  ipcMain.handle('get-competencies', async () => {
+    return queryDb('SELECT id, name FROM competencies ORDER BY name');
+  });
+
+  ipcMain.handle('add-course', async (event, { name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids }) => {
+    const sql = `INSERT INTO courses (name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (?, ?, ?, ?, ?)`;
+    return new Promise((resolve, reject) => {
+        db.run(sql, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids], function(err) {
+            if (err) reject(err);
+            else resolve({ id: this.lastID });
+        });
+    });
+  });
+
+  ipcMain.handle('update-course', async (event, { id, name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids }) => {
+    const sql = `UPDATE courses SET name = ?, doc_ids = ?, competency_ids = ?, course_length = ?, non_mandatory_doc_ids = ? WHERE id = ?`;
+    return new Promise((resolve, reject) => {
+        db.run(sql, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids, id], function(err) {
+            if (err) reject(err);
+            else resolve({ changes: this.changes });
+        });
+    });
+  });
+
+  ipcMain.handle('delete-course', async (event, id) => {
+    // Optional: Check if the course is used in any datapacks before deleting
+    const datapacks = await queryDb('SELECT id FROM datapack WHERE course_id = ?', [id]);
+    if (datapacks.length > 0) {
+        throw new Error('Cannot delete this course because it is currently used in one or more events.');
+    }
+    
+    const sql = `DELETE FROM courses WHERE id = ?`;
+    return new Promise((resolve, reject) => {
+        db.run(sql, [id], function(err) {
+            if (err) reject(err);
+            else resolve({ changes: this.changes });
+        });
+    });
+  });
+  
   createWindow();
 
   app.on('activate', function () {

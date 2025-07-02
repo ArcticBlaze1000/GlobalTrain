@@ -6,6 +6,7 @@ import UsersScreen from './UsersScreen';
 import DeveloperTools from './common/DeveloperTools';
 import SignatureModal from './common/SignatureModal';
 import { useEvent } from '../context/EventContext';
+import AdminScreen from './AdminScreen';
 
 // A local component for rendering tab buttons to reduce repetition
 const TabButton = ({ name, activeTab, setActiveTab }) => {
@@ -128,7 +129,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
-                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <div />}
+                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <AdminScreen user={user} />}
                 {user.role !== 'candidate' && activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
                 {activeTab === 'candidate' && <CandidateScreen user={user} openSignatureModal={openSignatureModal} />}
             </div>
