@@ -1,5 +1,7 @@
 import React from 'react';
 
-const Form = () => <div>Deviation Form form placeholder</div>;
+const Form = () => {
+    return <div>Deviation Form placeholder</div>;
+};
 
 export default Form; 
