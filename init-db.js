@@ -69,7 +69,8 @@ const documentsToSeed = [
     { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer' },
     { name: 'PracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'TrackWalkDeliveryRequirements', scope: 'candidate', visible: 'dev,admin,trainer' }
+    { name: 'TrackWalkDeliveryRequirements', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
