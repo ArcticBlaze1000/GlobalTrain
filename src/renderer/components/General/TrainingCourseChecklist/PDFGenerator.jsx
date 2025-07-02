@@ -55,7 +55,14 @@ export const generateChecklistPdf = async (datapackId) => {
         );
 
         // Send the HTML to the main process for PDF generation
-        await window.electron.generatePdfFromHtml(htmlContent, datapack.id, { landscape: false });
+        const payload = {
+            htmlContent,
+            eventDetails: { ...datapack, courseName: course.name, forename: trainer.forename, surname: trainer.surname },
+            documentDetails: { ...document, scope: 'course' },
+            options: { landscape: false }
+        };
+
+        await window.electron.savePdf(payload);
 
     } catch (error) {
         console.error('Failed to generate Checklist PDF:', error);

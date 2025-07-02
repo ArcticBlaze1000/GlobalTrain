@@ -62,8 +62,15 @@ export const generateRegisterPdf = async (datapackId) => {
             <Template {...templateProps} />
         );
 
-        // 5. Send the HTML to the main process for PDF generation and opening
-        await window.electron.generatePdfFromHtml(htmlContent, datapack.id, { landscape: true });
+        // 5. Construct payload and send to the main process for PDF generation and saving
+        const payload = {
+            htmlContent,
+            eventDetails: { ...datapack, courseName: course.name, forename: trainer.forename, surname: trainer.surname },
+            documentDetails: { id: registerDoc.id, name: 'Register', scope: 'course' },
+            options: { landscape: true }
+        };
+
+        await window.electron.savePdf(payload);
 
     } catch (error) {
         console.error('Failed to generate Register PDF:', error);

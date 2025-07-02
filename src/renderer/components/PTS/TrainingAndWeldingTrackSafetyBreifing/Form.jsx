@@ -39,11 +39,13 @@ const Form = (props) => {
             trainees,
             responses: responsesMap,
             practicalQuestions,
+            eventDetails,
+            documentDetails,
         };
 
         // 5. Generate PDF
         try {
-            await generatePdf(formData, eventDetails.id);
+            await generatePdf(formData);
         } catch (error) {
             console.error('Failed to generate PDF:', error);
             alert('Failed to generate PDF. See console for details.');

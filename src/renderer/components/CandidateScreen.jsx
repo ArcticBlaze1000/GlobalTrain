@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOMServer from 'react-dom/server';
 import { useEvent } from '../context/EventContext';
 import Dropdown from './common/Dropdown';
 import QuestionnaireForm from './common/QuestionnaireForm';
@@ -45,6 +46,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     const [selectedCandidateId, setSelectedCandidateId] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
+    const [notification, setNotification] = useState({ show: false, message: '' });
 
     const filteredDocuments = documents.filter(doc => {
         if (doc.name === 'LeavingForm') {
@@ -159,6 +161,51 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         setSelectedDocument(doc);
     };
 
+    const handlePdfSave = async (FormToRender) => {
+        if (!selectedCandidateDetails) {
+            setNotification({ show: true, message: 'No candidate selected.' });
+            setTimeout(() => setNotification({ show: false, message: '' }), 5000);
+            return;
+        }
+
+        setNotification({ show: true, message: 'Generating PDF...' });
+        try {
+            const cssPath = await window.electron.getCssPath();
+            const htmlContent = ReactDOMServer.renderToString(
+                <>
+                    <link rel="stylesheet" href={cssPath}></link>
+                    <div className="p-8">
+                        <FormToRender
+                            user={user}
+                            eventDetails={activeEvent}
+                            documentDetails={selectedDocument}
+                            selectedTraineeId={selectedCandidateId}
+                            traineeDetails={selectedCandidateDetails}
+                            openSignatureModal={openSignatureModal}
+                            isPdfMode={true}
+                        />
+                    </div>
+                </>
+            );
+
+            const payload = {
+                htmlContent,
+                eventDetails: activeEvent,
+                documentDetails: selectedDocument,
+                traineeDetails: selectedCandidateDetails,
+            };
+
+            const result = await window.electron.savePdf(payload);
+            setNotification({ show: true, message: result });
+
+        } catch (error) {
+            console.error('Failed to save PDF:', error);
+            setNotification({ show: true, message: `Error: ${error.message}` });
+        } finally {
+            setTimeout(() => setNotification({ show: false, message: '' }), 5000);
+        }
+    };
+
     const renderDocList = (items, selectedItem, handler) => (
         <div className="flex flex-col">
             {items.map((item) => {
@@ -212,11 +259,16 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         }
 
         const props = {
-            user: user,
+            user,
             eventDetails: activeEvent,
             documentDetails: selectedDocument,
             selectedTraineeId: selectedCandidateId,
+            traineeDetails: selectedCandidateDetails,
             openSignatureModal,
+            onProgressUpdate: (docId, progress) => {
+                setDocProgress(prev => ({ ...prev, [docId]: progress }));
+            },
+            onPdfButtonClick: () => handlePdfSave(QuestionnaireForm)
         };
 
         const currentProgress = docProgress[selectedDocument.id];
@@ -231,21 +283,33 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 {(() => {
                     switch (selectedDocument.name) {
                         case 'Pre Course':
-                            return <PreCourseForm {...props} />;
+                            return <PreCourseForm {...props} onPdfButtonClick={() => handlePdfSave(PreCourseForm)} />;
                         case 'Post Course':
-                            return <PostCourseForm {...props} />;
+                            return <PostCourseForm {...props} onPdfButtonClick={() => handlePdfSave(PostCourseForm)} />;
                         case 'LeavingForm':
-                            return <LeavingForm {...props} />;
+                            return (
+                                <LeavingForm
+                                    user={user}
+                                    eventDetails={activeEvent}
+                                    documentDetails={selectedDocument}
+                                    selectedTraineeId={selectedCandidateId}
+                                    traineeDetails={selectedCandidateDetails}
+                                    openSignatureModal={openSignatureModal}
+                                    onProgressUpdate={(docId, progress) => {
+                                        setDocProgress(prev => ({ ...prev, [docId]: progress }));
+                                    }}
+                                />
+                            );
                         case 'PhoneticQuiz':
-                            return <PhoneticQuizForm {...props} />;
+                            return <PhoneticQuizForm {...props} onPdfButtonClick={() => handlePdfSave(PhoneticQuizForm)} />;
                         case 'EmergencyPhoneCallExercise':
-                            return <EmergencyPhoneCallExerciseForm {...props} />;
+                            return <EmergencyPhoneCallExerciseForm {...props} onPdfButtonClick={() => handlePdfSave(EmergencyPhoneCallExerciseForm)} />;
                         case 'PracticalAssessment':
-                            return <PracticalAssessmentForm {...props} />;
+                            return <PracticalAssessmentForm {...props} onPdfButtonClick={() => handlePdfSave(PracticalAssessmentForm)} />;
                         case 'RecertEmergencyCallPracticalAssessment':
-                            return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
+                            return <RecertEmergencyCallPracticalAssessmentForm {...props} onPdfButtonClick={() => handlePdfSave(RecertEmergencyCallPracticalAssessmentForm)} />;
                         case 'TrackWalkDeliveryRequirements':
-                            return <TrackWalkDeliveryRequirementsForm {...props} />;
+                            return <TrackWalkDeliveryRequirementsForm {...props} onPdfButtonClick={() => handlePdfSave(TrackWalkDeliveryRequirementsForm)} />;
                         default:
                             // Fallback for any other document that might not have a specific form
                             return <QuestionnaireForm {...props} />;
@@ -269,6 +333,11 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
 
     return (
         <div className="flex h-screen bg-gray-50">
+            {notification.show && (
+                <div className="absolute top-5 right-5 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50">
+                    {notification.message}
+                </div>
+            )}
             {/* Left Panel (15%) - Candidates */}
             <div className="w-[15%] border-r overflow-y-auto bg-white">
                 <div className="p-4 font-bold border-b sticky top-0 bg-white z-10">

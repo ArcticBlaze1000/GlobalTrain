@@ -37,7 +37,7 @@ const debounce = (func, delay) => {
 };
 
 
-const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, selectedTraineeId, onProgressUpdate }) => {
+const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, selectedTraineeId, traineeDetails, onProgressUpdate }) => {
     const [responses, setResponses] = useState({
         leaving_reasons: '',
         leaving_candidate_signature: '',
@@ -180,7 +180,18 @@ const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, 
 
             <div className="pt-4 text-center">
                 <button
-                    onClick={() => generateLeavingPdf(datapackId, selectedTraineeId, user)}
+                    onClick={() => {
+                        if (!traineeDetails) {
+                            alert("Trainee details are not available. Cannot generate PDF.");
+                            return;
+                        }
+                        const payload = {
+                            eventDetails: { ...eventDetails, forename: user.forename, surname: user.surname },
+                            documentDetails,
+                            traineeDetails,
+                        };
+                        generateLeavingPdf(payload);
+                    }}
                     className="px-6 py-2 bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700"
                 >
                     Generate PDF

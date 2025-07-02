@@ -4,8 +4,12 @@ import { generateProgressRecordPdf } from './PDFGenerator';
 
 const Form = (props) => {
     const handleGeneratePdf = async () => {
-        if (props.eventDetails?.id && props.documentDetails?.id) {
-            await generateProgressRecordPdf(props.eventDetails.id, props.documentDetails.id);
+        if (props.eventDetails) {
+            const payload = {
+                eventDetails: props.eventDetails,
+                documentDetails: props.documentDetails,
+            };
+            await generateProgressRecordPdf(payload);
         }
     };
 

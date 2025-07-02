@@ -4,19 +4,17 @@ import Template from './Template';
 
 const PDFGenerator = () => <div>Placeholder PDF Generator</div>;
 
-export const generateLeavingPdf = async (datapackId, traineeId, trainer) => {
-    if (!datapackId || !traineeId || !trainer) {
+export const generateLeavingPdf = async (payload) => {
+    const { eventDetails, documentDetails, traineeDetails } = payload;
+    if (!eventDetails || !documentDetails || !traineeDetails) {
         alert("Cannot generate PDF: Missing critical information.");
         return;
     }
 
     try {
-        const document = (await window.db.query('SELECT id FROM documents WHERE name = ?', ['LeavingForm']))[0];
-        if (!document) throw new Error("LeavingForm document not found in database.");
-
         const responses = await window.db.query(
             'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ?',
-            [datapackId, document.id, String(traineeId)]
+            [eventDetails.id, documentDetails.id, String(traineeDetails.id)]
         );
 
         const responsesMap = responses.reduce((acc, res) => {
@@ -30,14 +28,23 @@ export const generateLeavingPdf = async (datapackId, traineeId, trainer) => {
             logoBase64,
             reasons: responsesMap.leaving_reasons || '',
             candidateSignature: responsesMap.leaving_candidate_signature || '',
-            trainerName: `${trainer.forename} ${trainer.surname}`,
+            trainerName: `${eventDetails.forename} ${eventDetails.surname}`,
             trainerSignature: responsesMap.leaving_trainer_signature || '',
             date: responsesMap.leaving_date || '',
+            traineeName: `${traineeDetails.forename} ${traineeDetails.surname}`,
         };
 
         const htmlContent = ReactDOMServer.renderToStaticMarkup(<Template {...templateProps} />);
 
-        await window.electron.generatePdfFromHtml(htmlContent, `${datapackId}_trainee_${traineeId}_leaving`, { landscape: false });
+        const pdfPayload = {
+            htmlContent,
+            eventDetails,
+            documentDetails,
+            traineeDetails,
+            options: { landscape: false }
+        };
+
+        await window.electron.savePdf(pdfPayload);
 
     } catch (error) {
         console.error('Failed to generate Leaving Form PDF:', error);

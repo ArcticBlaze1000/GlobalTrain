@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOMServer from 'react-dom/server';
 import { useEvent } from '../context/EventContext';
 import RegisterForm from './General/Register/Form';
 import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
@@ -32,6 +33,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
     const [isDeviationFormRequired, setIsDeviationFormRequired] = useState(false);
+    const [notification, setNotification] = useState({ show: false, message: '' });
 
     // Fetch events based on user role
     useEffect(() => {
@@ -53,8 +55,23 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
             query += ' ORDER BY d.start_date ASC';
 
-            const datapacks = await window.db.query(query, params);
-            setEvents(datapacks);
+            const [datapacks, trainerDetails] = await Promise.all([
+                window.db.query(query, params),
+                window.db.query('SELECT id, forename, surname FROM users WHERE role = "trainer"')
+            ]);
+            
+            const trainersMap = trainerDetails.reduce((acc, trainer) => {
+                acc[trainer.id] = { forename: trainer.forename, surname: trainer.surname };
+                return acc;
+            }, {});
+
+            const eventsWithTrainerNames = datapacks.map(dp => ({
+                ...dp,
+                forename: trainersMap[dp.trainer_id]?.forename || 'N/A',
+                surname: trainersMap[dp.trainer_id]?.surname || 'N/A'
+            }));
+
+            setEvents(eventsWithTrainerNames);
         };
         fetchEvents();
     }, [user]);
@@ -130,6 +147,45 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         setSelectedDoc(doc);
     };
 
+    const handlePdfSave = async (FormToRender) => {
+        setNotification({ show: true, message: 'Generating PDF...' });
+        try {
+            const cssPath = await window.electron.getCssPath();
+            
+            const htmlContent = ReactDOMServer.renderToString(
+                <>
+                    <link rel="stylesheet" href={cssPath}></link>
+                    <div className="p-8">
+                        <FormToRender
+                            user={user}
+                            eventDetails={activeEvent}
+                            documentDetails={selectedDoc}
+                            openSignatureModal={openSignatureModal}
+                            isPdfMode={true} // Special prop to render for PDF
+                        />
+                    </div>
+                </>
+            );
+
+            const payload = {
+                htmlContent,
+                eventDetails: activeEvent,
+                documentDetails: selectedDoc,
+                // No traineeDetails for course-level documents
+            };
+
+            const result = await window.electron.savePdf(payload);
+            setNotification({ show: true, message: result });
+
+        } catch (error) {
+            console.error('Failed to save PDF:', error);
+            setNotification({ show: true, message: `Error: ${error.message}` });
+        } finally {
+            // Hide notification after a few seconds
+            setTimeout(() => setNotification({ show: false, message: '' }), 5000);
+        }
+    };
+
     const handleDeviationUpdate = useCallback((isRequired) => {
         setIsDeviationFormRequired(isRequired);
     }, []);
@@ -199,6 +255,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             eventDetails: activeEvent,
             documentDetails: selectedDoc,
             openSignatureModal,
+            onPdfButtonClick: handlePdfSave, // Pass the save handler
         };
         
         const currentProgress = docProgress[selectedDoc.id];
@@ -216,7 +273,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                         case 'TrainingCourseChecklist':
                             return <TrainingCourseChecklistForm {...props} />;
                         case 'TrainingAndWeldingTrackSafetyBreifing':
-                            return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
+                            return <TrainingAndWeldingTrackSafetyBreifingForm {...props} onPdfButtonClick={() => handlePdfSave(TrainingAndWeldingTrackSafetyBreifingForm)} />;
                         case 'ProgressRecord':
                             return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
                         default:
@@ -233,6 +290,11 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
     return (
         <div className="flex h-screen bg-gray-50">
+            {notification.show && (
+                <div className="absolute top-5 right-5 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50">
+                    {notification.message}
+                </div>
+            )}
             {/* Left Panel (15%) - Events */}
             <div className="w-[15%] border-r overflow-y-auto">
                 <div className="p-4 font-bold border-b bg-white sticky top-0">Available Events</div>

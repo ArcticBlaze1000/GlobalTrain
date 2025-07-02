@@ -42,7 +42,11 @@ const Form = (props) => {
 
         // If validation passes, generate the PDF
         try {
-            await generatePreCoursePdf(props.eventDetails.id, props.documentDetails.id);
+            const payload = {
+                eventDetails: props.eventDetails,
+                documentDetails: props.documentDetails,
+            };
+            await generatePreCoursePdf(payload);
         } catch (error) {
             // Error is logged in the generator, but you could show an alert here too
             alert('Failed to generate PDF. See console for details.');

@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld('electron', {
   recalculateAndUpdateProgress: (args) => ipcRenderer.invoke('recalculate-and-update-progress', args),
   onProgressUpdate: (callback) => ipcRenderer.on('progress-updated', callback),
   initializeUserSession: (user) => ipcRenderer.invoke('initialize-user-session', user),
+  savePdf: (payload) => ipcRenderer.invoke('save-pdf', payload),
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
-  generatePdfFromHtml: (html, datapackId, options) => ipcRenderer.invoke('generate-pdf-from-html', html, datapackId, options),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
   getCssPath: () => ipcRenderer.invoke('get-css-path'),
   quitApp: () => ipcRenderer.invoke('app-quit')

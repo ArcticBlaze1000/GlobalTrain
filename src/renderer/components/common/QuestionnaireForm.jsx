@@ -370,11 +370,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             return;
         }
 
-        if (process.env.NODE_ENV !== 'production') {
-            // Store the callback function so the dev tools can access it
-            window.dev_regenerateLastPdf = onPdfButtonClick;
+        // The 'Form' component to be rendered as a PDF is the root element of this component.
+        // We'll pass a reference to it to the PDF generation logic.
+        // NOTE: The 'current' property of a ref should be accessed inside the callback.
+        if (onPdfButtonClick) {
+            onPdfButtonClick(); // The parent component now handles the PDF logic
         }
-        onPdfButtonClick();
     };
 
     const groupedQuestions = useMemo(() => {
