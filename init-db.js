@@ -53,7 +53,7 @@ const competenciesToSeed = [
     { name: 'PC' },
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,13', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
     { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2, non_mandatory_doc_ids: '7,8' }, 
     { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5, non_mandatory_doc_ids: '' }
 ];

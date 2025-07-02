@@ -7,6 +7,16 @@ const parseTime = (timeStr) => {
     return hours * 60 + minutes;
 };
 
+const parseDeviation = (deviationStr) => {
+    if (!deviationStr) return 0;
+    const sign = deviationStr.startsWith('-') ? -1 : 1;
+    const hoursMatch = deviationStr.match(/(\d+)h/);
+    const minsMatch = deviationStr.match(/(\d+)m/);
+    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+    const mins = minsMatch ? parseInt(minsMatch[1], 10) : 0;
+    return sign * (hours * 60 + mins);
+};
+
 const formatDeviation = (minutes) => {
     if (minutes === 0) return "0m";
     const sign = minutes > 0 ? '+' : '-';
@@ -61,7 +71,7 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpdate, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
@@ -240,6 +250,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
         }
         return formatDeviation(total);
     }, [responses, eventDetails, documentDetails]);
+
+    useEffect(() => {
+        if (documentDetails?.name === 'ProgressRecord' && onDeviationUpdate && totalDeviation !== null) {
+            const allowedDeviation = (eventDetails?.duration || 0) * 30;
+            const actualDeviationMinutes = Math.abs(parseDeviation(totalDeviation));
+            onDeviationUpdate(actualDeviationMinutes > allowedDeviation);
+        }
+    }, [totalDeviation, documentDetails, eventDetails, onDeviationUpdate]);
 
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
         const originalValue = responses[fieldName]?.data?.[traineeId];
@@ -485,19 +503,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                 }
 
                 return (
-                    <div key={section}>
-                        {section !== 'General' && <h3 className="text-md font-bold text-gray-500 mb-2 mt-4">{section}</h3>}
-                        <div className="space-y-3 p-4">
-                            {/* Header Row */}
+                <div key={section}>
+                    {section !== 'General' && <h3 className="text-md font-bold text-gray-500 mb-2 mt-4">{section}</h3>}
+                    <div className="space-y-3 p-4">
+                        {/* Header Row */}
                             {section !== 'Comments' && !section.startsWith('Day ') && (
-                                <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
-                                    <span className="w-3/5">Item</span>
-                                    <span className="w-1/5 text-center">Completed</span>
-                                    <span className="w-1/5 text-center">{valueColumnHeader}</span>
-                                </div>
+                        <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
+                            <span className="w-3/5">Item</span>
+                            <span className="w-1/5 text-center">Completed</span>
+                            <span className="w-1/5 text-center">{valueColumnHeader}</span>
+                        </div>
                             )}
                         
-                            {qs.map((q) => {
+                        {qs.map((q) => {
                                 if (q.input_type === 'daily_time_pair') {
                                     const { startQuestion, finishQuestion } = q;
                                     const isEditable = canUserEdit(startQuestion.access, user.role);
@@ -569,118 +587,72 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                         </div>
                                     );
                                 }
-                                if (q.input_type === 'attendance_grid') {
-                                    const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                                    if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
-                                        return null; // Don't render attendance days beyond the course duration
-                                    }
-                                    const isEditable = canUserEdit(q.access, user.role);
-                            
-                                    return (
-                                        <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-gray-700">{q.question_text}</h4>
-                                                <div className="w-1/5 flex justify-center">
-                                                    {!!responses[q.field_name]?.completed && (
-                                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                                    )}
-                                                </div>
+                            if (q.input_type === 'attendance_grid') {
+                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
+                                    return null; // Don't render attendance days beyond the course duration
+                                }
+                                const isEditable = canUserEdit(q.access, user.role);
+                        
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
-                                                {trainees.map(trainee => (
-                                                    <div key={trainee.id} className="flex items-center">
-                                                        <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
-                                                            {trainee.forename} {trainee.surname}
-                                                        </label>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => (
+                                                <div key={trainee.id} className="flex items-center">
+                                                    <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                        {trainee.forename} {trainee.surname}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                        onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value)}
+                                                        className="p-1 border rounded-md w-3/5 disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                        disabled={!isEditable}
+                                                        placeholder={'Initials...'}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
+
+                            if (q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid') {
+                                const isEditable = canUserEdit(q.access, user.role);
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => (
+                                                <div key={trainee.id} className="flex items-center justify-between">
+                                                    <label className="w-auto text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                        {trainee.forename} {trainee.surname}
+                                                    </label>
+                                                    {q.input_type === 'trainee_checkbox_grid' && (
                                                         <input
-                                                            type="text"
-                                                            value={responses[q.field_name]?.data?.[trainee.id] || ''}
-                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value)}
-                                                            className="p-1 border rounded-md w-3/5 disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                            type="checkbox"
+                                                            checked={!!responses[q.field_name]?.data?.[trainee.id]}
+                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.checked, q.input_type)}
+                                                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                                                             disabled={!isEditable}
-                                                            placeholder={'Initials...'}
                                                         />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )
-                                }
-
-                                if (q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid') {
-                                    const isEditable = canUserEdit(q.access, user.role);
-                                    return (
-                                        <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-gray-700">{q.question_text}</h4>
-                                                <div className="w-1/5 flex justify-center">
-                                                    {!!responses[q.field_name]?.completed && (
-                                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                                                     )}
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
-                                                {trainees.map(trainee => (
-                                                    <div key={trainee.id} className="flex items-center justify-between">
-                                                        <label className="w-auto text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
-                                                            {trainee.forename} {trainee.surname}
-                                                        </label>
-                                                        {q.input_type === 'trainee_checkbox_grid' && (
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={!!responses[q.field_name]?.data?.[trainee.id]}
-                                                                onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.checked, q.input_type)}
-                                                                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                                                                disabled={!isEditable}
-                                                            />
-                                                        )}
-                                                        {q.input_type === 'trainee_dropdown_grid' && (
-                                                            <select
-                                                                value={responses[q.field_name]?.data?.[trainee.id] || ''}
-                                                                onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
-                                                                className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
-                                                                disabled={!isEditable}
-                                                            >
-                                                                <option value="">Select...</option>
-                                                                {(questionOptions[q.field_name] || []).map(opt => (
-                                                                    <option key={opt} value={opt}>{opt}</option>
-                                                                ))}
-                                                            </select>
-                                                        )}
-                                                        {q.input_type === 'trainee_date_grid' && (
-                                                             <input
-                                                                type="date"
-                                                                value={responses[q.field_name]?.data?.[trainee.id] || ''}
-                                                                onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
-                                                                className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
-                                                                disabled={!isEditable}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )
-                                }
-
-                                if (q.input_type === 'trainee_yes_no_grid') {
-                                    const isEditable = canUserEdit(q.access, user.role);
-                                    return (
-                                        <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-gray-700">{q.question_text}</h4>
-                                                <div className="w-1/5 flex justify-center">
-                                                    {!!responses[q.field_name]?.completed && (
-                                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
-                                                {trainees.map(trainee => (
-                                                    <div key={trainee.id} className="flex items-center justify-between">
-                                                        <label className="w-auto text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
-                                                            {trainee.forename} {trainee.surname}
-                                                        </label>
+                                                    {q.input_type === 'trainee_dropdown_grid' && (
                                                         <select
                                                             value={responses[q.field_name]?.data?.[trainee.id] || ''}
                                                             onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
@@ -692,147 +664,193 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                                                 <option key={opt} value={opt}>{opt}</option>
                                                             ))}
                                                         </select>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )
-                                }
-
-                                if (q.input_type === 'signature_grid') {
-                                    const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                                    if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
-                                        return null; // Don't render attendance days beyond the course duration
-                                    }
-                                    const isEditable = canUserEdit(q.access, user.role);
-                                
-                                    return (
-                                        <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-gray-700">{q.question_text}</h4>
-                                                <div className="w-1/5 flex justify-center">
-                                                    {!!responses[q.field_name]?.completed && (
-                                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                    )}
+                                                    {q.input_type === 'trainee_date_grid' && (
+                                                         <input
+                                                            type="date"
+                                                            value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                            onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
+                                                            className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                            disabled={!isEditable}
+                                                        />
                                                     )}
                                                 </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
-                                                {trainees.map(trainee => {
-                                                    const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-                                                    let isLockedDueToAbsence = false;
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
 
-                                                    for (let i = 1; i < dayNumber; i++) {
-                                                        const prevFieldName = `day_${i}_attendance`;
-                                                            const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
-                                                            if (prevDayResponse === 'absent') {
-                                                                isLockedDueToAbsence = true;
-                                                                break;
-                                                        }
-                                                    }
-
-                                                    const traineeValue = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
-                                                    
-                                                    let statusText = '';
-                                                    let isDayOpen = false;
-
-                                                    if (eventDetails.start_date) {
-                                                        const now = new Date();
-                                                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-                                                        const [year, month, day] = eventDetails.start_date.split('-').map(Number);
-                                                        const courseStartDate = new Date(year, month - 1, day);
-
-                                                        const targetDate = new Date(courseStartDate);
-                                                        targetDate.setDate(courseStartDate.getDate() + dayNumber - 1);
-                                                        const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-
-                                                        if (targetDateOnly < today) {
-                                                            statusText = 'Closed';
-                                                        } else if (targetDateOnly > today) {
-                                                            statusText = `Opens on ${targetDate.toLocaleDateString('en-GB')}`;
-                                                        } else { // Date is today
-                                                            const currentHour = now.getHours();
-                                                            const isWithinTime = currentHour >= 9 && currentHour < 15;
-
-                                                            if (isWithinTime) {
-                                                                isDayOpen = true;
-                                                            } else if (currentHour >= 15) {
-                                                                statusText = 'Closed';
-                                                            } else { // currentHour < 9
-                                                                statusText = `Opens at 9:00 AM`;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    if (user.role === 'dev') {
-                                                        isDayOpen = true;
-                                                        if (statusText) statusText += ' (Dev Override)';
-                                                    }
-                                                    
-                                                    const isEditableForThisCell = isEditable && !isLockedDueToAbsence;
-                                                    const isSigned = typeof traineeValue === 'string' && traineeValue.startsWith('data:image');
-
-                                                    return (
-                                                        <div key={trainee.id} className="flex flex-col items-center space-y-2 p-2 border rounded-lg">
-                                                            <label className="text-sm font-medium text-gray-700 w-full text-center truncate" title={`${trainee.forename} ${trainee.surname}`}>
-                                                                {trainee.forename} {trainee.surname}
-                                                            </label>
-
-                                                            <div 
-                                                                className={`w-full h-20 border rounded-md flex justify-center items-center ${isEditableForThisCell && isDayOpen ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                                    onClick={() => {
-                                                                    if (isEditableForThisCell && isDayOpen && !isSigned) {
-                                                                        const onSave = (dataUrl) => handleGridInputChange(q.field_name, trainee.id, dataUrl, q.input_type);
-                                                                        openSignatureModal(onSave, traineeValue);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {isSigned ? (
-                                                                    <img src={traineeValue} alt="Signature" className="h-full w-full object-contain" />
-                                                                ) : (
-                                                                        <span className="text-gray-500 text-sm capitalize">
-                                                                        {traineeValue === 'absent' && 'Absent'}
-                                                                        {traineeValue === 'skip' && 'Skipped'}
-                                                                        {traineeValue !== 'absent' && traineeValue !== 'skip' && 'Click to Sign'}
-                                                                        </span>
-                                                                    )}
-                                                            </div>
-
-                                                            <div className="w-full">
-                                                                    <select
-                                                                    value={isSigned ? 'signed' : traineeValue}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        // Allow clearing the signature if "Present" is chosen, or setting other statuses
-                                                                        if (value === '' || value === 'absent' || value === 'skip') {
-                                                                             handleGridInputChange(q.field_name, trainee.id, value, q.input_type);
-                                                                        }
-                                                                    }}
-                                                                    className="w-full p-1 border rounded-md text-sm"
-                                                                    disabled={!isEditableForThisCell || !isDayOpen}
-                                                                    >
-                                                                        {isSigned ? (
-                                                                            <option value="signed">Signed</option>
-                                                                        ) : (
-                                                                        <option value="">Present</option>
-                                                                    )}
-                                                                        <option value="absent">Absent</option>
-                                                                        <option value="skip">Skip</option>
-                                                                    </select>
-                                                                </div>
-
-                                                            {statusText && <p className="text-xs text-gray-500 mt-1 w-full text-center">{statusText}</p>}
-                                                        </div>
-                                                    );
-                                                })}
+                            if (q.input_type === 'trainee_yes_no_grid') {
+                                const isEditable = canUserEdit(q.access, user.role);
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
                                             </div>
                                         </div>
-                                    )
-                                }
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => (
+                                                <div key={trainee.id} className="flex items-center justify-between">
+                                                    <label className="w-auto text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                                        {trainee.forename} {trainee.surname}
+                                                    </label>
+                                                    <select
+                                                        value={responses[q.field_name]?.data?.[trainee.id] || ''}
+                                                        onChange={(e) => handleGridInputChange(q.field_name, trainee.id, e.target.value, q.input_type)}
+                                                        className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                                        disabled={!isEditable}
+                                                    >
+                                                        <option value="">Select...</option>
+                                                        {(questionOptions[q.field_name] || []).map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
 
-                                if (q.input_type === 'time_capture_button') {
-                                    const isEditable = canUserEdit(q.access, user.role);
-                                    const responseValue = responses[q.field_name]?.data || '';
+                            if (q.input_type === 'signature_grid') {
+                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                if (!eventDetails?.duration || dayNumber > eventDetails.duration) {
+                                    return null; // Don't render attendance days beyond the course duration
+                                }
+                                const isEditable = canUserEdit(q.access, user.role);
+                        
+                                return (
+                                    <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700">{q.question_text}</h4>
+                                            <div className="w-1/5 flex justify-center">
+                                                {!!responses[q.field_name]?.completed && (
+                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                                            {trainees.map(trainee => {
+                                                const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+                                                let isLockedDueToAbsence = false;
+
+                                                for (let i = 1; i < dayNumber; i++) {
+                                                    const prevFieldName = `day_${i}_attendance`;
+                                                        const prevDayResponse = responses[prevFieldName]?.data?.[trainee.id];
+                                                        if (prevDayResponse === 'absent') {
+                                                            isLockedDueToAbsence = true;
+                                                            break;
+                                                    }
+                                                }
+
+                                                const traineeValue = isLockedDueToAbsence ? 'absent' : (responses[q.field_name]?.data?.[trainee.id] || '');
+                                                
+                                                let statusText = '';
+                                                let isDayOpen = false;
+
+                                                if (eventDetails.start_date) {
+                                                    const now = new Date();
+                                                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                                                    const [year, month, day] = eventDetails.start_date.split('-').map(Number);
+                                                    const courseStartDate = new Date(year, month - 1, day);
+
+                                                    const targetDate = new Date(courseStartDate);
+                                                    targetDate.setDate(courseStartDate.getDate() + dayNumber - 1);
+                                                    const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+                                                    if (targetDateOnly < today) {
+                                                        statusText = 'Closed';
+                                                    } else if (targetDateOnly > today) {
+                                                        statusText = `Opens on ${targetDate.toLocaleDateString('en-GB')}`;
+                                                    } else { // Date is today
+                                                        const currentHour = now.getHours();
+                                                        const isWithinTime = currentHour >= 9 && currentHour < 15;
+
+                                                        if (isWithinTime) {
+                                                            isDayOpen = true;
+                                                        } else if (currentHour >= 15) {
+                                                            statusText = 'Closed';
+                                                        } else { // currentHour < 9
+                                                            statusText = `Opens at 9:00 AM`;
+                                                        }
+                                                    }
+                                                }
+
+                                                if (user.role === 'dev') {
+                                                    isDayOpen = true;
+                                                    if (statusText) statusText += ' (Dev Override)';
+                                                }
+                                                
+                                                const isEditableForThisCell = isEditable && !isLockedDueToAbsence;
+                                                const isSigned = typeof traineeValue === 'string' && traineeValue.startsWith('data:image');
+
+                                                return (
+                                                    <div key={trainee.id} className="flex flex-col items-center space-y-2 p-2 border rounded-lg">
+                                                        <label className="text-sm font-medium text-gray-700 w-full text-center truncate" title={`${trainee.forename} ${trainee.surname}`}>
+                                                            {trainee.forename} {trainee.surname}
+                                                        </label>
+
+                                                        <div 
+                                                            className={`w-full h-20 border rounded-md flex justify-center items-center ${isEditableForThisCell && isDayOpen ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-200 cursor-not-allowed'}`}
+                                                                onClick={() => {
+                                                                if (isEditableForThisCell && isDayOpen && !isSigned) {
+                                                                    const onSave = (dataUrl) => handleGridInputChange(q.field_name, trainee.id, dataUrl, q.input_type);
+                                                                    openSignatureModal(onSave, traineeValue);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {isSigned ? (
+                                                                <img src={traineeValue} alt="Signature" className="h-full w-full object-contain" />
+                                                            ) : (
+                                                                    <span className="text-gray-500 text-sm capitalize">
+                                                                    {traineeValue === 'absent' && 'Absent'}
+                                                                    {traineeValue === 'skip' && 'Skipped'}
+                                                                    {traineeValue !== 'absent' && traineeValue !== 'skip' && 'Click to Sign'}
+                                                                    </span>
+                                                                )}
+                                                        </div>
+
+                                                        <div className="w-full">
+                                                                <select
+                                                                value={isSigned ? 'signed' : traineeValue}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    // Allow clearing the signature if "Present" is chosen, or setting other statuses
+                                                                    if (value === '' || value === 'absent' || value === 'skip') {
+                                                                         handleGridInputChange(q.field_name, trainee.id, value, q.input_type);
+                                                                    }
+                                                                }}
+                                                                className="w-full p-1 border rounded-md text-sm"
+                                                                disabled={!isEditableForThisCell || !isDayOpen}
+                                                                >
+                                                                    {isSigned ? (
+                                                                        <option value="signed">Signed</option>
+                                                                    ) : (
+                                                                    <option value="">Present</option>
+                                                                )}
+                                                                    <option value="absent">Absent</option>
+                                                                    <option value="skip">Skip</option>
+                                                                </select>
+                                                            </div>
+
+                                                        {statusText && <p className="text-xs text-gray-500 mt-1 w-full text-center">{statusText}</p>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )
+                            }
+
+                            if (q.input_type === 'time_capture_button') {
+                                const isEditable = canUserEdit(q.access, user.role);
+                                const responseValue = responses[q.field_name]?.data || '';
                                     const isDailyTracking = /day_\d+_(start|finish)_time/.test(q.field_name);
                                     let statusText = '';
                                     let isLockedByTime = false;
@@ -899,49 +917,49 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                             : 'start_time';
                                         
                                         const startTimeResponse = responses[baseFieldName]?.data;
-                                        if (!startTimeResponse) {
-                                            isDisabled = true;
-                                        }
+                                    if (!startTimeResponse) {
+                                        isDisabled = true;
                                     }
-                                
-                                    const handleTimeCapture = () => {
-                                        const now = new Date();
-                                        const hours = String(now.getHours()).padStart(2, '0');
-                                        const minutes = String(now.getMinutes()).padStart(2, '0');
-                                        const currentTime = `${hours}:${minutes}`;
-                                        handleInputChange(q.field_name, currentTime, q.input_type);
-                                    };
-                                
-                                    return (
-                                        <div key={q.id} className={`flex items-center justify-between py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                            <span className="text-gray-700 font-medium">{q.question_text}</span>
-                                            <div className="flex items-center space-x-4">
+                                }
+                            
+                                const handleTimeCapture = () => {
+                                    const now = new Date();
+                                    const hours = String(now.getHours()).padStart(2, '0');
+                                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                                    const currentTime = `${hours}:${minutes}`;
+                                    handleInputChange(q.field_name, currentTime, q.input_type);
+                                };
+                            
+                                return (
+                                    <div key={q.id} className={`flex items-center justify-between py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                        <span className="text-gray-700 font-medium">{q.question_text}</span>
+                                        <div className="flex items-center space-x-4">
                                                 {deviationText && <span className="font-bold text-sm">Deviation: {deviationText}</span>}
                                                 {statusText && <span className="text-xs text-gray-500">{statusText}</span>}
-                                                {responseValue ? (
-                                                    <>
-                                                        <span className="font-mono text-lg bg-gray-100 px-3 py-1 rounded-md">{responseValue}</span>
-                                                        <button
-                                                            onClick={() => handleInputChange(q.field_name, '', q.input_type)}
-                                                            className="text-xs text-red-500 hover:text-red-700"
-                                                            disabled={!isEditable || isLockedByTime}
-                                                        >
-                                                            Clear
-                                                        </button>
-                                                    </>
-                                                ) : (
+                                            {responseValue ? (
+                                                <>
+                                                    <span className="font-mono text-lg bg-gray-100 px-3 py-1 rounded-md">{responseValue}</span>
                                                     <button
-                                                        onClick={handleTimeCapture}
-                                                        className={`px-4 py-2 text-sm rounded ${isDisabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                                                        disabled={isDisabled}
+                                                        onClick={() => handleInputChange(q.field_name, '', q.input_type)}
+                                                        className="text-xs text-red-500 hover:text-red-700"
+                                                            disabled={!isEditable || isLockedByTime}
                                                     >
-                                                        Record {q.question_text}
+                                                        Clear
                                                     </button>
-                                                )}
-                                            </div>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={handleTimeCapture}
+                                                    className={`px-4 py-2 text-sm rounded ${isDisabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                                                    disabled={isDisabled}
+                                                >
+                                                    Record {q.question_text}
+                                                </button>
+                                            )}
                                         </div>
-                                    );
-                                }
+                                    </div>
+                                );
+                            }
 
                                 if (q.input_type === 'dynamic_comments_section') {
                                     const isEditable = canUserEdit(q.access, user.role);
@@ -1018,144 +1036,144 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                                     );
                                 }
 
-                                const isEditable = canUserEdit(q.access, user.role);
-                                const commentOpen = !!openComments[q.field_name];
-                                return (
-                                    <div key={q.id} className={`flex flex-col py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="w-3/5 flex items-center">
-                                                <span className="text-gray-700 font-medium">{q.question_text}</span>
-                                                {q.has_comments === 'YES' && isEditable && (
-                                                    <button onClick={() => toggleComment(q.field_name)} className="ml-4 text-xs text-blue-500 hover:underline">
-                                                        {commentOpen ? 'Cancel' : 'Add Comment'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                            
-                                            <div className="w-1/5 flex justify-center">
-                                                {!!responses[q.field_name]?.completed && (
-                                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                                )}
-                                            </div>
-
-                                            <div className="w-1/5 flex justify-center">
-                                                {q.input_type === 'checkbox' && (
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!responses[q.field_name]?.data}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.checked, q.input_type)}
-                                                        className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'tri_toggle' && (
-                                                    <TriToggleButton
-                                                        value={responses[q.field_name]?.data || 'neutral'}
-                                                        onChange={(newValue) => handleInputChange(q.field_name, newValue, q.input_type)}
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'checklist' && (
-                                                    <select
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, 'checklist')}
-                                                        className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed"
-                                                        disabled={!isEditable}
-                                                    >
-                                                        <option value="">Select...</option>
-                                                        {(questionOptions[q.field_name] || []).map(opt => (
-                                                            <option key={opt} value={opt}>{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                )}
-                                                {q.input_type === 'date' && (
-                                                    <input
-                                                        type="date"
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, 'date')}
-                                                        className="p-2 border rounded-md shadow-sm w-full"
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'time' && (
-                                                    <input
-                                                        type="time"
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, 'time')}
-                                                        className="p-2 border rounded-md shadow-sm w-full"
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'number' && (
-                                                    <input
-                                                        type="number"
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, 'number')}
-                                                        className="p-2 border rounded-md w-24 disabled:bg-gray-200 disabled:cursor-not-allowed"
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'dropdown' && (
-                                                    <select
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
-                                                        className="p-2 border rounded-md w-48 disabled:bg-gray-200 disabled:cursor-not-allowed"
-                                                        disabled={!isEditable}
-                                                    >
-                                                        <option value="">Select...</option>
-                                                        {(questionOptions[q.field_name] || []).map(opt => (
-                                                            <option key={opt} value={opt}>{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                )}
-                                                {q.input_type === 'textarea' && (
-                                                    <textarea
-                                                        value={responses[q.field_name]?.data || ''}
-                                                        onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
-                                                        className="p-2 border rounded-md w-full disabled:bg-gray-200 disabled:cursor-not-allowed"
-                                                        rows="3"
-                                                        disabled={!isEditable}
-                                                    />
-                                                )}
-                                                {q.input_type === 'signature_box' && (
-                                                    <div 
-                                                        className={`w-48 h-24 border rounded-md flex justify-center items-center ${isEditable ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                        onClick={() => {
-                                                            if (isEditable) {
-                                                                const signatureData = responses[q.field_name]?.data || '';
-                                                                const onSave = (dataUrl) => {
-                                                                    handleInputChange(q.field_name, dataUrl, q.input_type);
-                                                                };
-                                                                openSignatureModal(onSave, signatureData);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {responses[q.field_name]?.data ? (
-                                                            <img src={responses[q.field_name].data} alt="Signature" className="h-full w-full object-contain" />
-                                                        ) : (
-                                                            <span className="text-gray-500 text-sm">Click to Sign</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                            const isEditable = canUserEdit(q.access, user.role);
+                            const commentOpen = !!openComments[q.field_name];
+                            return (
+                                <div key={q.id} className={`flex flex-col py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="w-3/5 flex items-center">
+                                            <span className="text-gray-700 font-medium">{q.question_text}</span>
+                                            {q.has_comments === 'YES' && isEditable && (
+                                                <button onClick={() => toggleComment(q.field_name)} className="ml-4 text-xs text-blue-500 hover:underline">
+                                                    {commentOpen ? 'Cancel' : 'Add Comment'}
+                                                </button>
+                                            )}
                                         </div>
-                                        {q.has_comments === 'YES' && commentOpen && (
-                                            <div className="mt-3">
-                                                <textarea
-                                                    value={responses[q.field_name]?.comments || ''}
-                                                    onChange={(e) => handleCommentChange(q.field_name, e.target.value)}
-                                                    placeholder="Add your comments here..."
-                                                    className="w-full p-2 border rounded-md"
-                                                    rows="2"
+                                        
+                                        <div className="w-1/5 flex justify-center">
+                                            {!!responses[q.field_name]?.completed && (
+                                                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                            )}
+                                        </div>
+
+                                        <div className="w-1/5 flex justify-center">
+                                            {q.input_type === 'checkbox' && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!responses[q.field_name]?.data}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.checked, q.input_type)}
+                                                    className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                                                     disabled={!isEditable}
                                                 />
-                                            </div>
-                                        )}
+                                            )}
+                                            {q.input_type === 'tri_toggle' && (
+                                                <TriToggleButton
+                                                    value={responses[q.field_name]?.data || 'neutral'}
+                                                    onChange={(newValue) => handleInputChange(q.field_name, newValue, q.input_type)}
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'checklist' && (
+                                                <select
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'checklist')}
+                                                    className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {(questionOptions[q.field_name] || []).map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                            {q.input_type === 'date' && (
+                                                <input
+                                                    type="date"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'date')}
+                                                    className="p-2 border rounded-md shadow-sm w-full"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'time' && (
+                                                <input
+                                                    type="time"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'time')}
+                                                    className="p-2 border rounded-md shadow-sm w-full"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'number' && (
+                                                <input
+                                                    type="number"
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, 'number')}
+                                                    className="p-2 border rounded-md w-24 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'dropdown' && (
+                                                <select
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-48 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    disabled={!isEditable}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {(questionOptions[q.field_name] || []).map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                            {q.input_type === 'textarea' && (
+                                                <textarea
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(e) => handleInputChange(q.field_name, e.target.value, q.input_type)}
+                                                    className="p-2 border rounded-md w-full disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                                    rows="3"
+                                                    disabled={!isEditable}
+                                                />
+                                            )}
+                                            {q.input_type === 'signature_box' && (
+                                                <div 
+                                                    className={`w-48 h-24 border rounded-md flex justify-center items-center ${isEditable ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
+                                                    onClick={() => {
+                                                        if (isEditable) {
+                                                            const signatureData = responses[q.field_name]?.data || '';
+                                                            const onSave = (dataUrl) => {
+                                                                handleInputChange(q.field_name, dataUrl, q.input_type);
+                                                            };
+                                                            openSignatureModal(onSave, signatureData);
+                                                        }
+                                                    }}
+                                                >
+                                                    {responses[q.field_name]?.data ? (
+                                                        <img src={responses[q.field_name].data} alt="Signature" className="h-full w-full object-contain" />
+                                                    ) : (
+                                                        <span className="text-gray-500 text-sm">Click to Sign</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    {q.has_comments === 'YES' && commentOpen && (
+                                        <div className="mt-3">
+                                            <textarea
+                                                value={responses[q.field_name]?.comments || ''}
+                                                onChange={(e) => handleCommentChange(q.field_name, e.target.value)}
+                                                placeholder="Add your comments here..."
+                                                className="w-full p-2 border rounded-md"
+                                                rows="2"
+                                                disabled={!isEditable}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
+                </div>
                 );
             })}
             
@@ -1167,7 +1185,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, onProgressUpda
                     </div>
                 </div>
             )}
-
+            
             {showPdfButton && (
                 <div className="pt-4 flex justify-end">
                     <button 

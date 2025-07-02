@@ -17,6 +17,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
+    const [isDeviationFormRequired, setIsDeviationFormRequired] = useState(false);
 
     // Callback for the form to report its progress
     const handleProgressUpdate = useCallback((documentId, percentage) => {
@@ -149,6 +150,10 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const handleDocClick = (doc) => {
         setSelectedDoc(doc);
     };
+
+    const handleDeviationUpdate = useCallback((isRequired) => {
+        setIsDeviationFormRequired(isRequired);
+    }, []);
     
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
@@ -171,29 +176,38 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     );
 
     // Helper to render the document list with progress
-    const renderDocList = (items, selectedItem, handler) => (
-        <div className="flex flex-col">
-            {items.map((item) => {
-                const isSelected = selectedItem?.id === item.id;
-                const progress = docProgress[item.id] || 0;
-                return (
-                    <button
-                        key={item.id}
-                        onClick={() => handler(item)}
-                        className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none flex justify-between items-center ${
-                            isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
-                        }`}
-                    >
-                        <p className="font-semibold">{formatDocName(item.name)}</p>
-                        {progress === 100 && <span className="text-green-500">✅</span>}
-                        {progress > 0 && progress < 100 && (
-                            <span className="text-sm text-blue-500 font-bold">{progress}%</span>
-                        )}
-                    </button>
-                );
-            })}
-        </div>
-    );
+    const renderDocList = (items, selectedItem, handler) => {
+        const filteredItems = items.filter(item => {
+            if (item.name === 'DeviationForm') {
+                return isDeviationFormRequired;
+            }
+            return true;
+        });
+
+        return (
+            <div className="flex flex-col">
+                {filteredItems.map((item) => {
+                    const isSelected = selectedItem?.id === item.id;
+                    const progress = docProgress[item.id] || 0;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => handler(item)}
+                            className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none flex justify-between items-center ${
+                                isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
+                            }`}
+                        >
+                            <p className="font-semibold">{formatDocName(item.name)}</p>
+                            {progress === 100 && <span className="text-green-500">✅</span>}
+                            {progress > 0 && progress < 100 && (
+                                <span className="text-sm text-blue-500 font-bold">{progress}%</span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
 
     const renderSelectedForm = () => {
         if (!selectedDoc) {
@@ -220,7 +234,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             case 'TrainingAndWeldingTrackSafetyBreifing':
                 return <TrainingAndWeldingTrackSafetyBreifingForm {...props} />;
             case 'ProgressRecord':
-                return <ProgressRecordForm {...props} />;
+                return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
             default:
                 return (
                     <div className="flex items-center justify-center h-full">

@@ -95,6 +95,9 @@ const Dashboard = ({ user, onLogout }) => {
                         {(user.role === 'dev' || user.role === 'admin') && (
                             <TabButton name="Creation" activeTab={activeTab} setActiveTab={setActiveTab} />
                         )}
+                        {(user.role === 'dev' || user.role === 'admin') && (
+                            <TabButton name="Admin" activeTab={activeTab} setActiveTab={setActiveTab} />
+                        )}
                         <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
                         <TabButton name="Candidate" activeTab={activeTab} setActiveTab={setActiveTab} />
                         {(user.role === 'dev' || user.role === 'admin') && (
@@ -125,6 +128,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
+                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <div />}
                 {user.role !== 'candidate' && activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
                 {activeTab === 'candidate' && <CandidateScreen user={user} openSignatureModal={openSignatureModal} />}
             </div>
