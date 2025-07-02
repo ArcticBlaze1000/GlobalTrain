@@ -3,7 +3,7 @@ import React from 'react';
 const Form = () => {
     return (
         <div className="p-4">
-            <h2 className="text-xl font-bold">Track Walk Delivery Requirements</h2>
+            <h2 className="text-xl font-bold">SWP (Safe Work Pack)</h2>
             <p className="mt-2 text-gray-600">This form will check a folder for scanned documents, not a questionnaire.</p>
         </div>
     );

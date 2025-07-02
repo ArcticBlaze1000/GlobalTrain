@@ -1,7 +1,12 @@
 import React from 'react';
 
 const Form = () => {
-    return <div>Recertification Emergency Call Practical Assessment form placeholder</div>;
+    return (
+        <div className="p-4">
+            <h2 className="text-xl font-bold">Recertification Emergency Call Practical Assessment</h2>
+            <p className="mt-2 text-gray-600">This form will check a folder for scanned documents, not a questionnaire.</p>
+        </div>
+    );
 };
 
 export default Form; 

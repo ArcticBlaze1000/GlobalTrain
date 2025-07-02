@@ -24,7 +24,6 @@ const tables = [
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
     { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
 ];
-
 // --- Seed Data ---
 const usersToSeed = [
     { forename: 'Aditya', surname: 'Chaubey', role: 'dev', username: 'aditya', password: 'chaubey' },
@@ -76,9 +75,9 @@ const competenciesToSeed = [
     { name: 'SAI ERAS' }
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,13', competency_ids: '1,2,3,4', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
-    { id: 2, name: 'PTS Recert', doc_ids: '1,2,4,5,6', competency_ids: '1,3,4', course_length: 2, non_mandatory_doc_ids: '7,8' }, 
-    { id: 3, name: 'COSS Initial', doc_ids: '1,2,4,5,6', competency_ids: '3,4,5', course_length: 5, non_mandatory_doc_ids: '' }
+    { id: 1, name: 'PTS Initial', doc_ids: '', competency_ids: '', course_length: 1, non_mandatory_doc_ids: '' }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '', competency_ids: '', course_length: 2, non_mandatory_doc_ids: '' }, 
+    { id: 3, name: 'PTS DCCR', doc_ids: '', competency_ids: '', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer' },
@@ -93,8 +92,19 @@ const documentsToSeed = [
     { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer' },
     { name: 'PracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'TrackWalkDeliveryRequirements', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer' }
+    { name: 'TrackWalkDeliveryRequirements', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'Swipes', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'SWP', scope: 'course', visible: 'dev,admin,trainer' },
+    { name: 'LogbookEntries', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'PhotographicID', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'QuestionnaireAndFeedbackForm', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'Workbook', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'KnowledgeAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'EvidenceOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -252,8 +262,6 @@ const questionnaireOptionsToSeed = [
     ...['Yes', 'No'].map(o => ({ question_field_name: 'pre_learning_difficulties_q', option_value: o })),
     ...['1', '2', '3', '4', '5'].map(o => ({ question_field_name: 'pre_self_assessment_score', option_value: o })),
 ];
-
-// Add competency questions dynamically
 competenciesToSeed.forEach(comp => {
     const field_name = `competency_${comp.name.toLowerCase().replace(/\s/g, '_')}`;
     questionnairesToSeed.push({
@@ -273,7 +281,6 @@ competenciesToSeed.forEach(comp => {
         { question_field_name: field_name, option_value: 'Not Applicable' }
     );
 });
-
 const traineesToSeed = [
     { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456', datapack: 1 }, 
     { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321', datapack: 2 },
