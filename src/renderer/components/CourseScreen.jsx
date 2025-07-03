@@ -302,30 +302,34 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-full bg-gray-50">
             {notification.show && (
                 <div className="absolute top-5 right-5 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50">
                     {notification.message}
                 </div>
             )}
             {/* Left Panel (15%) - Events */}
-            <div className="w-[15%] border-r overflow-y-auto">
-                <div className="p-4 font-bold border-b bg-white sticky top-0">Available Events</div>
-                {renderEventList(events, activeEvent, handleEventClick)}
+            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
+                <div className="p-4 font-bold border-b sticky top-0 bg-white">Available Events</div>
+                <div className="overflow-y-auto">
+                    {renderEventList(events, activeEvent, handleEventClick)}
+                </div>
             </div>
 
             {/* Middle Panel (15%) - Documents */}
-            <div className="w-[15%] border-r overflow-y-auto">
-                <div className="p-4 font-bold border-b bg-white sticky top-0">Required Docs</div>
-                {activeEvent ? (
-                    documents.length > 0 ? (
-                        renderDocList(documents, selectedDoc, handleDocClick)
+            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
+                <div className="p-4 font-bold border-b sticky top-0 bg-white">Required Docs</div>
+                <div className="overflow-y-auto">
+                    {activeEvent ? (
+                        documents.length > 0 ? (
+                            renderDocList(documents, selectedDoc, handleDocClick)
+                        ) : (
+                            <p className="p-4 text-gray-500">No documents required.</p>
+                        )
                     ) : (
-                        <p className="p-4 text-gray-500">No documents required.</p>
-                    )
-                ) : (
-                    <p className="p-4 text-gray-500">Select an event first.</p>
-                )}
+                        <p className="p-4 text-gray-500">Select an event first.</p>
+                    )}
+                </div>
             </div>
 
             {/* Right Panel (70%) - Canvas */}

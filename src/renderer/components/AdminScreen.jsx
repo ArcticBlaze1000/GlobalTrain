@@ -34,9 +34,9 @@ const AdminScreen = ({ user }) => {
     return (
         <div className="flex h-full bg-gray-100">
             {/* Left Sidebar */}
-            <div className="w-64 bg-gray-800 text-white flex flex-col">
+            <div className="w-64 bg-gray-800 text-white flex-shrink-0">
                 <div className="p-4 text-xl font-bold border-b border-gray-700">Admin Panel</div>
-                <nav className="flex-grow">
+                <nav>
                     <ul>
                         <li
                             className={`p-4 cursor-pointer hover:bg-gray-700 ${activeTab === 'courses' ? 'bg-gray-900' : ''}`}
@@ -61,9 +61,9 @@ const AdminScreen = ({ user }) => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-grow flex flex-col">
+            <main className="flex-grow overflow-y-auto">
                 {renderContent()}
-            </div>
+            </main>
         </div>
     );
 };

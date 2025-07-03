@@ -345,62 +345,66 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     }
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-full bg-gray-50">
             {notification.show && (
                 <div className="absolute top-5 right-5 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50">
                     {notification.message}
                 </div>
             )}
             {/* Left Panel (15%) - Candidates */}
-            <div className="w-[15%] border-r overflow-y-auto bg-white">
+            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
                 <div className="p-4 font-bold border-b sticky top-0 bg-white z-10">
                     <h2 className="text-lg">Event Candidates</h2>
                 </div>
-                {candidates.length > 0 ? (
-                    <div className="flex flex-col">
-                        {candidates.map(c => (
-                            <button
-                                key={c.id}
-                                onClick={() => setSelectedCandidateId(c.id)}
-                                className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none ${selectedCandidateId === c.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''}`}
-                            >
-                                {c.name}
-                            </button>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="p-4 text-gray-500">No candidates found for this event.</p>
-                )}
+                <div className="overflow-y-auto">
+                    {candidates.length > 0 ? (
+                        <div className="flex flex-col">
+                            {candidates.map(c => (
+                                <button
+                                    key={c.id}
+                                    onClick={() => setSelectedCandidateId(c.id)}
+                                    className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none ${selectedCandidateId === c.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''}`}
+                                >
+                                    {c.name}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="p-4 text-gray-500">No candidates found for this event.</p>
+                    )}
+                </div>
             </div>
 
             {/* Middle Panel (15%) - Documents */}
-            <div className="w-[15%] border-r overflow-y-auto bg-white">
+            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
                 <div className="p-4 font-bold border-b sticky top-0 bg-white z-10 flex justify-between items-center">
                     <h2 className="text-lg">Required Docs</h2>
                 </div>
-                {selectedCandidateId ? (
-                    filteredDocuments.length > 0 ? (
-                        renderDocList(filteredDocuments, selectedDocument, handleDocClick)
+                <div className="overflow-y-auto">
+                    {selectedCandidateId ? (
+                        filteredDocuments.length > 0 ? (
+                            renderDocList(filteredDocuments, selectedDocument, handleDocClick)
+                        ) : (
+                            <p className="p-4 text-gray-500">No documents required for this candidate.</p>
+                        )
                     ) : (
-                        <p className="p-4 text-gray-500">No documents required for this candidate.</p>
-                    )
-                ) : (
-                    <p className="p-4 text-gray-500">Select a candidate first.</p>
-                )}
-                 <div className="p-4 border-t">
-                    <label className="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            checked={isLeaving}
-                            onChange={(e) => setIsLeaving(e.target.checked)}
-                        />
-                        <span>Leaving Form</span>
-                    </label>
+                        <p className="p-4 text-gray-500">Select a candidate first.</p>
+                    )}
+                     <div className="p-4 border-t">
+                        <label className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                checked={isLeaving}
+                                onChange={(e) => setIsLeaving(e.target.checked)}
+                            />
+                            <span>Leaving Form</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
             {/* Right Panel (70%) - Canvas */}
-            <div className="w-[70%] p-6 overflow-y-auto">
+            <div className="flex-grow p-6 overflow-y-auto">
                 {renderSelectedForm()}
             </div>
         </div>
