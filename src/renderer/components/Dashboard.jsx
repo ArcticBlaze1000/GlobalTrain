@@ -3,7 +3,6 @@ import CreationScreen from './CreationScreen';
 import CourseScreen from './CourseScreen';
 import CandidateScreen from './CandidateScreen';
 import UsersScreen from './UsersScreen';
-import DeveloperTools from './common/DeveloperTools';
 import SignatureModal from './common/SignatureModal';
 import { useEvent } from '../context/EventContext';
 import AdminScreen from './AdminScreen';
@@ -133,7 +132,6 @@ const Dashboard = ({ user, onLogout }) => {
                 {user.role !== 'candidate' && activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
                 {activeTab === 'candidate' && <CandidateScreen user={user} openSignatureModal={openSignatureModal} />}
             </div>
-            {user.role === 'dev' && <DeveloperTools />}
             <SignatureModal 
                 show={signatureState.isOpen}
                 onClose={closeSignatureModal}
