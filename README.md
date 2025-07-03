@@ -48,6 +48,22 @@ A unique system that bridges the gap between digital tracking and physical paper
 - **Conditional PDF Generation**: The "Generate PDF" button is disabled until the physical file requirements are met, ensuring a complete audit trail.
 - **Persistent Progress**: The completion status is saved to the database, so it persists across application restarts and user sessions.
 
+### **Candidate-Centric Document Management (`CandidateScreen.jsx`)**
+The `CandidateScreen` provides a focused interface for managing all documentation and details related to a single trainee within a specific event. It's a key view for trainers who need to track individual progress.
+
+- **Three-Panel Layout**: The screen is divided into three distinct, interactive panels for an efficient workflow:
+    1.  **Event Candidates (Left)**: A list of all trainees enrolled in the currently active training event. Selecting a candidate updates the other two panels.
+    2.  **Required Documents (Middle)**: Displays a list of all documents required for the selected candidate, filtered by their course and the trainer's role. Each document shows a real-time completion percentage (`✔` for 100%, `?` for untouched, or a percentage).
+    3.  **Form Canvas (Right)**: The main work area where the selected document's form is rendered for completion. If no document is selected, it shows the candidate's key details (Sponsor, Sentry Number, etc.).
+
+- **Dynamic Form Rendering**: Based on the document selected, this view dynamically loads and renders the appropriate React form component (e.g., `PreCourseForm`, `PhoneticQuizForm`, `PracticalAssessmentForm`). This is driven by the `documents` table in the database.
+
+- **Real-time Progress Updates**: The screen listens for progress updates from across the application. If another user is working on a document for the selected candidate, the progress indicator will update automatically without needing a manual refresh.
+
+- **Integrated PDF Generation**: Trainers can generate a PDF of any completed or in-progress form directly from this screen. The system renders the form component to HTML, applies the application's styles, and uses Electron's backend services to create and save a PDF file.
+
+- **Specialized Document Handling**: Includes logic to conditionally display certain forms, such as the `LeavingForm`, which only appears when a trainer toggles a specific checkbox, keeping the UI clean and context-aware.
+
 ### **Database-Driven Document Generation**
 - The structure of all forms and checklists is defined in the database, not in the code.
 - Supports a wide variety of input types including standard inputs, interactive elements (tri-toggles, signatures), and complex data grids.
