@@ -8,6 +8,13 @@ const FlagsPlaceholder = () => (
     </div>
 );
 
+const RegisterPlaceholder = () => (
+    <div className="flex-grow p-6">
+        <h2 className="text-3xl font-bold text-gray-800">Register Management</h2>
+        <p className="mt-2 text-gray-600">This area is under construction.</p>
+    </div>
+);
+
 const AdminScreen = ({ user }) => {
     const [activeTab, setActiveTab] = useState('courses');
 
@@ -17,6 +24,8 @@ const AdminScreen = ({ user }) => {
                 return <CoursesManagement user={user} />;
             case 'flags':
                 return <FlagsPlaceholder />;
+            case 'register':
+                return <RegisterPlaceholder />;
             default:
                 return <CoursesManagement user={user} />;
         }
@@ -40,6 +49,12 @@ const AdminScreen = ({ user }) => {
                             onClick={() => setActiveTab('flags')}
                         >
                             Flags
+                        </li>
+                        <li
+                            className={`p-4 cursor-pointer hover:bg-gray-700 ${activeTab === 'register' ? 'bg-gray-900' : ''}`}
+                            onClick={() => setActiveTab('register')}
+                        >
+                            Register
                         </li>
                     </ul>
                 </nav>

@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electron', {
   addCourse: (course) => ipcRenderer.invoke('add-course', course),
   updateCourse: (course) => ipcRenderer.invoke('update-course', course),
   deleteCourse: (id) => ipcRenderer.invoke('delete-course', id),
+  checkDocumentFile: (args) => ipcRenderer.invoke('check-document-file', args),
 });
 
 window.addEventListener('DOMContentLoaded', () => {

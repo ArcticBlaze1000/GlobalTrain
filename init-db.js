@@ -75,16 +75,16 @@ const competenciesToSeed = [
     { name: 'SAI ERAS' }
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS Initial', doc_ids: '', competency_ids: '', course_length: 1, non_mandatory_doc_ids: '' }, 
-    { id: 2, name: 'PTS Recert', doc_ids: '', competency_ids: '', course_length: 2, non_mandatory_doc_ids: '' }, 
-    { id: 3, name: 'PTS DCCR', doc_ids: '', competency_ids: '', course_length: 5, non_mandatory_doc_ids: '' }
+    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
+    { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', competency_ids: '1' },
     { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer' },
     { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'Pre Course', scope: 'candidate', visible: 'dev' },
-    { name: 'Post Course', scope: 'candidate', visible: 'dev' },
+    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer' },

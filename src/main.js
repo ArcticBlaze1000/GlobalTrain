@@ -179,6 +179,23 @@ const formatDate = (date, format) => {
     return date;
 };
 
+// Helper for date formatting, ensuring it's available for the check-document-file handler
+const formatDateForPath = (date, format) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const monthName = d.toLocaleString('default', { month: 'long' });
+
+    if (format === 'mm. month yyyy') {
+        return `${month}. ${monthName} ${year}`;
+    }
+    if (format === 'dd.mm.yyyy') {
+        return `${day}.${month}.${year}`;
+    }
+    return date.toString(); // Fallback
+};
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -416,11 +433,128 @@ app.on('ready', () => {
   });
 
   ipcMain.handle('get-documents', async () => {
-    return queryDb('SELECT id, name FROM documents ORDER BY name');
+    return queryDb('SELECT id, name, scope FROM documents ORDER BY name');
   });
 
   ipcMain.handle('get-competencies', async () => {
     return queryDb('SELECT id, name FROM competencies ORDER BY name');
+  });
+
+  ipcMain.handle('check-document-file', async (event, { datapackId, documentName, traineeDetails }) => {
+    const docInfo = {
+        // Photos
+        'Swipes': { type: 'photo', scope: 'course', docId: 15 },
+        'EvidenceOfLogbook': { type: 'photo', scope: 'candidate', docId: 25 },
+        'PhotographicID': { type: 'photo', scope: 'candidate', docId: 18 },
+
+        // PDFs
+        'PhoneticQuiz': { type: 'pdf', scope: 'candidate', docId: 7 },
+        'AssessmentReview': { type: 'pdf', scope: 'candidate', docId: 23 },
+        'Certificates': { type: 'pdf', scope: 'candidate', docId: 24 },
+        'GeneralTrackVisitForm': { type: 'pdf', scope: 'course', docId: 14 },
+        'KnowledgeAssessment': { type: 'pdf', scope: 'candidate', docId: 21 },
+        'LogbookEntries': { type: 'pdf', scope: 'candidate', docId: 17 },
+        'PracticalAssessment': { type: 'pdf', scope: 'candidate', docId: 11 },
+        'QuestionnaireAndFeedbackForm': { type: 'pdf', scope: 'candidate', docId: 19 },
+        'ScenarioAssessment': { type: 'pdf', scope: 'candidate', docId: 22 },
+        'SWP': { type: 'pdf', scope: 'course', docId: 16 },
+        'Workbook': { type: 'pdf', scope: 'candidate', docId: 20 },
+        'EmergencyPhoneCallExercise': { type: 'pdf', scope: 'candidate', docId: 8 },
+        'RecertEmergencyCallPracticalAssessment': { type: 'pdf', scope: 'candidate', docId: 12 },
+        'TrackWalkDeliveryRequirements': { type: 'pdf', scope: 'course', docId: 13 }
+    };
+
+    if (!docInfo[documentName]) {
+        return { exists: false, message: 'Document type not configured for checking.' };
+    }
+
+    const docDetails = docInfo[documentName];
+    const allowedTypes = docDetails.type === 'photo' ? ['.jpg', '.jpeg', '.png'] : ['.pdf'];
+    
+    try {
+        const datapack = (await queryDb('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+        const course = (await queryDb('SELECT name, non_mandatory_doc_ids FROM courses WHERE id = ?', [datapack.course_id]))[0];
+        const trainer = (await queryDb('SELECT forename, surname FROM users WHERE id = ?', [datapack.trainer_id]))[0];
+
+        const monthFolderName = formatDateForPath(datapack.start_date, 'mm. month yyyy');
+        const trainerInitial = trainer.forename ? trainer.forename.charAt(0) : '';
+        const eventFolderName = `${formatDateForPath(datapack.start_date, 'dd.mm.yyyy')} ${course.name} ${trainerInitial} ${trainer.surname}`;
+        
+        const documentsPath = app.getPath('documents');
+        const candidateBaseDir = path.join(documentsPath, 'Global Train Trainers', 'Training', monthFolderName, eventFolderName, 'Candidate');
+        
+        let expectedPath;
+        let expectedFilenameBase;
+        const traineeId = docDetails.scope === 'candidate' ? traineeDetails.id : null;
+        const nonMandatoryIds = (course.non_mandatory_doc_ids || '').split(',').map(id => parseInt(id, 10));
+
+        if (nonMandatoryIds.includes(docDetails.docId)) {
+            expectedPath = path.join(candidateBaseDir, 'Additional Exercsies Contents');
+            expectedFilenameBase = docDetails.scope === 'candidate' && traineeDetails 
+                ? `${traineeDetails.forename}_${traineeDetails.surname}_${documentName}` 
+                : documentName;
+        } else if (docDetails.scope === 'candidate') {
+            const traineeFolderIndex = (datapack.trainee_ids.split(',').indexOf(String(traineeDetails.id)) + 1).toString().padStart(2, '0');
+            const candidateFolderName = `${traineeFolderIndex} ${traineeDetails.forename} ${traineeDetails.surname}`;
+            expectedPath = path.join(candidateBaseDir, candidateFolderName);
+            expectedFilenameBase = `${traineeDetails.forename}_${traineeDetails.surname}_${documentName}`;
+        } else { // Course-scoped mandatory
+            expectedPath = path.join(candidateBaseDir, 'Course Documentation');
+            expectedFilenameBase = documentName;
+        }
+        
+        let foundFile = null;
+        for (const ext of allowedTypes) {
+            const fileName = `${expectedFilenameBase}${ext}`;
+            const filePath = path.join(expectedPath, fileName);
+            if (fs.existsSync(filePath)) {
+                foundFile = fileName;
+                break;
+            }
+        }
+
+        // --- Directly update document_progress and notify UI ---
+        const percentage = foundFile ? 100 : 0;
+        const progressSql = `
+            INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(datapack_id, document_id, trainee_id)
+            DO UPDATE SET completion_percentage = excluded.completion_percentage;
+        `;
+        
+        await new Promise((resolve, reject) => {
+            db.run(progressSql, [datapackId, docDetails.docId, traineeId, percentage], function(err) {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        const window = BrowserWindow.getFocusedWindow();
+        if (window) {
+            window.webContents.send('progress-updated', {
+                datapackId,
+                documentId: docDetails.docId,
+                traineeId,
+                progress: percentage
+            });
+        }
+
+        if (!fs.existsSync(expectedPath)) {
+            fs.mkdirSync(expectedPath, { recursive: true });
+        }
+
+        return {
+            exists: !!foundFile,
+            foundFile: foundFile,
+            expectedPath: expectedPath,
+            expectedFilename: `${expectedFilenameBase}${allowedTypes[0]}`,
+            allowedTypes: allowedTypes,
+        };
+
+    } catch (error) {
+        console.error('Error checking document file:', error);
+        return { exists: false, message: `Error: ${error.message}` };
+    }
   });
 
   ipcMain.handle('add-course', async (event, { name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids }) => {

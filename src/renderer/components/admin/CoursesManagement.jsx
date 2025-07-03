@@ -237,54 +237,79 @@ const CoursesManagement = ({ user }) => {
                         <tr>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Course Name</th>
                              <th className="p-3 text-left text-sm font-semibold text-gray-600">Length</th>
-                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Documents</th>
-                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Non-Mandatory</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Course Documents</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Candidate Documents</th>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Competencies</th>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {courses.map(course => (
-                            <tr key={course.id} className="border-b hover:bg-gray-50">
-                                <td className="p-3 font-medium">{course.name}</td>
-                                <td className="p-3 text-sm">{course.course_length}d</td>
-                                <td className="p-3 text-sm text-gray-700">
-                                     <ul className="list-disc list-inside">
-                                        {(course.doc_ids || '').split(',').filter(id => id).map(id => (
-                                            <li key={id}>{getNameById(parseInt(id), documents)}</li>
-                                        ))}
-                                    </ul>
-                                </td>
-                                 <td className="p-3 text-sm text-gray-500">
-                                    <ul className="list-disc list-inside">
-                                        {(course.non_mandatory_doc_ids || '').split(',').filter(id => id).map(id => (
-                                            <li key={id}>{getNameById(parseInt(id), documents)}</li>
-                                        ))}
-                                    </ul>
-                                </td>
-                                <td className="p-3 text-sm text-gray-700">
-                                    <ul className="list-disc list-inside">
-                                        {(course.competency_ids || '').split(',').filter(id => id).map(id => (
-                                            <li key={id}>{getNameById(parseInt(id), competencies)}</li>
-                                        ))}
-                                    </ul>
-                                </td>
-                                <td className="p-3">
-                                    <button 
-                                        onClick={() => handleOpenModal(course)}
-                                        className="text-blue-600 hover:underline text-sm mr-4"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteCourse(course.id)}
-                                        className="text-red-600 hover:underline text-sm"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                        {courses.map(course => {
+                            const courseDocs = (course.doc_ids || '').split(',').filter(id => id).map(id => parseInt(id));
+                            const nonMandatoryDocs = (course.non_mandatory_doc_ids || '').split(',').filter(id => id).map(id => parseInt(id));
+
+                            const getDocDetails = (id) => documents.find(d => d.id === id);
+
+                            return (
+                                <tr key={course.id} className="border-b hover:bg-gray-50">
+                                    <td className="p-3 font-medium">{course.name}</td>
+                                    <td className="p-3 text-sm">{course.course_length}d</td>
+                                    <td className="p-3 text-sm text-gray-700">
+                                        <ul className="list-disc list-inside">
+                                            {courseDocs.map(id => {
+                                                const doc = getDocDetails(id);
+                                                if (doc && doc.scope === 'course') {
+                                                    const isNonMandatory = nonMandatoryDocs.includes(id);
+                                                    return (
+                                                        <li key={id} className={isNonMandatory ? 'text-gray-500' : ''}>
+                                                            {doc.name}{isNonMandatory ? ' (Non-Mandatory)' : ''}
+                                                        </li>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </ul>
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-700">
+                                        <ul className="list-disc list-inside">
+                                            {courseDocs.map(id => {
+                                                const doc = getDocDetails(id);
+                                                if (doc && doc.scope === 'candidate') {
+                                                    const isNonMandatory = nonMandatoryDocs.includes(id);
+                                                    return (
+                                                        <li key={id} className={isNonMandatory ? 'text-gray-500' : ''}>
+                                                            {doc.name}{isNonMandatory ? ' (Non-Mandatory)' : ''}
+                                                        </li>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </ul>
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-700">
+                                        <ul className="list-disc list-inside">
+                                            {(course.competency_ids || '').split(',').filter(id => id).map(id => (
+                                                <li key={id}>{getNameById(parseInt(id), competencies)}</li>
+                                            ))}
+                                        </ul>
+                                    </td>
+                                    <td className="p-3">
+                                        <button 
+                                            onClick={() => handleOpenModal(course)}
+                                            className="text-blue-600 hover:underline text-sm mr-4"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteCourse(course.id)}
+                                            className="text-red-600 hover:underline text-sm"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

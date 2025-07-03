@@ -1,10 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import FileCheckDisplay from '../../common/FileCheckDisplay';
 
-const Form = () => {
+const Form = ({ eventDetails, documentDetails }) => {
+    const [fileCheckStatus, setFileCheckStatus] = useState(null);
+
+    const checkFile = useCallback(async () => {
+        if (eventDetails && documentDetails) {
+            setFileCheckStatus(null); // Show loading state on refresh
+            const status = await window.electron.checkDocumentFile({
+                datapackId: eventDetails.id,
+                documentName: documentDetails.name,
+            });
+            setFileCheckStatus(status);
+        }
+    }, [eventDetails, documentDetails]);
+
+    useEffect(() => {
+        checkFile();
+    }, [checkFile]);
+
     return (
-        <div className="p-4">
-            <h2 className="text-xl font-bold">Swipes</h2>
-            <p className="mt-2 text-gray-600">This form will check for screenshot files.</p>
+        <div className="p-4 space-y-4">
+            <FileCheckDisplay fileStatus={fileCheckStatus} onRefresh={checkFile} />
         </div>
     );
 };

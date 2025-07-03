@@ -5,6 +5,11 @@ import RegisterForm from './General/Register/Form';
 import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './PTS/TrainingAndWeldingTrackSafetyBreifing/Form';
 import ProgressRecordForm from './General/ProgressRecord/Form';
+import FileCheckDisplay from './common/FileCheckDisplay';
+import SwipesForm from './General/Swipes/Form';
+import GeneralTrackVisitForm from './General/GeneralTrackVisitForm/Form';
+import SWPForm from './General/SWP/Form';
+import TrackWalkDeliveryRequirementsForm from './PTS/TrackWalkDeliveryRequirements/Form';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -143,7 +148,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         setActiveEvent(event);
     };
 
-    const handleDocClick = (doc) => {
+    const handleDocClick = async (doc) => {
         setSelectedDoc(doc);
     };
 
@@ -276,6 +281,14 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             return <TrainingAndWeldingTrackSafetyBreifingForm {...props} onPdfButtonClick={() => handlePdfSave(TrainingAndWeldingTrackSafetyBreifingForm)} />;
                         case 'ProgressRecord':
                             return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
+                        case 'Swipes':
+                            return <SwipesForm {...props} />;
+                        case 'GeneralTrackVisitForm':
+                            return <GeneralTrackVisitForm {...props} />;
+                        case 'SWP':
+                            return <SWPForm {...props} />;
+                        case 'TrackWalkDeliveryRequirements':
+                            return <TrackWalkDeliveryRequirementsForm {...props} />;
                         default:
                             return (
                                 <div className="flex items-center justify-center h-full">

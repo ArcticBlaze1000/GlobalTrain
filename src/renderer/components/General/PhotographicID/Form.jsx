@@ -1,10 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import FileCheckDisplay from '../../common/FileCheckDisplay';
 
-const Form = () => {
+const Form = ({ eventDetails, documentDetails, traineeDetails }) => {
+    const [fileCheckStatus, setFileCheckStatus] = useState(null);
+
+    const checkFile = useCallback(async () => {
+        if (eventDetails && documentDetails && traineeDetails) {
+            setFileCheckStatus(null);
+            const status = await window.electron.checkDocumentFile({
+                datapackId: eventDetails.id,
+                documentName: documentDetails.name,
+                traineeDetails: traineeDetails
+            });
+            setFileCheckStatus(status);
+        }
+    }, [eventDetails, documentDetails, traineeDetails]);
+
+    useEffect(() => {
+        checkFile();
+    }, [checkFile]);
+
     return (
-        <div className="p-4">
-            <h2 className="text-xl font-bold">Photographic ID</h2>
-            <p className="mt-2 text-gray-600">This form will be used for handling a photo of the candidate's ID.</p>
+        <div className="p-4 space-y-4">
+            <FileCheckDisplay fileStatus={fileCheckStatus} onRefresh={checkFile} />
         </div>
     );
 };

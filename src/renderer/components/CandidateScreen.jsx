@@ -10,6 +10,16 @@ import PhoneticQuizForm from './PTS/PhoneticQuiz/Form';
 import EmergencyPhoneCallExerciseForm from './PTS/EmergencyPhoneCallExercise/Form';
 import RecertEmergencyCallPracticalAssessmentForm from './PTS/RecertEmergencyCallPracticalAssessment/Form';
 import TrackWalkDeliveryRequirementsForm from './PTS/TrackWalkDeliveryRequirements/Form';
+import AssessmentReviewForm from './General/AssessmentReview/Form';
+import CertificatesForm from './General/Certificates/Form';
+import KnowledgeAssessmentForm from './General/KnowledgeAssessment/Form';
+import LogbookEntriesForm from './General/LogbookEntries/Form';
+import QuestionnaireAndFeedbackForm from './General/QuestionnaireAndFeedbackForm/Form';
+import ScenarioAssessmentForm from './General/ScenarioAssessment/Form';
+import WorkbookForm from './General/Workbook/Form';
+import EvidenceOfLogbookForm from './General/EvidenceOfLogbook/Form';
+import PhotographicIDForm from './General/PhotographicID/Form';
+import FileCheckDisplay from './common/FileCheckDisplay';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -286,29 +296,33 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                         case 'Post Course':
                             return <PostCourseForm {...props} onPdfButtonClick={() => handlePdfSave(PostCourseForm)} />;
                         case 'LeavingForm':
-                            return (
-                                <LeavingForm
-                                    user={user}
-                                    eventDetails={activeEvent}
-                                    documentDetails={selectedDocument}
-                                    selectedTraineeId={selectedCandidateId}
-                                    traineeDetails={selectedCandidateDetails}
-                                    openSignatureModal={openSignatureModal}
-                                    onProgressUpdate={(docId, progress) => {
-                                        setDocProgress(prev => ({ ...prev, [docId]: progress }));
-                                    }}
-                                />
-                            );
+                            return <LeavingForm {...props} />;
                         case 'PhoneticQuiz':
-                            return <PhoneticQuizForm {...props} onPdfButtonClick={() => handlePdfSave(PhoneticQuizForm)} />;
+                            return <PhoneticQuizForm {...props} />;
                         case 'EmergencyPhoneCallExercise':
-                            return <EmergencyPhoneCallExerciseForm {...props} onPdfButtonClick={() => handlePdfSave(EmergencyPhoneCallExerciseForm)} />;
+                            return <EmergencyPhoneCallExerciseForm {...props} />;
                         case 'PracticalAssessment':
-                            return <PracticalAssessmentForm {...props} onPdfButtonClick={() => handlePdfSave(PracticalAssessmentForm)} />;
+                            return <PracticalAssessmentForm {...props} />;
                         case 'RecertEmergencyCallPracticalAssessment':
-                            return <RecertEmergencyCallPracticalAssessmentForm {...props} onPdfButtonClick={() => handlePdfSave(RecertEmergencyCallPracticalAssessmentForm)} />;
-                        case 'TrackWalkDeliveryRequirements':
-                            return <TrackWalkDeliveryRequirementsForm {...props} onPdfButtonClick={() => handlePdfSave(TrackWalkDeliveryRequirementsForm)} />;
+                            return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
+                        case 'AssessmentReview':
+                            return <AssessmentReviewForm {...props} />;
+                        case 'Certificates':
+                            return <CertificatesForm {...props} />;
+                        case 'KnowledgeAssessment':
+                            return <KnowledgeAssessmentForm {...props} />;
+                        case 'LogbookEntries':
+                            return <LogbookEntriesForm {...props} />;
+                        case 'QuestionnaireAndFeedbackForm':
+                            return <QuestionnaireAndFeedbackForm {...props} />;
+                        case 'ScenarioAssessment':
+                            return <ScenarioAssessmentForm {...props} />;
+                        case 'Workbook':
+                            return <WorkbookForm {...props} />;
+                        case 'EvidenceOfLogbook':
+                            return <EvidenceOfLogbookForm {...props} />;
+                        case 'PhotographicID':
+                            return <PhotographicIDForm {...props} />;
                         default:
                             // Fallback for any other document that might not have a specific form
                             return <QuestionnaireForm {...props} />;
