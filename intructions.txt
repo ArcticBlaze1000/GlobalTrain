@@ -1,50 +1,35 @@
-This is an excellent idea. You've identified the core issue with the current system: the business logic for what makes a form "complete" is hard-coded into the frontend components. Your proposal to move this logic into the database schema itself is a much more robust and scalable solution.
+Of course. Here is the list of documents categorized by their status:
 
-Let me summarize my understanding of your proposal and my thoughts on it.
+### Completed Forms
+*   `LeavingForm` (Candidate)
+*   `PreCourse` (Candidate)
+*   `ProgressRecord` (Course)
+*   `Register` (Course)
+*   `TrainingCourseChecklist` (Course)
+*   `TrainingAndWeldingTrackSafetyBreifing` (Course)
 
-### Your Proposed System:
+### Scanned PDF Placeholders
+*   `AssessmentReview` (Candidate)
+*   `Certificates` (Candidate)
+*   `GeneralTrackVisitForm` (Course)
+*   `KnowledgeAssessment` (Candidate)
+*   `LogbookEntries` (Candidate)
+*   `PracticalAssessment` (Candidate)
+*   `QuestionnaireAndFeedbackForm` (Candidate)
+*   `ScenarioAssessment` (Candidate)
+*   `SWP` (Safe Work Pack) (Course)
+*   `Workbook` (Candidate)
+*   `EmergencyPhoneCallExercise` (Candidate)
+*   `PhoneticQuiz` (Candidate)
+*   `RecertEmergencyCallPracticalAssessment` (Candidate)
+*   `TrackWalkDeliveryRequirements` (Course)
 
-1.  **Schema-Driven Logic:**
-    *   We'll add two new columns to the `questionnaires` table:
-        *   `required` (TEXT): With possible values `'yes'`, `'no'`, or `'dependant'`.
-        *   `dependency` (TEXT): This will hold a comma-separated list of `field_name`s that this question depends on. It's only used when `required` is `'dependant'`.
-    *   This completely removes the need for the frontend to have complex, hard-coded filtering rules. The "rules" for completion now live with the data itself.
+### Scanned Photo Placeholders
+*   `EvidenceOfLogbook` (Candidate)
+*   `PhotographicID` (Candidate)
+*   `Swipes` (Course)
 
-2.  **Centralized Progress Storage:**
-    *   The `document_progress` table becomes the single source of truth for completion percentages.
-    *   The frontend's job is simply to *display* this percentage.
+### Questionnaire Placeholders
+*   `DeviationForm` (Course)
+*   `PostCourse` (Candidate)
 
-3.  **Simplified Calculation Flow:**
-    *   When a user answers a question in a form, the response is saved.
-    *   After saving, a process is triggered to recalculate the progress for that specific document.
-    *   This process reads the new `required` and `dependency` columns to figure out the total number of currently active questions and how many have been completed.
-    *   The resulting percentage is saved directly into the `document_progress` table.
-    *   The UI automatically reflects this new, saved percentage.
-
-### My Assessment:
-
-I think this is a fantastic plan.
-
-*   **Pros:**
-    *   **Maintainability:** It will be dramatically easier to change the completion requirements for a form in the future. You'll just need to update the database entries, not deploy new application code.
-    *   **Decoupling:** The frontend code will become much simpler and cleaner. The complex `useMemo` hooks and filtering logic will disappear, making the components easier to understand and manage.
-    *   **Performance:** We'll be offloading calculation from the user's machine. The UI will only need to fetch a single percentage value, which is more efficient than running complex loops in JavaScript.
-    *   **Flexibility:** The dependency system is very powerful and allows for creating complex, dynamic forms in a structured way.
-
-*   **Challenges:**
-    *   **Implementation Effort:** This is a significant refactor, touching the database schema, the main process, and multiple frontend components.
-    *   **Data Migration:** We will need to go through all existing questions in your database and set appropriate values for the new `required` and `dependency` columns.
-
-Overall, the long-term benefits in maintainability and clarity are well worth the initial effort. This is the right way to build this feature.
-
-### Proposed Action Plan:
-
-If you agree, here is how I propose we tackle this, step-by-step:
-
-1.  **Database Schema Update:** I'll start by modifying `init-db.js` to add the `required` and `dependency` columns to the `questionnaires` table.
-2.  **Backend Calculation Engine:** I will create a new function in `main.js`, exposed via `ipcMain`, that takes a `datapackId`, `documentId`, and `traineeId`. This function will perform the new, centralized progress calculation and update the `document_progress` table.
-3.  **Refactor `QuestionnaireForm.jsx`:** I'll gut the old progress calculation logic from the form. I'll modify its `save` functions to call the new backend calculation engine after every update.
-4.  **Refactor `CourseScreen.jsx` & `CandidateScreen.jsx`:** I will simplify these components to remove their calculation loops. They will be modified to fetch progress directly from the `document_progress` table.
-5.  **Data Migration:** Once the code is ready, we will need to update your existing data. I can help with a script or guide you on how to set the `required` and `dependency` values for your current set of questions.
-
-What do you think of this plan? Are you ready to begin?

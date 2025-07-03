@@ -89,12 +89,16 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         const initializeForm = async () => {
             if (!documentId || !datapackId) return;
 
+            let courseCompetencies = [];
             // Fetch course-specific competencies
             if (eventDetails?.competency_ids) {
                 const competencyIds = eventDetails.competency_ids.split(',');
-                if (competencyIds.length > 0) {
+                if (competencyIds.length > 0 && competencyIds[0] !== '') {
                     const fetchedCompetencies = await window.db.query(`SELECT * FROM competencies WHERE id IN (${competencyIds.map(() => '?').join(',')})`, competencyIds);
                     setCompetencies(fetchedCompetencies);
+                    courseCompetencies = fetchedCompetencies;
+                } else {
+                    setCompetencies([]);
                 }
             }
 
@@ -111,9 +115,24 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 'SELECT * FROM questionnaires WHERE document_id = ?',
                 [documentId]
             );
-            setQuestions(fetchedQuestions.filter(q => q.input_type !== 'competency_grid'));
+            
+            let questions = fetchedQuestions.filter(q => q.input_type !== 'competency_grid');
 
-            const dropdownQuestionFieldNames = fetchedQuestions
+            if (documentDetails.name === 'Register') {
+                const competencyNames = courseCompetencies.map(c => c.name);
+                questions = questions.filter(q => {
+                    // If the question is in the COMPETENCIES section, it must be in our list of names
+                    if (q.section === 'COMPETENCIES') {
+                        return competencyNames.includes(q.question_text);
+                    }
+                    // Otherwise, keep the question
+                    return true;
+                });
+            }
+
+            setQuestions(questions);
+
+            const dropdownQuestionFieldNames = questions
                 .filter(q => q.input_type === 'dropdown' || q.input_type === 'trainee_dropdown_grid' || q.input_type === 'trainee_yes_no_grid')
                 .map(q => q.field_name);
 
@@ -135,7 +154,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             }
 
             const initialResponses = {};
-            for (const q of fetchedQuestions) {
+            for (const q of questions) {
                 let response = await window.db.query(
                     'SELECT * FROM responses WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
                     [datapackId, documentId, q.field_name]
@@ -179,7 +198,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             setResponses(initialResponses);
         };
         initializeForm();
-    }, [documentId, datapackId, eventDetails, selectedTraineeId]);
+    }, [documentId, datapackId, eventDetails, selectedTraineeId, documentDetails.name]);
     
     const triggerRecalculation = useCallback(() => {
         window.electron.recalculateAndUpdateProgress({
