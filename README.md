@@ -33,6 +33,9 @@ A comprehensive login system that tailors the user experience to the logged-in u
 - **Trainer**: Focused view for managing assigned training events and completing documentation.
 - **Candidate**: Self-service portal for completing pre-course assessments and viewing personal training data.
 
+### **Responsive UI with Independent Scrolling**
+The main application screens (`Admin`, `Course`, and `Candidate`) have been redesigned with a modern flexbox layout. This creates a more intuitive user experience where side panels (like event lists or document lists) remain fixed, while the main content area scrolls independently. This prevents page-level scrollbars and ensures that key navigation elements are always visible, even when working with long forms or large data sets.
+
 ### **Dynamic Event & Datapack Management**
 - Create and manage **Courses** (e.g., PTS, PTS Recert, COSS Initial).
 - Assign trainees and a trainer to a specific course instance, creating a **Datapack** that represents a unique training event.
@@ -42,9 +45,13 @@ A comprehensive login system that tailors the user experience to the logged-in u
 ### **Physical Document Validation**
 A unique system that bridges the gap between digital tracking and physical paperwork.
 - **Live File Counting**: Forms can be configured to monitor specific folders on the file system. The UI displays a live status of how many files are present versus how many are expected.
-- **Two Folder Structures Supported**:
-    1.  **Event-Wide**: Checks a central folder for the event (e.g., `.../Non Mandatory Files/PhoneticQuiz/`).
-    2.  **Candidate-Specific**: Checks a subfolder within a specific candidate's directory (e.g., `.../06 Candidate/01 John Doe/PracticalAssessment/`).
+- **Precise Folder Structure Validation**: The system now validates against a highly specific and realistic folder structure, ensuring physical documents are correctly filed.
+    1.  **Mandatory Candidate Documents**: These are files that are unique to each trainee and are required for their record. The system looks for them inside a folder named after the document within the candidate's personal directory.
+        - **Path**: `.../[Date] [Course] [Trainer]/[Candidate Name]/[DocumentName]/`
+        - **Example**: `.../01-01-2024 PTS Sykes/01 John Doe/PracticalAssessment/`
+    2.  **Non-Mandatory & Shared Documents**: These are typically exercises or documents that may not be specific to one candidate or are part of a group activity. They are stored in a shared folder for the event.
+        - **Path**: `.../[Date] [Course] [Trainer]/Candidate/Additional Exercsies Contents/[DocumentName]/`
+        - **Example**: `.../01-01-2024 PTS Sykes/Candidate/Additional Exercsies Contents/PhoneticQuiz/`
 - **Conditional PDF Generation**: The "Generate PDF" button is disabled until the physical file requirements are met, ensuring a complete audit trail.
 - **Persistent Progress**: The completion status is saved to the database, so it persists across application restarts and user sessions.
 
@@ -63,6 +70,16 @@ The `CandidateScreen` provides a focused interface for managing all documentatio
 - **Integrated PDF Generation**: Trainers can generate a PDF of any completed or in-progress form directly from this screen. The system renders the form component to HTML, applies the application's styles, and uses Electron's backend services to create and save a PDF file.
 
 - **Specialized Document Handling**: Includes logic to conditionally display certain forms, such as the `LeavingForm`, which only appears when a trainer toggles a specific checkbox, keeping the UI clean and context-aware.
+
+### **Event Lifecycle Management**
+To ensure a structured and auditable workflow, training events (Datapacks) now move through a distinct lifecycle managed by a `status` field in the database. This prevents incomplete or unverified events from appearing live to trainers and candidates.
+
+- **Three Statuses**:
+    1.  **`new`**: The default state for an event created in the **Creation Screen**. At this stage, it is considered a draft and is only visible to the user who created it.
+    2.  **`admin`**: When a user in the Creation Screen is satisfied with the draft, they can "Send to Admin". This changes the status to `admin` and makes the event visible in the **Admin Screen** for final review and approval.
+    3.  **`cleared`**: After an administrator reviews the event details in the Admin Screen, they can "Clear" it. This sets the status to `cleared`, making the event live and accessible in the **Course Screen** and **Candidate Screen** for trainers and candidates.
+
+- **Controlled Visibility**: This status-driven system ensures that each screen in the application only shows relevant data: drafts in `CreationScreen`, pending events in `AdminScreen`, and fully approved events in the live training screens.
 
 ### **Database-Driven Document Generation**
 - The structure of all forms and checklists is defined in the database, not in the code.
@@ -106,7 +123,7 @@ The application's flexibility comes from its comprehensive SQLite database (`dat
 | `users`                  | Stores user credentials and roles (`dev`, `admin`, `trainer`, `candidate`).                                                             |
 | `courses`                | Defines available training courses with linked document IDs, competencies, course length, and non-mandatory folder specifications.     |
 | `trainees`               | Manages information for all training participants including sponsor details and additional comments.                                     |
-| `datapack`               | Core table representing completed training events. Links courses, trainers, and trainees.                                              |
+| `datapack`               | Core table representing completed training events. Links courses, trainers, and trainees. **Contains a `status` field (`new`, `admin`, `cleared`) to manage the event lifecycle.** |
 | `incomplete_registers`   | Stores draft training event registrations with auto-save and timestamp tracking.                                                        |
 | `documents`              | Lists all document types with scope definitions and role-based visibility controls.                                                     |
 | `questionnaires`         | **The heart of the dynamic UI.** Defines sections, questions, input types, and access controls for every document.                      |
@@ -148,7 +165,6 @@ global-train/
             │   ├── SignatureModal.jsx    # Digital signature capture
             │   ├── TriToggleButton.jsx   # Three-state toggle component
             │   ├── Dropdown.jsx          # Dropdown component
-            │   └── DeveloperTools.jsx    # Debug tools for developers
             ├── General/             # General training documents
             │   ├── Register/
             │   ├── PreCourse/

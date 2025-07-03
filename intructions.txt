@@ -1,35 +1,43 @@
-Of course. Here is the list of documents categorized by their status:
+That's an excellent idea. It introduces a much-needed workflow and a clear separation of concerns between event creation, administrative review, and final publication for trainers. It's a significant but very logical enhancement.
 
-### Completed Forms
-*   `LeavingForm` (Candidate)
-*   `PreCourse` (Candidate)
-*   `ProgressRecord` (Course)
-*   `Register` (Course)
-*   `TrainingCourseChecklist` (Course)
-*   `TrainingAndWeldingTrackSafetyBreifing` (Course)
+Based on your description, here is a detailed breakdown of how I envision implementing this.
 
-### Scanned PDF Placeholders
-*   `AssessmentReview` (Candidate)
-*   `Certificates` (Candidate)
-*   `GeneralTrackVisitForm` (Course)
-*   `KnowledgeAssessment` (Candidate)
-*   `LogbookEntries` (Candidate)
-*   `PracticalAssessment` (Candidate)
-*   `QuestionnaireAndFeedbackForm` (Candidate)
-*   `ScenarioAssessment` (Candidate)
-*   `SWP` (Safe Work Pack) (Course)
-*   `Workbook` (Candidate)
-*   `EmergencyPhoneCallExercise` (Candidate)
-*   `PhoneticQuiz` (Candidate)
-*   `RecertEmergencyCallPracticalAssessment` (Candidate)
-*   `TrackWalkDeliveryRequirements` (Course)
+### The Plan: An Event Lifecycle System
 
-### Scanned Photo Placeholders
-*   `EvidenceOfLogbook` (Candidate)
-*   `PhotographicID` (Candidate)
-*   `Swipes` (Course)
+We will introduce a `status` field to the `datapack` table to track the state of each event. The lifecycle would look like this:
 
-### Questionnaire Placeholders
-*   `DeviationForm` (Course)
-*   `PostCourse` (Candidate)
+1.  **`new`**: A registration form has been started but not yet completed and submitted. It is effectively a draft.
+2.  **`admin`**: The form has been submitted and is now pending review by an administrator. The admin needs to verify or add their required files.
+3.  **`cleared`**: The admin has approved the event. It is now "live" and visible to trainers on the `Course` and `Candidate` screens.
 
+Here is a diagram illustrating the flow:
+
+Ran tool
+Here’s how we would implement this across the application:
+
+#### 1. Database Modification
+
+*   I will add a new column named `status` to the `datapack` table.
+*   The `status` will be of type `TEXT` and will have a `DEFAULT` value of `'new'`. This ensures that any new registration automatically starts in the correct draft state.
+
+#### 2. `CreationScreen.jsx` Changes
+
+*   **New "In-Progress" List**: Below the "New Register" button, I will add a list that displays all events currently in the `'new'` state. This will allow you to select a draft and continue working on it.
+*   **Loading Drafts**: When you click on an in-progress event, the form will be populated with all the saved data from the `datapack` and its associated `trainees`.
+*   **Updated Save Logic**:
+    *   The "Create New Event" button will be repurposed. When you are filling out a form for a `'new'` event, clicking this button will now change its status from `'new'` to `'admin'`.
+    *   I'll also implement a "Save Draft" functionality so you can save your progress on a `'new'` register without submitting it for admin review.
+
+#### 3. `AdminScreen.jsx` Changes
+
+*   **New "Pending Review" Section**: To keep things clean, I propose adding a new tab or a distinct section on the Admin screen (e.g., next to "Courses" and "Flags") called "Pending Events".
+*   This section will display a list of all events that have the status `'admin'`.
+*   Here, the admin will be able to perform their necessary actions (like adding files, which we can build out next). For now, it will just display the event.
+*   Crucially, the admin will have a button here to **"Approve"** an event, which will change its status from `'admin'` to `'cleared'`.
+
+#### 4. `CourseScreen.jsx` & `CandidateScreen.jsx` Changes
+
+*   This is a straightforward but important change. The logic that fetches events for these screens will be updated to only show `datapacks` where `status = 'cleared'`.
+*   This ensures that trainers and other users only see events that have been fully created and approved by an administrator, which is the main goal of this new workflow.
+
+This plan establishes a clear, multi-stage process for event management. How does this detailed approach sound to you? Does it align with your vision for the feature?
