@@ -23,11 +23,6 @@ const Form = ({ eventDetails, documentDetails, traineeDetails }) => {
     return (
         <div className="p-4 space-y-4">
             <FileCheckDisplay fileStatus={fileCheckStatus} onRefresh={checkFile} />
-
-            <div className="p-4 border-t">
-                <h2 className="text-xl font-bold">Phonetic Quiz</h2>
-                <p className="mt-2 text-gray-600">This form will check a folder for scanned documents, not a questionnaire.</p>
-            </div>
         </div>
     );
 };
