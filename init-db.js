@@ -226,13 +226,13 @@ const questionnairesToSeed = [
     ])).flat(),
     {
         document_id: 9, // ProgressRecord
-        section: 'Comments',
+        section: 'Session Summaries',
         question_text: 'Trainer Comments & Signature',
         input_type: 'dynamic_comments_section',
         field_name: 'progress_record_comments',
         access: 'trainer',
         has_comments: 'NO',
-        required: 'no',
+        required: 'yes',
         dependency: ''
     }
 ];
