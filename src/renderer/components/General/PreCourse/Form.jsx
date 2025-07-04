@@ -57,7 +57,7 @@ const Form = (props) => {
         <QuestionnaireForm
             {...props}
             valueColumnHeader="Response"
-            pdfButtonText="Generate Pre-Course PDF"
+            pdfButtonText="Save Pre-Course PDF"
             onPdfButtonClick={handleGeneratePdf}
         />
     );

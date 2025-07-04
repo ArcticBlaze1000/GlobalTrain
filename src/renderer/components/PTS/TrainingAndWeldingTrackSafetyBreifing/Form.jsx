@@ -56,7 +56,7 @@ const Form = (props) => {
         <QuestionnaireForm
             {...props}
             valueColumnHeader="Time"
-            pdfButtonText="Generate Safety Briefing PDF"
+            pdfButtonText="Save Training and Welding Track Safety Briefing PDF"
             onPdfButtonClick={handleGeneratePdf}
         />
     );

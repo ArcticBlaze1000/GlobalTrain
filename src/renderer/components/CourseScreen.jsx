@@ -264,6 +264,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         };
         
         const currentProgress = docProgress[selectedDoc.id];
+        const pdfButtonText = `${currentProgress === 100 ? 'Save' : 'Generate'} ${formatDocName(selectedDoc.name)} PDF`;
 
         return (
             <>
@@ -274,21 +275,21 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 {(() => {
                     switch (selectedDoc.name) {
                         case 'Register':
-                            return <RegisterForm {...props} />;
+                            return <RegisterForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'TrainingCourseChecklist':
-                            return <TrainingCourseChecklistForm {...props} />;
+                            return <TrainingCourseChecklistForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'TrainingAndWeldingTrackSafetyBreifing':
-                            return <TrainingAndWeldingTrackSafetyBreifingForm {...props} onPdfButtonClick={() => handlePdfSave(TrainingAndWeldingTrackSafetyBreifingForm)} />;
+                            return <TrainingAndWeldingTrackSafetyBreifingForm {...props} onPdfButtonClick={() => handlePdfSave(TrainingAndWeldingTrackSafetyBreifingForm)} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'ProgressRecord':
-                            return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} />;
+                            return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'Swipes':
-                            return <SwipesForm {...props} />;
+                            return <SwipesForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'GeneralTrackVisitForm':
-                            return <GeneralTrackVisitForm {...props} />;
+                            return <GeneralTrackVisitForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'SWP':
-                            return <SWPForm {...props} />;
+                            return <SWPForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'TrackWalkDeliveryRequirements':
-                            return <TrackWalkDeliveryRequirementsForm {...props} />;
+                            return <TrackWalkDeliveryRequirementsForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         default:
                             return (
                                 <div className="flex items-center justify-center h-full">

@@ -71,7 +71,7 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate, currentProgress }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
@@ -1156,7 +1156,9 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 <div className="pt-4 flex justify-end">
                     <button 
                         onClick={handleGenerateAndCache}
-                        className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                        className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        disabled={currentProgress !== 100}
+                        title={currentProgress !== 100 ? "Document must be 100% complete to generate PDF" : pdfButtonText}
                     >
                         {pdfButtonText}
                     </button>

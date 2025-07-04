@@ -11,7 +11,7 @@ const Form = (props) => {
         <QuestionnaireForm
             {...props}
             valueColumnHeader=""
-            pdfButtonText="Generate Register PDF"
+            pdfButtonText="Save Register PDF"
             onPdfButtonClick={() => generateRegisterPdf(props.eventDetails.id)}
         />
     );

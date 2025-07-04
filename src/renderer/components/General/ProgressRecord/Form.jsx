@@ -17,7 +17,7 @@ const Form = (props) => {
         <QuestionnaireForm
             {...props}
             onPdfButtonClick={handleGeneratePdf}
-            pdfButtonText="Generate Progress Record"
+            pdfButtonText="Save Progress Record PDF"
         />
     );
 };

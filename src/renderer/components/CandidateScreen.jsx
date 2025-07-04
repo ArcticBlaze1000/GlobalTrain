@@ -277,10 +277,49 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             onProgressUpdate: (docId, progress) => {
                 setDocProgress(prev => ({ ...prev, [docId]: progress }));
             },
-            onPdfButtonClick: () => handlePdfSave(QuestionnaireForm)
         };
 
         const currentProgress = docProgress[selectedDocument.id];
+        const pdfButtonText = `${currentProgress === 100 ? 'Save' : 'Generate'} ${formatDocName(selectedDocument.name)} PDF`;
+
+        const getFormComponent = (docName) => {
+            const forms = {
+                'QuestionnaireAndFeedbackForm': QuestionnaireAndFeedbackForm,
+                'PreCourse': PreCourseForm,
+                'PostCourse': PostCourseForm,
+                'LeavingForm': LeavingForm,
+                'PracticalAssessment': PracticalAssessmentForm,
+                'PhoneticQuiz': PhoneticQuizForm,
+                'EmergencyPhoneCallExercise': EmergencyPhoneCallExerciseForm,
+                'RecertEmergencyCallPracticalAssessment': RecertEmergencyCallPracticalAssessmentForm,
+                'TrackWalkDeliveryRequirements': TrackWalkDeliveryRequirementsForm,
+                'AssessmentReview': AssessmentReviewForm,
+                'Certificates': CertificatesForm,
+                'KnowledgeAssessment': KnowledgeAssessmentForm,
+                'LogbookEntries': LogbookEntriesForm,
+                'ScenarioAssessment': ScenarioAssessmentForm,
+                'Workbook': WorkbookForm,
+                'EvidenceOfLogbook': EvidenceOfLogbookForm,
+                'PhotographicID': PhotographicIDForm,
+            };
+
+            const FormComponent = forms[docName] || QuestionnaireForm;
+            const formProps = {
+                ...props,
+                currentProgress,
+                pdfButtonText,
+            };
+
+            // Most forms use a specific PDF generator, so we wire up the button.
+            // QuestionnaireAndFeedbackForm is a generic one that uses the base handler.
+            if (docName !== 'QuestionnaireAndFeedbackForm' && forms[docName]) {
+                formProps.onPdfButtonClick = () => handlePdfSave(FormComponent);
+            } else {
+                formProps.onPdfButtonClick = () => handlePdfSave(QuestionnaireForm)
+            }
+            
+            return <FormComponent {...formProps} />;
+        };
 
         return (
             <>
@@ -289,45 +328,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                     <ProgressIndicator progress={currentProgress} />
                 </div>
                 <div className="mt-4">
-                {(() => {
-                    switch (selectedDocument.name) {
-                        case 'Pre Course':
-                            return <PreCourseForm {...props} onPdfButtonClick={() => handlePdfSave(PreCourseForm)} />;
-                        case 'Post Course':
-                            return <PostCourseForm {...props} onPdfButtonClick={() => handlePdfSave(PostCourseForm)} />;
-                        case 'LeavingForm':
-                            return <LeavingForm {...props} />;
-                        case 'PhoneticQuiz':
-                            return <PhoneticQuizForm {...props} />;
-                        case 'EmergencyPhoneCallExercise':
-                            return <EmergencyPhoneCallExerciseForm {...props} />;
-                        case 'PracticalAssessment':
-                            return <PracticalAssessmentForm {...props} />;
-                        case 'RecertEmergencyCallPracticalAssessment':
-                            return <RecertEmergencyCallPracticalAssessmentForm {...props} />;
-                        case 'AssessmentReview':
-                            return <AssessmentReviewForm {...props} />;
-                        case 'Certificates':
-                            return <CertificatesForm {...props} />;
-                        case 'KnowledgeAssessment':
-                            return <KnowledgeAssessmentForm {...props} />;
-                        case 'LogbookEntries':
-                            return <LogbookEntriesForm {...props} />;
-                        case 'QuestionnaireAndFeedbackForm':
-                            return <QuestionnaireAndFeedbackForm {...props} />;
-                        case 'ScenarioAssessment':
-                            return <ScenarioAssessmentForm {...props} />;
-                        case 'Workbook':
-                            return <WorkbookForm {...props} />;
-                        case 'EvidenceOfLogbook':
-                            return <EvidenceOfLogbookForm {...props} />;
-                        case 'PhotographicID':
-                            return <PhotographicIDForm {...props} />;
-                        default:
-                            // Fallback for any other document that might not have a specific form
-                            return <QuestionnaireForm {...props} />;
-                    }
-                })()}
+                    {getFormComponent(selectedDocument.name)}
                 </div>
             </>
         );
