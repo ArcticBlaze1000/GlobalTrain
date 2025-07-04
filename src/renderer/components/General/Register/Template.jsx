@@ -7,6 +7,27 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
     const resourcesFit = responses?.resources_fit_for_purpose === 'true' ? 'Yes' : 'No';
     const courseDuration = datapack?.duration || 1; // Default to 1 day if not specified
 
+    // Filter competencies based on what's required for the course.
+    // Ensure requiredCompetencyIds is always an array.
+    let requiredCompetencyIds = [];
+    if (course?.competency_ids) {
+        try {
+            const parsedIds = JSON.parse(course.competency_ids);
+            if (Array.isArray(parsedIds)) {
+                requiredCompetencyIds = parsedIds;
+            } else {
+                // If it's not an array but some other truthy value (e.g., a single number), wrap it in an array.
+                requiredCompetencyIds = [parsedIds];
+            }
+        } catch (e) {
+            // If it's not valid JSON, it might be a simple string like "1,2,3".
+            // This case is not handled by default, so log an error.
+            // For now, we'll fall back to an empty array to prevent a crash.
+            console.error("Could not parse course.competency_ids:", course.competency_ids, e);
+        }
+    }
+    const requiredCompetencies = (competencies || []).filter(comp => requiredCompetencyIds.includes(comp.id));
+
     return (
         <html>
             <head>
@@ -180,7 +201,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                             <thead className="border-b border-black">
                                 <tr className="divide-x divide-black bg-blue-100">
                                     <th className="p-1">CANDIDATE NAME</th>
-                                    {(competencies || []).map(comp => (
+                                    {(requiredCompetencies || []).map(comp => (
                                         <th key={comp.id} className="p-1 text-center">{comp.name}</th>
                                     ))}
                                 </tr>
@@ -189,7 +210,7 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                                 {(trainees || []).map(trainee => (
                                     <tr key={trainee.id} className="divide-x divide-black">
                                         <td className="p-1 h-8">{trainee.forename} {trainee.surname}</td>
-                                        {(competencies || []).map(comp => {
+                                        {(requiredCompetencies || []).map(comp => {
                                             const field_name = `competency_${comp.name.toLowerCase().replace(/\s/g, '_')}`;
                                             const response = responses[field_name];
                                             let competencyValue = '';

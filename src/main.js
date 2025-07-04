@@ -145,7 +145,7 @@ ipcMain.handle('get-logo-base64', async () => {
 });
 
 ipcMain.handle('save-pdf', async (event, payload) => {
-    const { htmlContent, eventDetails, documentDetails, traineeDetails } = payload;
+    const { htmlContent, eventDetails, documentDetails, traineeDetails, options } = payload;
     
     // 1. Determine the correct directory path
     const documentsPath = app.getPath('documents');
@@ -191,7 +191,7 @@ ipcMain.handle('save-pdf', async (event, payload) => {
             path: filePath,
             format: 'A4',
             printBackground: true,
-            landscape: false, // Default to portrait, can be customized if needed
+            landscape: options?.landscape || false,
         });
         
         // Optionally, open the folder containing the saved file
