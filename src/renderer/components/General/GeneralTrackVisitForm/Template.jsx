@@ -5,7 +5,9 @@ const Template = ({
     issuedBy, 
     courseDate, 
     startTime, 
-    finishTime
+    finishTime,
+    trainees = [],
+    responses = {},
 }) => {
     const rules = [
         "All staff/trainees that access the SWGR/Global Train training track for courses involving track, welding or overhead line course are subject to standard and mandatory site safety rules for SWGR and Global Train.",
@@ -18,6 +20,8 @@ const Template = ({
         "In the event of an accident or incident, these MUST be reported to the SWGR SQEF department and the training instructor responsible to be recorded and acted upon.",
         "There is to be NO SMOKING on any part of the training facility unless within the designated smoking shelter."
     ];
+
+    const traineeSignatures = responses.trainee_signatures?.data || {};
 
     return (
         <html lang="en">
@@ -88,6 +92,39 @@ const Template = ({
                     <strong>FURTHER ACTION</strong><br/>
                     Should you have any queries with any of the above or wish to discuss any safety related matter in confidence or in conjunction with your own line manager, please do not hesitate to contact the SQE & Facilities Dept on 0141 557 6133
                 </div>
+            </div>
+
+            <div className="page">
+                <div className="header">
+                    {logo && <img src={logo} alt="Global Train Logo" />}
+                </div>
+
+                <div className="page-2-title">General Track Visit Form</div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NAME</th>
+                            <th>SIGNATURE</th>
+                            <th>DATE</th>
+                            <th>PTS NUMBER</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {trainees.map((trainee) => (
+                            <tr key={trainee.id}>
+                                <td>{`${trainee.forename} ${trainee.surname}`}</td>
+                                <td>
+                                    {traineeSignatures[trainee.id] && String(traineeSignatures[trainee.id]).startsWith('data:image') &&
+                                        <img src={traineeSignatures[trainee.id]} alt="Signature" className="sig-img" />
+                                    }
+                                </td>
+                                <td>{courseDate}</td>
+                                <td>{trainee.sentry_number}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </body>
         </html>

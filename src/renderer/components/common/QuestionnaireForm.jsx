@@ -199,6 +199,21 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         };
         initializeForm();
     }, [documentId, datapackId, eventDetails, selectedTraineeId, documentDetails.name]);
+
+    useEffect(() => {
+        // This effect will run whenever responses change to recalculate progress.
+        const calculateProgress = () => {
+             if (Object.keys(responses).length > 0 && questions.length > 0) {
+                window.electron.recalculateAndUpdateProgress({
+                    datapackId,
+                    documentId,
+                    traineeId: documentDetails.scope === 'candidate' ? selectedTraineeId : null,
+                });
+            }
+        };
+    
+        calculateProgress();
+    }, [responses, questions, eventDetails, datapackId, documentId, selectedTraineeId, documentDetails.scope]);
     
     const triggerRecalculation = useCallback(() => {
         window.electron.recalculateAndUpdateProgress({

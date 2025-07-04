@@ -234,7 +234,18 @@ const questionnairesToSeed = [
         has_comments: 'NO',
         required: 'yes',
         dependency: ''
-    }
+    },
+    { document_id: 13, section: 'Practical Elements Completed At Test Track', question_text: 'Identifies landmarks that can be used for emergency call location', input_type: 'checkbox', field_name: 'twdr_prac_emergency_landmarks', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 13, section: 'FOOTER', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'twdr_trainer_signature', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+
+    // GeneralTrackVisitForm Questions (document_id = 14)
+    { document_id: 14, section: 'HEADER', question_text: 'Start Time', input_type: 'time_capture_button', field_name: 'start_time', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 14, section: 'HEADER', question_text: 'Finish Time', input_type: 'time_capture_button', field_name: 'finish_time', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 14, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+
+    // Swipes Questions (document_id = 15)
+    { document_id: 15, section: 'HEADER', question_text: 'Please select the trainee swipe file', input_type: 'file_upload_button', field_name: 'swipe_file', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 15, section: 'MAIN', question_text: 'Trainee Swipes', input_type: 'swipe_grid', field_name: 'trainee_swipes', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 ];
 
 const checklistQuestionFieldNames = questionnairesToSeed
