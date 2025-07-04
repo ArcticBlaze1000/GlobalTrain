@@ -144,6 +144,70 @@ ipcMain.handle('get-logo-base64', async () => {
     }
 });
 
+ipcMain.handle('save-pdf', async (event, payload) => {
+    const { htmlContent, eventDetails, documentDetails, traineeDetails } = payload;
+    
+    // 1. Determine the correct directory path
+    const documentsPath = app.getPath('documents');
+    const baseDir = path.join(documentsPath, 'Global Train Trainers', 'Training');
+    const monthFolderName = formatDateForPath(eventDetails.start_date, 'mm. month yyyy');
+    const trainerInitial = eventDetails.forename ? eventDetails.forename.charAt(0) : '';
+    const specificFolderName = `${formatDateForPath(eventDetails.start_date, 'dd.mm.yyyy')} ${eventDetails.courseName} ${trainerInitial} ${eventDetails.surname}`;
+    const candidateBaseDir = path.join(baseDir, monthFolderName, specificFolderName, 'Candidate');
+
+    let finalPath;
+    let filename;
+
+    if (documentDetails.scope === 'candidate' && traineeDetails) {
+        // This is a candidate-specific document.
+        const traineeFolderIndex = (eventDetails.trainee_ids.split(',').indexOf(String(traineeDetails.id)) + 1).toString().padStart(2, '0');
+        const candidateFolderName = `${traineeFolderIndex} ${traineeDetails.forename} ${traineeDetails.surname}`;
+        finalPath = path.join(candidateBaseDir, candidateFolderName);
+        filename = `${traineeDetails.forename}_${traineeDetails.surname}_${documentDetails.name}.pdf`;
+    } else {
+        // This is a course-level document.
+        finalPath = path.join(candidateBaseDir, 'Course Documentation');
+        filename = `${documentDetails.name}.pdf`;
+    }
+    
+    // Ensure the directory exists
+    try {
+        await fs.promises.mkdir(finalPath, { recursive: true });
+    } catch (error) {
+        console.error('Failed to create directory for PDF:', error);
+        return `Error: Could not create directory at ${finalPath}`;
+    }
+
+    const filePath = path.join(finalPath, filename);
+
+    // 2. Generate and save the PDF
+    let browser;
+    try {
+        browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+        await page.pdf({
+            path: filePath,
+            format: 'A4',
+            printBackground: true,
+            landscape: false, // Default to portrait, can be customized if needed
+        });
+        
+        // Optionally, open the folder containing the saved file
+        shell.showItemInFolder(filePath);
+
+        return `PDF saved successfully to ${filePath}`;
+    } catch (error) {
+        console.error('Failed to generate or save PDF with Puppeteer:', error);
+        return `Error: ${error.message}`;
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+});
+
 ipcMain.handle('app-quit', () => {
     app.quit();
 });
