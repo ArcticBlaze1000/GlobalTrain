@@ -294,6 +294,24 @@ app.on('ready', () => {
         return acc;
     }, {});
 
+    // --- PRE-CALCULATION SETUP ---
+    // Fetch document details and relevant competencies if we're dealing with the Register.
+    const documentDetails = await new Promise((resolve, reject) => db.get('SELECT name FROM documents WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row)));
+    let relevantCompetencyNames = [];
+    if (documentDetails && documentDetails.name === 'Register' && datapack.course_id) {
+        const course = await new Promise((resolve, reject) => db.get('SELECT competency_ids FROM courses WHERE id = ?', [datapack.course_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (course && course.competency_ids) {
+            const courseCompetencyIds = course.competency_ids.split(',').filter(id => id);
+            if (courseCompetencyIds.length > 0) {
+                const courseCompetencies = await new Promise((resolve, reject) => {
+                    const sql = `SELECT name FROM competencies WHERE id IN (${courseCompetencyIds.map(() => '?').join(',')})`;
+                    db.all(sql, courseCompetencyIds, (err, rows) => err ? reject(err) : resolve(rows));
+                });
+                relevantCompetencyNames = courseCompetencies.map(c => c.name);
+            }
+        }
+    }
+
     // 3. Determine which questions are currently required, respecting event duration and dependencies.
     const activeQuestions = [];
     for (const q of questions) {
@@ -302,6 +320,13 @@ app.on('ready', () => {
             const dayNumber = parseInt(q.field_name.split('_')[1], 10);
             if (!isNaN(dayNumber) && dayNumber > eventDuration) {
                 continue; // Skip questions for days beyond the event's duration.
+            }
+        }
+
+        // For Register competency questions, only include them if they are relevant to the course.
+        if (q.section === 'COMPETENCIES' && documentDetails.name === 'Register') {
+            if (!relevantCompetencyNames.includes(q.question_text)) {
+                continue; // Skip competencies not in this course.
             }
         }
 
