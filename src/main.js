@@ -175,7 +175,7 @@ ipcMain.handle('save-pdf', async (event, payload) => {
         await fs.promises.mkdir(finalPath, { recursive: true });
     } catch (error) {
         console.error('Failed to create directory for PDF:', error);
-        return `Error: Could not create directory at ${finalPath}`;
+        return { success: false, error: `Could not create directory at ${finalPath}` };
     }
 
     const filePath = path.join(finalPath, filename);
@@ -197,10 +197,10 @@ ipcMain.handle('save-pdf', async (event, payload) => {
         // Optionally, open the folder containing the saved file
         shell.showItemInFolder(filePath);
 
-        return `PDF saved successfully to ${filePath}`;
+        return { success: true, filePath };
     } catch (error) {
         console.error('Failed to generate or save PDF with Puppeteer:', error);
-        return `Error: ${error.message}`;
+        return { success: false, error: error.message };
     } finally {
         if (browser) {
             await browser.close();

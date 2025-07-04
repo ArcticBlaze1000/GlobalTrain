@@ -10,6 +10,7 @@ import SwipesForm from './General/Swipes/Form';
 import GeneralTrackVisitForm from './General/GeneralTrackVisitForm/Form';
 import SWPForm from './General/SWP/Form';
 import TrackWalkDeliveryRequirementsForm from './PTS/TrackWalkDeliveryRequirements/Form';
+import DeviationForm from './General/DeviationForm/Form';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -37,7 +38,6 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
-    const [isDeviationFormRequired, setIsDeviationFormRequired] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: '' });
 
     // Fetch events based on user role
@@ -191,10 +191,6 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         }
     };
 
-    const handleDeviationUpdate = useCallback((isRequired) => {
-        setIsDeviationFormRequired(isRequired);
-    }, []);
-    
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
     // Helper to render a list of items (for events)
@@ -217,16 +213,9 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
     // Helper to render the document list with progress
     const renderDocList = (items, selectedItem, handler) => {
-        const filteredItems = items.filter(item => {
-            if (item.name === 'DeviationForm') {
-                return isDeviationFormRequired;
-            }
-            return true;
-        });
-
         return (
             <div className="flex flex-col">
-                {filteredItems.map((item) => {
+                {items.map((item) => {
                     const isSelected = selectedItem?.id === item.id;
                     const progress = docProgress[item.id];
                     return (
@@ -281,7 +270,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                         case 'TrainingAndWeldingTrackSafetyBreifing':
                             return <TrainingAndWeldingTrackSafetyBreifingForm {...props} onPdfButtonClick={() => handlePdfSave(TrainingAndWeldingTrackSafetyBreifingForm)} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'ProgressRecord':
-                            return <ProgressRecordForm {...props} onDeviationUpdate={handleDeviationUpdate} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                            return <ProgressRecordForm {...props} onDeviationUpdate={() => {}} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'Swipes':
                             return <SwipesForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'GeneralTrackVisitForm':
@@ -290,6 +279,8 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             return <SWPForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'TrackWalkDeliveryRequirements':
                             return <TrackWalkDeliveryRequirementsForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'DeviationForm':
+                            return <DeviationForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         default:
                             return (
                                 <div className="flex items-center justify-center h-full">
