@@ -86,7 +86,7 @@ To ensure a structured and auditable workflow, training events (Datapacks) now m
 - Supports a wide variety of input types including standard inputs, interactive elements (tri-toggles, signatures), and complex data grids.
 
 ### **Comprehensive Document Types**
-The application now supports **13 different document types**, each with a specific scope and purpose.
+The application now supports **25 different document types**, each with a specific scope and purpose. Many of these are new and their implementation details might vary.
 
 | #  | Name                                     | Type              | Scope       | Description                                                 |
 |----|------------------------------------------|-------------------|-------------|-------------------------------------------------------------|
@@ -99,10 +99,22 @@ The application now supports **13 different document types**, each with a specif
 | 7  | Phonetic Quiz                            | **File-Based**    | Candidate   | Validates scanned copies of the phonetic quiz assessment.   |
 | 8  | Emergency Phone Call Exercise            | **File-Based**    | Candidate   | Validates scanned copies of the emergency call exercise.    |
 | 9  | Progress Record                          | Questionnaire     | Course      | Tracks overall course progress via a dynamic questionnaire. |
-| 10 | Deviation Form                           | *Placeholder*     | Course      | Future use for documenting deviations from the standard.    |
+| 10 | Deviation Form                           | Questionnaire     | Course      | Documents any deviations from the standard course.          |
 | 11 | Practical Assessment                     | **File-Based**    | Candidate   | Validates the scanned practical assessment for one trainee. |
 | 12 | Recert Emergency Call Practical          | **File-Based**    | Candidate   | Validates the scanned recertification assessment.           |
 | 13 | Track Walk Delivery Requirements         | **File-Based**    | Candidate   | Validates scanned copies of track walk safety checks.       |
+| 14 | Assessment Review                        | Questionnaire     | Candidate   | (New) Review of assessments.                                |
+| 15 | Certificates                             | **File-Based**    | Candidate   | (New) Manages candidate certificates.                       |
+| 16 | Evidence Of Logbook                      | **File-Based**    | Candidate   | (New) Validates evidence of logbook entries.                |
+| 17 | General Track Visit Form                 | Questionnaire     | Course      | (New) Form for general track visits.                        |
+| 18 | Knowledge Assessment                     | **File-Based**    | Candidate   | (New) Validates knowledge assessment documents.             |
+| 19 | Logbook Entries                          | **File-Based**    | Candidate   | (New) Manages logbook entries.                              |
+| 20 | Photographic ID                          | **File-Based**    | Candidate   | (New) Validates photographic ID.                            |
+| 21 | Questionnaire And Feedback Form          | Questionnaire     | Candidate   | (New) For candidate feedback.                               |
+| 22 | Scenario Assessment                      | **File-Based**    | Candidate   | (New) Validates scenario assessment documents.              |
+| 23 | Swipes                                   | **File-Based**    | Candidate   | (New) Manages swipe card data.                              |
+| 24 | SWP                                      | **File-Based**    | Course      | (New) Safe Work Pack documentation.                         |
+| 25 | Workbook                                 | **File-Based**    | Candidate   | (New) Manages candidate workbooks.                          |
 
 ### **Advanced Form Features**
 - **Real-time Progress Tracking**: Completion percentages are calculated and displayed instantly.
@@ -157,6 +169,7 @@ global-train/
             ├── LoginScreen.jsx      # Authentication interface
             ├── Dashboard.jsx        # Main application dashboard with tabs
             ├── CreationScreen.jsx   # Training event creation and management
+            ├── AdminScreen.jsx      # Admin approval screen
             ├── CourseScreen.jsx     # Course-level document management
             ├── CandidateScreen.jsx  # Candidate-level document management
             ├── UsersScreen.jsx      # User management (admin only)
@@ -165,17 +178,33 @@ global-train/
             │   ├── SignatureModal.jsx    # Digital signature capture
             │   ├── TriToggleButton.jsx   # Three-state toggle component
             │   ├── Dropdown.jsx          # Dropdown component
-            ├── General/             # General training documents
-            │   ├── Register/
-            │   ├── PreCourse/
-            │   ├── PostCourse/
+            │   └── FileCheckDisplay.jsx  # Component for validating physical files
+            ├── General/             # General training documents (Forms, PDFs, Templates)
+            │   ├── AssessmentReview/
+            │   ├── Certificates/
+            │   ├── DeviationForm/
+            │   ├── EvidenceOfLogbook/
+            │   ├── GeneralTrackVisitForm/
+            │   ├── KnowledgeAssessment/
             │   ├── LeavingForm/
-            │   └── TrainingCourseChecklist/
+            │   ├── LogbookEntries/
+            │   ├── PhotographicID/
+            │   ├── PostCourse/
+            │   ├── PracticalAssessment/
+            │   ├── PreCourse/
+            │   ├── ProgressRecord/
+            │   ├── QuestionnaireAndFeedbackForm/
+            │   ├── Register/
+            │   ├── ScenarioAssessment/
+            │   ├── Swipes/
+            │   ├── SWP/
+            │   ├── TrainingCourseChecklist/
+            │   └── Workbook/
             └── PTS/                 # PTS-specific documents
-                ├── PhoneticQuiz/
                 ├── EmergencyPhoneCallExercise/
-                ├── PracticalAssessment/
+                ├── PhoneticQuiz/
                 ├── RecertEmergencyCallPracticalAssessment/
+                ├── TrackWalkDeliveryRequirements/
                 └── TrainingAndWeldingTrackSafetyBreifing/
 ```
 
