@@ -75,9 +75,9 @@ const competenciesToSeed = [
     { name: 'SAI ERAS' }
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
-    { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
-    { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
+    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
+    { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
     { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', competency_ids: '1' },
@@ -104,7 +104,14 @@ const documentsToSeed = [
     { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer' },
     { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'EvidenceOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer' }
+    { name: 'EvidenceOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer' },
+    // Admin Documents
+    { name: 'BookingForm', scope: 'admin', visible: 'dev,admin' },
+    { name: 'JoiningInstructions', scope: 'admin', visible: 'dev,admin' },
+    { name: 'EmailConfirmation', scope: 'admin', visible: 'dev,admin' },
+    { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin' },
+    { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin' },
+    { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
