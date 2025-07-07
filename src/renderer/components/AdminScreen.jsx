@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import CoursesManagement from './admin/CoursesManagement';
+import CoursesManagement from './Admin/CoursesManagement';
 
 const FlagsPlaceholder = () => (
     <div className="flex-grow p-6">

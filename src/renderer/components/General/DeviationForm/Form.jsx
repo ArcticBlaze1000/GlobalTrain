@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import QuestionnaireForm from '../../common/QuestionnaireForm';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 import { generateDeviationFormPdf } from './PDFGenerator';
 
 const parseTime = (timeStr) => {

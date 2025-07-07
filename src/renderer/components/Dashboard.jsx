@@ -3,7 +3,7 @@ import CreationScreen from './CreationScreen';
 import CourseScreen from './CourseScreen';
 import CandidateScreen from './CandidateScreen';
 import UsersScreen from './UsersScreen';
-import SignatureModal from './common/SignatureModal';
+import SignatureModal from './Common/SignatureModal';
 import { useEvent } from '../context/EventContext';
 import AdminScreen from './AdminScreen';
 

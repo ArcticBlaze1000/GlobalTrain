@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Dropdown from './common/Dropdown';
+import Dropdown from './Common/Dropdown';
 import { debounce } from 'lodash';
 
 const CreationScreen = () => {

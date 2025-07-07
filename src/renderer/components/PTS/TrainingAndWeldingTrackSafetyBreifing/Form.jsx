@@ -1,5 +1,5 @@
 import React from 'react';
-import QuestionnaireForm from '../../common/QuestionnaireForm';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 import { generatePdf } from './PDFGenerator';
 
 const Form = (props) => {
@@ -55,7 +55,7 @@ const Form = (props) => {
     return (
         <QuestionnaireForm
             {...props}
-            valueColumnHeader="Time"
+            valueColumnHeader="Attended"
             pdfButtonText="Save Training and Welding Track Safety Briefing PDF"
             onPdfButtonClick={handleGeneratePdf}
         />

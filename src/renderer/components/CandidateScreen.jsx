@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useEvent } from '../context/EventContext';
-import QuestionnaireForm from './common/QuestionnaireForm';
+import QuestionnaireForm from './Common/QuestionnaireForm';
 import PreCourseForm from './General/PreCourse/Form';
 import PostCourseForm from './General/PostCourse/Form';
 import LeavingForm from './General/LeavingForm/Form';
@@ -19,7 +19,7 @@ import ScenarioAssessmentForm from './General/ScenarioAssessment/Form';
 import WorkbookForm from './General/Workbook/Form';
 import EvidenceOfLogbookForm from './General/EvidenceOfLogbook/Form';
 import PhotographicIDForm from './General/PhotographicID/Form';
-import FileCheckDisplay from './common/FileCheckDisplay';
+import FileCheckDisplay from './Common/FileCheckDisplay';
 
 const formatDocName = (name) => {
     if (!name) return '';

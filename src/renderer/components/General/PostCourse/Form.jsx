@@ -1,5 +1,5 @@
 import React from 'react';
-import QuestionnaireForm from '../../common/QuestionnaireForm';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 
 const Form = (props) => {
     // This will eventually be replaced with a full questionnaire form.

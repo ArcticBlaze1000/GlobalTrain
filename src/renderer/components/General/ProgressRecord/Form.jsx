@@ -1,5 +1,5 @@
 import React from 'react';
-import QuestionnaireForm from '../../common/QuestionnaireForm';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 import { generateProgressRecordPdf } from './PDFGenerator';
 
 const Form = (props) => {
@@ -54,6 +54,7 @@ const Form = (props) => {
             {...props}
             onPdfButtonClick={handleGeneratePdf}
             pdfButtonText="Save Progress Record PDF"
+            valueColumnHeader="Satisfactory"
         />
     );
 };

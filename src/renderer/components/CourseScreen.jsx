@@ -5,7 +5,12 @@ import RegisterForm from './General/Register/Form';
 import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './PTS/TrainingAndWeldingTrackSafetyBreifing/Form';
 import ProgressRecordForm from './General/ProgressRecord/Form';
-import FileCheckDisplay from './common/FileCheckDisplay';
+import PracticalAssessmentTemplate from './General/PracticalAssessment/Template';
+import PhoneticQuizTemplate from './PTS/PhoneticQuiz/Template';
+import EmergencyPhoneCallExerciseTemplate from './PTS/EmergencyPhoneCallExercise/Template';
+import RecertEmergencyCallPracticalAssessmentTemplate from './PTS/RecertEmergencyCallPracticalAssessment/Template';
+import TrackWalkDeliveryRequirementsTemplate from './PTS/TrackWalkDeliveryRequirements/Template';
+import FileCheckDisplay from './Common/FileCheckDisplay';
 import SwipesForm from './General/Swipes/Form';
 import GeneralTrackVisitForm from './General/GeneralTrackVisitForm/Form';
 import SWPForm from './General/SWP/Form';
@@ -281,6 +286,16 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             return <TrackWalkDeliveryRequirementsForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         case 'DeviationForm':
                             return <DeviationForm {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'PracticalAssessment':
+                            return <PracticalAssessmentTemplate {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'PhoneticQuiz':
+                            return <PhoneticQuizTemplate {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'EmergencyPhoneCallExercise':
+                            return <EmergencyPhoneCallExerciseTemplate {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'RecertEmergencyCallPracticalAssessment':
+                            return <RecertEmergencyCallPracticalAssessmentTemplate {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
+                        case 'TrackWalkDeliveryRequirementsTemplate':
+                            return <TrackWalkDeliveryRequirementsTemplate {...props} currentProgress={currentProgress} pdfButtonText={pdfButtonText} />;
                         default:
                             return (
                                 <div className="flex items-center justify-center h-full">
