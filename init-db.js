@@ -264,6 +264,18 @@ const checklistQuestionFieldNames = questionnairesToSeed
     .filter(q => q.document_id === 2)
     .map(q => q.field_name);
 
+const flagsToSeed = [
+    { title: 'test1', datapack_id: null, document_id: null, trainee_id: null, user_id: 1, user_sent_to_id: 2, message: 'test1', page: 'course', status: 'open' },
+    { title: 'test2', datapack_id: null, document_id: null, trainee_id: null, user_id: 1, user_sent_to_id: 5, message: 'test2', page: 'course', status: 'open' },
+    { title: 'test3', datapack_id: 5, document_id: 3, trainee_id: null, user_id: 1, user_sent_to_id: 2, message: 'test3', page: 'course', status: 'open' },
+    { title: 'test4', datapack_id: 2, document_id: 1, trainee_id: null, user_id: 1, user_sent_to_id: 5, message: 'test4', page: 'course', status: 'open' },
+    { title: 'test5', datapack_id: 2, document_id: 12, trainee_id: 4, user_id: 1, user_sent_to_id: 2, message: 'test5', page: 'candidate', status: 'open' },
+    { title: 'test6', datapack_id: 2, document_id: 18, trainee_id: 2, user_id: 1, user_sent_to_id: 2, message: 'test6', page: 'candidate', status: 'open' },
+    { title: 'test7', datapack_id: 3, document_id: 18, trainee_id: null, user_id: 1, user_sent_to_id: 2, message: 'test7', page: 'users', status: 'open' },
+    { title: 'test8', datapack_id: 3, document_id: 18, trainee_id: null, user_id: 1, user_sent_to_id: 2, message: 'test8', page: 'creation', status: 'open' },
+    { title: 'test9', datapack_id: 3, document_id: 18, trainee_id: null, user_id: 1, user_sent_to_id: 1, message: 'test9', page: 'admin', status: 'open' },
+    { title: 'test10', datapack_id: 3, document_id: 18, trainee_id: null, user_id: 1, user_sent_to_id: 1, message: 'test10', page: 'users', status: 'open' },
+];
 const questionnaireOptionsToSeed = [
     { question_field_name: 'resources', option_value: 'KP' },
     { question_field_name: 'resources', option_value: 'LB' },
@@ -323,6 +335,18 @@ const datapackToSeed = [
     { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8' },
     { course_id: 3, trainer_id: 3, start_date: '2025-06-27', duration: 5, total_trainee_count: 2, trainee_ids: '9,10' }
 ];
+
+const seedFlags = () => {
+    const stmt = db.prepare(`INSERT INTO flags (title, datapack_id, document_id, trainee_id, user_id, user_sent_to_id, message, page, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    flagsToSeed.forEach(flag => {
+        stmt.run(flag.title, flag.datapack_id, flag.document_id, flag.trainee_id, flag.user_id, flag.user_sent_to_id, flag.message, flag.page, flag.status, (err) => {
+            if (err) {
+                return console.error('Error inserting flag:', err.message);
+            }
+        });
+    });
+    stmt.finalize();
+};
 
 db.serialize(() => {
     // Drop and create tables
@@ -399,6 +423,8 @@ db.serialize(() => {
     const permissionStmt = db.prepare(`INSERT INTO permissions (role, action, resource) VALUES (?, ?, ?)`);
     defaultPermissions.forEach(p => permissionStmt.run(Object.values(p)));
     permissionStmt.finalize();
+
+    seedFlags();
 });
 
 // Chain course and datapack seeding to run after the initial seeding
