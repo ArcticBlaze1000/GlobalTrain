@@ -11,53 +11,67 @@ const statusStyles = {
 const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleString('en-GB') : 'N/A';
 
 // Reusable table component for displaying a list of flags
-const FlagTable = ({ title, flags, onFlagSelect, children }) => (
-    <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-            {children}
+const FlagTable = ({ title, flags, onFlagSelect, children }) => {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    return (
+        <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center space-x-2">
+                    <button 
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="flex items-center justify-center p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                        <svg className={`w-5 h-5 text-gray-600 transform transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+                </div>
+                {children}
+            </div>
+            {!isCollapsed && (
+                <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                    <table className="min-w-full leading-normal">
+                        <thead>
+                            <tr>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Raised By</th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sent To</th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {flags.length > 0 ? flags.map((flag) => (
+                                <tr key={flag.id}>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.title}</td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.raised_by}</td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.sent_to}</td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${statusStyles[flag.status]?.text || ''}`}>
+                                            <span aria-hidden className={`absolute inset-0 ${statusStyles[flag.status]?.bg || ''} opacity-50 rounded-full`}></span>
+                                            <span className="relative">{flag.status}</span>
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
+                                        <button onClick={() => onFlagSelect(flag)} className="text-indigo-600 hover:text-indigo-900">
+                                            View
+                                        </button>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan="6" className="text-center p-5 text-gray-500">No flags in this category.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <table className="min-w-full leading-normal">
-                <thead>
-                    <tr>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Raised By</th>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sent To</th>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {flags.length > 0 ? flags.map((flag) => (
-                        <tr key={flag.id}>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.title}</td>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.raised_by}</td>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.sent_to}</td>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${statusStyles[flag.status]?.text || ''}`}>
-                                    <span aria-hidden className={`absolute inset-0 ${statusStyles[flag.status]?.bg || ''} opacity-50 rounded-full`}></span>
-                                    <span className="relative">{flag.status}</span>
-                                </span>
-                            </td>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
-                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
-                                <button onClick={() => onFlagSelect(flag)} className="text-indigo-600 hover:text-indigo-900">
-                                    View
-                                </button>
-                            </td>
-                        </tr>
-                    )) : (
-                        <tr>
-                            <td colSpan="6" className="text-center p-5 text-gray-500">No flags in this category.</td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
+    );
+};
 
 
 const FlagsManagement = ({ user }) => {
