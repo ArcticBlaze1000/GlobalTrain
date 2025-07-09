@@ -1,10 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import FlagDetailView from './FlagDetailView';
+
+const statusStyles = {
+    open: { text: 'text-red-900', bg: 'bg-red-200' },
+    'in-progress': { text: 'text-yellow-900', bg: 'bg-yellow-200' },
+    resolved: { text: 'text-green-900', bg: 'bg-green-200' },
+    rejected: { text: 'text-gray-900', bg: 'bg-gray-200' },
+};
 
 const FlagsManagement = ({ user }) => {
     const [flags, setFlags] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedFlag, setSelectedFlag] = useState(null);
+
+    const handleFlagUpdate = (updatedFlag) => {
+        // Update the flag in the main list
+        setFlags(currentFlags => 
+            currentFlags.map(f => f.id === updatedFlag.id ? updatedFlag : f)
+        );
+        // Also update the currently selected flag to re-render the detail view
+        setSelectedFlag(updatedFlag);
+    };
 
     useEffect(() => {
+        if (selectedFlag) return; // Don't refetch when viewing a detail
+
         const fetchFlags = async () => {
             if (!user) {
                 setIsLoading(false);
@@ -50,12 +70,16 @@ const FlagsManagement = ({ user }) => {
         };
 
         fetchFlags();
-    }, [user]);
+    }, [user, selectedFlag]);
 
     const formatDate = (dateString) => new Date(dateString).toLocaleString('en-GB');
 
     if (isLoading) {
         return <div className="p-6">Loading flags...</div>;
+    }
+
+    if (selectedFlag) {
+        return <FlagDetailView flag={selectedFlag} user={user} onBackToList={() => setSelectedFlag(null)} onUpdate={handleFlagUpdate} />;
     }
 
     return (
@@ -83,17 +107,17 @@ const FlagsManagement = ({ user }) => {
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.page}</td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${
-                                        flag.status === 'open' ? 'text-red-900' : 'text-green-900'
+                                        statusStyles[flag.status]?.text || statusStyles.rejected.text
                                     }`}>
                                         <span aria-hidden className={`absolute inset-0 ${
-                                            flag.status === 'open' ? 'bg-red-200' : 'bg-green-200'
+                                            statusStyles[flag.status]?.bg || statusStyles.rejected.bg
                                         } opacity-50 rounded-full`}></span>
                                         <span className="relative">{flag.status}</span>
                                     </span>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
-                                    <button className="text-indigo-600 hover:text-indigo-900">
+                                    <button onClick={() => setSelectedFlag(flag)} className="text-indigo-600 hover:text-indigo-900">
                                         View
                                     </button>
                                 </td>
