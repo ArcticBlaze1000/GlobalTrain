@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import CoursesManagement from './Admin/CoursesManagement';
 import FlagsManagement from './Admin/FlagsManagement';
-
-const RegisterPlaceholder = () => (
-    <div className="flex-grow p-6">
-        <h2 className="text-3xl font-bold text-gray-800">Register Management</h2>
-        <p className="mt-2 text-gray-600">This area is under construction.</p>
-    </div>
-);
+import RegistersManagement from './Admin/RegistersManagement';
 
 const AdminScreen = ({ user, openSignatureModal }) => {
     const [activeTab, setActiveTab] = useState('courses');
@@ -19,7 +13,7 @@ const AdminScreen = ({ user, openSignatureModal }) => {
             case 'flags':
                 return <FlagsManagement user={user} openSignatureModal={openSignatureModal} />;
             case 'register':
-                return <RegisterPlaceholder />;
+                return <RegistersManagement />;
             default:
                 return <CoursesManagement user={user} />;
         }

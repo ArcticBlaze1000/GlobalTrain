@@ -270,15 +270,21 @@ app.on('ready', () => {
     if (!user || !user.id) return;
 
     try {
-        // 1. Fetch all events from the database, regardless of the user.
-        const eventsQuery = `
-            SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.trainee_ids, u.forename, u.surname
+        let eventsQuery = `
+            SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.trainee_ids, u.forename, u.surname, d.status
             FROM datapack d
             JOIN courses c ON d.course_id = c.id
             JOIN users u ON d.trainer_id = u.id
         `;
+        
+        const queryParams = [];
 
-        const events = await queryDb(eventsQuery);
+        if (user.role === 'trainer' || user.role === 'candidate') {
+            eventsQuery += ` WHERE d.status = ?`;
+            queryParams.push('live');
+        }
+
+        const events = await queryDb(eventsQuery, queryParams);
         const documentsPath = app.getPath('documents');
         const baseDir = path.join(documentsPath, 'Global Train Trainers', 'Training');
 
