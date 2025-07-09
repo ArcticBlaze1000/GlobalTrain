@@ -15,7 +15,7 @@ const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER, sub_sponsor BOOLEAN DEFAULT 0)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER, non_mandatory_doc_ids TEXT)` },
-    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT, location TEXT, type TEXT)` },
+    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT, location TEXT, type TEXT, save TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', required TEXT DEFAULT 'yes', dependency TEXT DEFAULT '', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
@@ -23,7 +23,8 @@ const tables = [
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT, status TEXT)` },
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
     { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
-    { name: 'flags', schema: `CREATE TABLE flags (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, datapack_id INTEGER, document_id INTEGER, trainee_id INTEGER, user_id INTEGER NOT NULL, user_sent_to_id INTEGER NOT NULL, message TEXT NOT NULL, page TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL DEFAULT (datetime('now')), attempted_by TEXT, picked_up_at TEXT, dropped_at TEXT, resolved_at TEXT, resolved_by INTEGER, resolution_notes TEXT, signature TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), FOREIGN KEY (trainee_id) REFERENCES trainees(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (user_sent_to_id) REFERENCES users(id), FOREIGN KEY (resolved_by) REFERENCES users(id))` },
+    { name: 'flags', schema: `CREATE TABLE flags (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, datapack_id INTEGER, document_id INTEGER, trainee_id INTEGER, user_id INTEGER NOT NULL, user_sent_to_id INTEGER NOT NULL, message TEXT NOT NULL, page TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL DEFAULT (datetime('now')), attempted_by TEXT, picked_up_at TEXT, dropped_at TEXT, resolved_at TEXT, 
+        resolved_by INTEGER, resolution_notes TEXT, signature TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), FOREIGN KEY (trainee_id) REFERENCES trainees(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (user_sent_to_id) REFERENCES users(id), FOREIGN KEY (resolved_by) REFERENCES users(id))` },
 ];
 // --- Seed Data ---
 const usersToSeed = [
@@ -76,42 +77,45 @@ const competenciesToSeed = [
     { name: 'SAI ERAS' }
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,31', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
-    { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,31', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
-    { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,31', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
+    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
+    { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
-    { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
-    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
-    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
-    { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'questionnaire' },
-    { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
-    { name: 'ProgressRecord', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'PracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
-    { name: 'TrackWalkDeliveryRequirements', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
-    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'Swipes', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'SWP', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'LogbookEntries', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'PhotographicID', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned photo' },
-    { name: 'QuestionnaireAndFeedbackForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
-    { name: 'Workbook', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'KnowledgeAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
-    { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
-    { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
-    { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'course documentation' },
+    { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'main' },
+    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'questionnaire', save: 'course documentation' },
+    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'candidate name' },
+    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'candidate name' },
+    { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'candidate name' },
+    { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf', save: 'additional exercises contents' },
+    { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf', save: 'additional exercises contents' },
+    { name: 'ProgressRecord', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'course documentation' },
+    { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'course documentation' },
+    { name: 'PracticalAssessmentIndividual', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf', save: 'course documentation' },
+    { name: 'TrackWalkDeliveryRequirements', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf', save: 'course documentation' },
+    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire', save: 'course documentation' },
+    { name: 'Swipes', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned photo', save: 'course documentation' },
+    { name: 'SWP', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'course documentation' },
+    { name: 'LogbookEntries', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned photo', save: 'candidate name' },
+    { name: 'PhotographicID', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned photo', save: 'candidate name' },
+    { name: 'QuestionnaireAndFeedbackForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'Workbook', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'KnowledgeAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'IssueOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'candidate name' },
+    { name: 'PracticalAssessmentGroup', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'course documentation' },
     // Admin Documents
-    { name: 'BookingForm', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
-    { name: 'JoiningInstructions', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
-    { name: 'EmailConfirmation', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
-    { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
-    { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
-    { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' }
+    { name: 'BookingForm', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'booking form and joining instructions' },
+    { name: 'JoiningInstructions', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'booking form and joining instructions' },
+    { name: 'EmailConfirmation', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'email', save: 'booking form and joining instructions' },
+    { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'sub sponsor request' },
+    { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'admin' },
+    { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'admin' },
+    { name: 'SentinelPreChecks', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'candidate name' },
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -369,8 +373,8 @@ db.serialize(() => {
     usersToSeed.forEach(user => userStmt.run(Object.values(user)));
     userStmt.finalize();
 
-    const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible, location, type) VALUES (?, ?, ?, ?, ?)`);
-    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible, doc.location, doc.type));
+    const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible, location, type, save) VALUES (?, ?, ?, ?, ?, ?)`);
+    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible, doc.location, doc.type, doc.save));
     docStmt.finalize();
 
     const courseStmt = db.prepare(`INSERT INTO courses (id, name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (?, ?, ?, ?, ?, ?)`);
