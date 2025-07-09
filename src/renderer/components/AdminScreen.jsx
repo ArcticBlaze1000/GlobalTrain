@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import CoursesManagement from './Admin/CoursesManagement';
-
-const FlagsPlaceholder = () => (
-    <div className="flex-grow p-6">
-        <h2 className="text-3xl font-bold text-gray-800">Flags Management</h2>
-        <p className="mt-2 text-gray-600">This area is under construction.</p>
-    </div>
-);
+import FlagsManagement from './Admin/FlagsManagement';
 
 const RegisterPlaceholder = () => (
     <div className="flex-grow p-6">
@@ -23,7 +17,7 @@ const AdminScreen = ({ user }) => {
             case 'courses':
                 return <CoursesManagement user={user} />;
             case 'flags':
-                return <FlagsPlaceholder />;
+                return <FlagsManagement user={user} />;
             case 'register':
                 return <RegisterPlaceholder />;
             default:
