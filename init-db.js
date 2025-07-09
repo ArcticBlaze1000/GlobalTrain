@@ -329,6 +329,7 @@ db.serialize(() => {
     db.run(`DROP TABLE IF EXISTS course_folders`);
     db.run(`DROP TABLE IF EXISTS incomplete_registers`);
     db.run(`DROP TRIGGER IF EXISTS update_incomplete_registers_updated_at`);
+    db.run(`DROP TABLE IF EXISTS attendance_timers`);
     tables.forEach(table => {
         db.run(`DROP TABLE IF EXISTS ${table.name}`);
     });
