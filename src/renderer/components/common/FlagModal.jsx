@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useEvent } from '../../context/EventContext';
 
-const FlagModal = ({ show, onClose }) => {
+const FlagModal = ({ show, onClose, user, page }) => {
+    const { activeEvent, activeDocument, activeTrainee } = useEvent();
     const [title, setTitle] = useState('');
     const [selectedUser, setSelectedUser] = useState('');
     const [message, setMessage] = useState('');
@@ -26,10 +28,37 @@ const FlagModal = ({ show, onClose }) => {
         return null;
     }
 
-    const handleSubmit = () => {
-        // Handle submission logic later
-        console.log({ title, selectedUser, message });
-        onClose(); // Close modal after submission
+    const handleSubmit = async () => {
+        if (!title || !selectedUser || !message) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        try {
+            const query = `
+                INSERT INTO flags (title, datapack_id, document_id, trainee_id, user_id, user_sent_to_id, message, page)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            const params = [
+                title,
+                activeEvent?.id || null,
+                activeDocument?.id || null,
+                activeTrainee?.id || null,
+                user.id,
+                selectedUser,
+                message,
+                page
+            ];
+
+            await window.db.query(query, params);
+            setTitle('');
+            setSelectedUser('');
+            setMessage('');
+            onClose();
+        } catch (error) {
+            console.error('Failed to submit flag:', error);
+            alert('Failed to submit flag. Check console for details.');
+        }
     };
 
     return (

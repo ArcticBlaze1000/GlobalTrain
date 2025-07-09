@@ -30,7 +30,7 @@ const formatDocName = (name) => {
 
 const CandidateScreen = ({ user, openSignatureModal }) => {
     // Shared state from context
-    const { activeEvent } = useEvent();
+    const { activeEvent, setActiveDocument, setActiveTrainee } = useEvent();
 
     // State for data
     const [candidates, setCandidates] = useState([]);
@@ -140,21 +140,26 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         const fetchCandidateDetails = async () => {
             if (!selectedCandidateId) {
                 setSelectedCandidateDetails(null);
+                setActiveTrainee(null);
                 return;
             }
             try {
                 const details = await window.db.query('SELECT * FROM trainees WHERE id = ?', [selectedCandidateId]);
-                setSelectedCandidateDetails(details.length > 0 ? details[0] : null);
+                const trainee = details.length > 0 ? details[0] : null;
+                setSelectedCandidateDetails(trainee);
+                setActiveTrainee(trainee);
             } catch (error) {
                 console.error('Failed to fetch candidate details:', error);
                 setSelectedCandidateDetails(null);
+                setActiveTrainee(null);
             }
         };
         fetchCandidateDetails();
-    }, [selectedCandidateId]);
+    }, [selectedCandidateId, setActiveTrainee]);
 
     const handleDocClick = (doc) => {
         setSelectedDocument(doc);
+        setActiveDocument(doc);
     };
 
     const handlePdfSave = async (FormToRender) => {

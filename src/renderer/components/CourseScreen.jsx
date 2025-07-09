@@ -26,7 +26,7 @@ const formatDocName = (name) => {
 
 const CourseScreen = ({ user, openSignatureModal }) => {
     const [events, setEvents] = useState([]);
-    const { activeEvent, setActiveEvent } = useEvent();
+    const { activeEvent, setActiveEvent, setActiveDocument } = useEvent();
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
@@ -142,6 +142,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
     const handleDocClick = async (doc) => {
         setSelectedDoc(doc);
+        setActiveDocument(doc);
     };
 
     const handlePdfSave = async (FormToRender) => {

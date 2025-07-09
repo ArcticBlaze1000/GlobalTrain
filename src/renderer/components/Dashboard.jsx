@@ -162,6 +162,8 @@ const Dashboard = ({ user, onLogout }) => {
             <FlagModal 
                 show={isFlagModalOpen}
                 onClose={() => setIsFlagModalOpen(false)}
+                user={user}
+                page={activeTab}
             />
         </div>
     );
