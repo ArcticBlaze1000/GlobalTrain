@@ -6,7 +6,7 @@ import ProgressIndicator from './Common/ProgressIndicator';
 import PreCourseForm from './General/PreCourse/Form';
 import PostCourseForm from './General/PostCourse/Form';
 import LeavingForm from './General/LeavingForm/Form';
-import PracticalAssessmentForm from './General/PracticalAssessment/Form';
+import PracticalAssessmentIndividualForm from './General/PracticalAssessmentIndividual/Form';
 import PhoneticQuizForm from './PTS/PhoneticQuiz/Form';
 import EmergencyPhoneCallExerciseForm from './PTS/EmergencyPhoneCallExercise/Form';
 import RecertEmergencyCallPracticalAssessmentForm from './PTS/RecertEmergencyCallPracticalAssessment/Form';
@@ -19,7 +19,6 @@ import QuestionnaireAndFeedbackForm from './General/QuestionnaireAndFeedbackForm
 import ScenarioAssessmentForm from './General/ScenarioAssessment/Form';
 import WorkbookForm from './General/Workbook/Form';
 import PhotographicIDForm from './General/PhotographicID/Form';
-import FileCheckDisplay from './common/FileCheckDisplay';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -279,7 +278,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 'PreCourse': PreCourseForm,
                 'PostCourse': PostCourseForm,
                 'LeavingForm': LeavingForm,
-                'PracticalAssessment': PracticalAssessmentForm,
+                'PracticalAssessmentIndividual': PracticalAssessmentIndividualForm,
                 'PhoneticQuiz': PhoneticQuizForm,
                 'EmergencyPhoneCallExercise': EmergencyPhoneCallExerciseForm,
                 'RecertEmergencyCallPracticalAssessment': RecertEmergencyCallPracticalAssessmentForm,
@@ -291,7 +290,6 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 'ScenarioAssessment': ScenarioAssessmentForm,
                 'Workbook': WorkbookForm,
                 'PhotographicID': PhotographicIDForm,
-                'Swipes': SwipesForm,
             };
 
             const FormComponent = forms[docName] || QuestionnaireForm;

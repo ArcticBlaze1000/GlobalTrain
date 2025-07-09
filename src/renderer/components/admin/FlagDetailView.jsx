@@ -5,7 +5,7 @@ import SignatureModal from '../Common/SignatureModal';
 import PreCourseForm from '../General/PreCourse/Form';
 import PostCourseForm from '../General/PostCourse/Form';
 import LeavingForm from '../General/LeavingForm/Form';
-import PracticalAssessmentForm from '../General/PracticalAssessment/Form';
+import PracticalAssessmentIndividualForm from '../General/PracticalAssessmentIndividual/Form';
 import AssessmentReviewForm from '../General/AssessmentReview/Form';
 import CertificatesForm from '../General/Certificates/Form';
 import KnowledgeAssessmentForm from '../General/KnowledgeAssessment/Form';
@@ -25,7 +25,7 @@ const formMap = {
     'PreCourse': PreCourseForm,
     'PostCourse': PostCourseForm,
     'LeavingForm': LeavingForm,
-    'PracticalAssessment': PracticalAssessmentForm,
+    'PracticalAssessmentIndividual': PracticalAssessmentIndividualForm,
     'AssessmentReview': AssessmentReviewForm,
     'Certificates': CertificatesForm,
     'KnowledgeAssessment': KnowledgeAssessmentForm,
