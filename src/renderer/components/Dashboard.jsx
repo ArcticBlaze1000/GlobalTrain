@@ -100,8 +100,12 @@ const Dashboard = ({ user, onLogout }) => {
                         {(user.role === 'dev' || user.role === 'admin') && (
                             <TabButton name="Admin" activeTab={activeTab} setActiveTab={setActiveTab} />
                         )}
-                        <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
-                        <TabButton name="Candidate" activeTab={activeTab} setActiveTab={setActiveTab} />
+                        {user.role !== 'admin' && (
+                            <>
+                                <TabButton name="Course" activeTab={activeTab} setActiveTab={setActiveTab} />
+                                <TabButton name="Candidate" activeTab={activeTab} setActiveTab={setActiveTab} />
+                            </>
+                        )}
                         {(user.role === 'dev' || user.role === 'admin') && (
                             <TabButton name="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
                         )}
