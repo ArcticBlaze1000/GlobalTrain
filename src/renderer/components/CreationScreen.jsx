@@ -94,7 +94,7 @@ const CreationScreen = () => {
 
         if (count > currentTrainees.length) {
             for (let i = currentTrainees.length; i < count; i++) {
-                newTrainees.push({ forename: '', surname: '', sponsor: '', sentry_number: '', has_comments: false, additional_comments: '' });
+                newTrainees.push({ forename: '', surname: '', sponsor: '', sentry_number: '', has_comments: false, additional_comments: '', sub_sponsor: false });
             }
         } else {
             newTrainees = newTrainees.slice(0, count);
@@ -120,7 +120,7 @@ const CreationScreen = () => {
 
             // When loading an incomplete datapack, we need to fetch associated trainees
             const fetchedTrainees = dp.trainee_ids
-                ? await window.db.query(`SELECT id, forename, surname, sponsor, sentry_number, additional_comments FROM trainees WHERE datapack = ?`, [datapackId])
+                ? await window.db.query(`SELECT id, forename, surname, sponsor, sentry_number, additional_comments, sub_sponsor FROM trainees WHERE datapack = ?`, [datapackId])
                 : [];
 
             setFormState({
@@ -128,7 +128,7 @@ const CreationScreen = () => {
                 trainerId: dp.trainer_id,
                 startDate: dp.start_date,
                 duration: dp.duration,
-                trainees: fetchedTrainees.map(t => ({ ...t, has_comments: !!t.additional_comments }))
+                trainees: fetchedTrainees.map(t => ({ ...t, has_comments: !!t.additional_comments, sub_sponsor: !!t.sub_sponsor }))
             });
             setActiveDatapackId(datapackId);
         } catch (error) {
@@ -180,14 +180,14 @@ const CreationScreen = () => {
 
                 if (trainee.id) { // Existing trainee -> UPDATE
                     await window.db.run(
-                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ? WHERE id = ?',
-                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
+                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ?, sub_sponsor = ? WHERE id = ?',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.sub_sponsor, trainee.id]
                     );
                     allTraineeIds.push(trainee.id);
                 } else { // New trainee -> INSERT
                     const result = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
-                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId, trainee.sub_sponsor]
                     );
                     allTraineeIds.push(result.lastID);
                 }
@@ -250,14 +250,14 @@ const CreationScreen = () => {
 
                 if (trainee.id) {
                     await window.db.run(
-                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ? WHERE id = ?',
-                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
+                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ?, sub_sponsor = ? WHERE id = ?',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.sub_sponsor, trainee.id]
                     );
                     allTraineeIds.push(trainee.id);
                 } else {
                     const traineeResult = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
-                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId, trainee.sub_sponsor]
                     );
                     const newTraineeId = traineeResult.lastID;
                     allTraineeIds.push(newTraineeId);
@@ -412,15 +412,27 @@ const CreationScreen = () => {
                                         onChange={e => handleTraineeChange(index, 'sentry_number', e.target.value)} className="p-2 border rounded-md"
                                     />
                                 </div>
-                                <div className="mt-2 flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id={`other-checkbox-${index}`}
-                                        checked={trainee.has_comments}
-                                        onChange={e => handleTraineeChange(index, 'has_comments', e.target.checked)}
-                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <label htmlFor={`other-checkbox-${index}`} className="ml-2 text-sm text-gray-900">Other</label>
+                                <div className="mt-2 flex items-center gap-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id={`other-checkbox-${index}`}
+                                            checked={trainee.has_comments}
+                                            onChange={e => handleTraineeChange(index, 'has_comments', e.target.checked)}
+                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor={`other-checkbox-${index}`} className="ml-2 text-sm text-gray-900">Other</label>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id={`sub-sponsor-checkbox-${index}`}
+                                            checked={trainee.sub_sponsor}
+                                            onChange={e => handleTraineeChange(index, 'sub_sponsor', e.target.checked)}
+                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor={`sub-sponsor-checkbox-${index}`} className="ml-2 text-sm text-gray-900">Sub Sponsor</label>
+                                    </div>
                                 </div>
                                 {trainee.has_comments && (
                                     <div className="mt-2">

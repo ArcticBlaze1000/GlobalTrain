@@ -13,7 +13,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // --- Schema Definition ---
 const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
-    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
+    { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER, sub_sponsor BOOLEAN DEFAULT 0)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER, non_mandatory_doc_ids TEXT)` },
     { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT, location TEXT, type TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', required TEXT DEFAULT 'yes', dependency TEXT DEFAULT '', FOREIGN KEY (document_id) REFERENCES documents(id))` },
@@ -317,16 +317,16 @@ competenciesToSeed.forEach(comp => {
     );
 });
 const traineesToSeed = [
-    { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456', datapack: 1 }, 
-    { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321', datapack: 2 },
-    { forename: 'Jim', surname: 'Beam', sponsor: 'SWGR', sentry_number: '123456', datapack: 2 },
-    { forename: 'Jim', surname: 'Brown', sponsor: 'SWGR', sentry_number: '123456', datapack: 2 },
-    { forename: 'Alice', surname: 'Johnson', sponsor: 'Network Rail', sentry_number: '987654', datapack: 3 },
-    { forename: 'Bob', surname: 'Williams', sponsor: 'Babcock', sentry_number: '456789', datapack: 3 },
-    { forename: 'Eve', surname: 'Davis', sponsor: 'SWGR', sentry_number: '321654', datapack: 4 },
-    { forename: 'Charlie', surname: 'Miller', sponsor: 'Siemens', sentry_number: '789123', datapack: 4 },
-    { forename: 'Grace', surname: 'Taylor', sponsor: 'Amey', sentry_number: '147258', datapack: 5 },
-    { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369', datapack: 5 }
+    { forename: 'John', surname: 'Doe', sponsor: 'SWGR', sentry_number: '123456', datapack: 1, sub_sponsor: true }, 
+    { forename: 'Jane', surname: 'Smith', sponsor: 'Network Rail', sentry_number: '654321', datapack: 2, sub_sponsor: false },
+    { forename: 'Jim', surname: 'Beam', sponsor: 'SWGR', sentry_number: '123456', datapack: 2, sub_sponsor: true },
+    { forename: 'Jim', surname: 'Brown', sponsor: 'SWGR', sentry_number: '123456', datapack: 2, sub_sponsor: false },
+    { forename: 'Alice', surname: 'Johnson', sponsor: 'Network Rail', sentry_number: '987654', datapack: 3, sub_sponsor: true },
+    { forename: 'Bob', surname: 'Williams', sponsor: 'Babcock', sentry_number: '456789', datapack: 3, sub_sponsor: false },
+    { forename: 'Eve', surname: 'Davis', sponsor: 'SWGR', sentry_number: '321654', datapack: 4, sub_sponsor: true },
+    { forename: 'Charlie', surname: 'Miller', sponsor: 'Siemens', sentry_number: '789123', datapack: 4, sub_sponsor: false },
+    { forename: 'Grace', surname: 'Taylor', sponsor: 'Amey', sentry_number: '147258', datapack: 5, sub_sponsor: true },
+    { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369', datapack: 5, sub_sponsor: false }
 ];
 const datapackToSeed = [
     { course_id: 1, trainer_id: 3, start_date: '2025-06-30', duration: 1, total_trainee_count: 1, trainee_ids: '1', status: 'live' },
@@ -396,7 +396,7 @@ db.serialize(() => {
     questionnaireOptionsToSeed.forEach(option => questionnaireOptionsStmt.run(Object.values(option)));
     questionnaireOptionsStmt.finalize();
 
-    const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number, datapack) VALUES (?, ?, ?, ?, ?)`);
+    const traineeStmt = db.prepare(`INSERT INTO trainees (forename, surname, sponsor, sentry_number, datapack, sub_sponsor) VALUES (?, ?, ?, ?, ?, ?)`);
     traineesToSeed.forEach(trainee => traineeStmt.run(Object.values(trainee)));
     traineeStmt.finalize();
 
