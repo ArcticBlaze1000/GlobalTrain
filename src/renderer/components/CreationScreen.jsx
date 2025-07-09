@@ -6,8 +6,9 @@ const CreationScreen = () => {
     // --- STATE MANAGEMENT ---
     const [courses, setCourses] = useState([]);
     const [trainers, setTrainers] = useState([]);
-    const [activeRegisterId, setActiveRegisterId] = useState('new'); // Always in 'new' state now
-    
+    const [incompleteDatapacks, setIncompleteDatapacks] = useState([]);
+    const [activeDatapackId, setActiveDatapackId] = useState(null);
+
     // Form State
     const [formState, setFormState] = useState({
         courseId: '',
@@ -17,8 +18,25 @@ const CreationScreen = () => {
         trainees: []
     });
     const [isSubmittable, setIsSubmittable] = useState(false);
+    const [isSaveable, setIsSaveable] = useState(false);
 
     // --- DATA FETCHING ---
+    const fetchIncompleteDatapacks = useCallback(async () => {
+        try {
+            const datapacks = await window.db.query(`
+                SELECT d.id, c.name as courseName, u.forename, u.surname, d.start_date 
+                FROM datapack d
+                JOIN courses c ON d.course_id = c.id
+                JOIN users u ON d.trainer_id = u.id
+                WHERE d.status = 'incomplete'
+                ORDER BY d.start_date DESC
+            `);
+            setIncompleteDatapacks(datapacks);
+        } catch (error) {
+            console.error("Failed to fetch incomplete datapacks:", error);
+        }
+    }, []);
+
     useEffect(() => {
         const fetchData = async () => {
             const [fetchedCourses, fetchedTrainers] = await Promise.all([
@@ -29,17 +47,17 @@ const CreationScreen = () => {
             setTrainers(fetchedTrainers);
         };
         fetchData();
-    }, []);
+        fetchIncompleteDatapacks();
+    }, [fetchIncompleteDatapacks]);
 
-    // Effect to check if the form is ready for submission
+    // Effect to check if the form is ready for submission/saving
     useEffect(() => {
-        const checkSubmittable = () => {
-            const { courseId, trainerId, startDate, trainees } = formState;
-            const formFilled = courseId && trainerId && startDate && trainees.length > 0;
-            setIsSubmittable(formFilled);
-        };
-        checkSubmittable();
+        const { courseId, trainerId, startDate, trainees } = formState;
+        const minFieldsFilled = courseId && trainerId && startDate;
+        setIsSaveable(minFieldsFilled);
+        setIsSubmittable(minFieldsFilled && trainees.length > 0 && trainees.every(t => t.forename && t.surname));
     }, [formState]);
+
 
     // --- FORM LOGIC ---
 
@@ -87,83 +105,223 @@ const CreationScreen = () => {
             duration: 1,
             trainees: []
         });
-        setActiveRegisterId('new');
+        setActiveDatapackId(null);
+    };
+
+    const handleLoadDatapack = async (datapackId) => {
+        try {
+            const dp = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+            if (!dp) return;
+
+            // When loading an incomplete datapack, we need to fetch associated trainees
+            const fetchedTrainees = dp.trainee_ids
+                ? await window.db.query(`SELECT id, forename, surname, sponsor, sentry_number, additional_comments FROM trainees WHERE datapack = ?`, [datapackId])
+                : [];
+
+            setFormState({
+                courseId: dp.course_id,
+                trainerId: dp.trainer_id,
+                startDate: dp.start_date,
+                duration: dp.duration,
+                trainees: fetchedTrainees.map(t => ({ ...t, has_comments: !!t.additional_comments }))
+            });
+            setActiveDatapackId(datapackId);
+        } catch (error) {
+            console.error("Failed to load datapack:", error);
+        }
     };
     
     // --- DATABASE INTERACTIONS ---
 
-    const handleCreateEvent = async () => {
+    const handleSaveIncomplete = async () => {
+        if (!isSaveable) return;
         const { courseId, trainerId, startDate, duration, trainees } = formState;
 
-        // Validation
-        if (!courseId || !trainerId || !startDate || trainees.length <= 0) {
-             // We can keep a console log for debugging, but remove the user-facing alert
+        try {
+            let datapackId = activeDatapackId;
+
+            // Step 1: Insert or get the datapack ID
+            if (!datapackId) {
+                const result = await window.db.run(
+                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (?, ?, ?, ?, ?)',
+                    [courseId, trainerId, startDate, duration, 'incomplete']
+                );
+                datapackId = result.lastID;
+                setActiveDatapackId(datapackId);
+            } else {
+                // Update basic datapack info if it's already active
+                await window.db.run(
+                    'UPDATE datapack SET course_id = ?, trainer_id = ?, start_date = ?, duration = ? WHERE id = ?',
+                    [courseId, trainerId, startDate, duration, datapackId]
+                );
+            }
+
+            // Step 2: Synchronize trainees
+            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = ?', [datapackId]);
+            const dbTraineeIds = dbTrainees.map(t => t.id);
+            const formTraineeIds = trainees.map(t => t.id).filter(Boolean);
+
+            // Trainees to delete
+            const traineesToDelete = dbTraineeIds.filter(id => !formTraineeIds.includes(id));
+            if (traineesToDelete.length > 0) {
+                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.join(',')})`);
+            }
+
+            const allTraineeIds = [];
+
+            for (const trainee of trainees) {
+                if (trainee.id) { // Existing trainee -> UPDATE
+                    await window.db.run(
+                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ? WHERE id = ?',
+                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
+                    );
+                    allTraineeIds.push(trainee.id);
+                } else { // New trainee -> INSERT
+                    const result = await window.db.run(
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
+                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                    );
+                    allTraineeIds.push(result.lastID);
+                }
+            }
+
+            // Step 3: Update the datapack with the final list of trainee IDs and count
+            await window.db.run(
+                'UPDATE datapack SET trainee_ids = ?, total_trainee_count = ? WHERE id = ?',
+                [allTraineeIds.join(','), allTraineeIds.length, datapackId]
+            );
+
+            fetchIncompleteDatapacks();
+            // Reload the just-saved datapack to get the fresh trainee data with correct IDs
+            handleLoadDatapack(datapackId);
+
+        } catch (error) {
+            console.error("Failed to save incomplete datapack:", error);
+        }
+    };
+
+    const handleCreateEvent = async () => {
+        if (!isSubmittable) {
             console.error('Validation failed: Please fill out all required fields and add at least one trainee.');
             return;
         }
 
-        try {
-            // 1. Insert the new datapack first, but without the trainee_ids, to get its ID
-            const datapackResult = await window.db.run(
-                'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)',
-                [courseId, trainerId, startDate, duration, trainees.length, ''] // trainee_ids is initially empty
-            );
-            const newDatapackId = datapackResult.lastID;
+        const { courseId, trainerId, startDate, duration, trainees } = formState;
 
-            // 2. Insert all trainees, linking them to the new datapack ID
+        try {
+            let datapackId = activeDatapackId;
+
+            if (datapackId) {
+                // Update existing incomplete datapack
+                await window.db.run(
+                    'UPDATE datapack SET course_id = ?, trainer_id = ?, start_date = ?, duration = ? WHERE id = ?',
+                    [courseId, trainerId, startDate, duration, datapackId]
+                );
+
+                // Clear existing trainees for this datapack before inserting new ones
+                await window.db.run('DELETE FROM trainees WHERE datapack = ?', [datapackId]);
+            } else {
+                // Create new datapack entry
+                const datapackResult = await window.db.run(
+                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [courseId, trainerId, startDate, duration, trainees.length, '', 'live']
+                );
+                datapackId = datapackResult.lastID;
+            }
+
+            // Insert trainees and create user accounts
             const insertedTraineeIds = [];
             for (const trainee of trainees) {
-                if (trainee.forename && trainee.surname) { // Only insert if name is provided
-                    const traineeResult = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
-                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, newDatapackId]
-                    );
-                    insertedTraineeIds.push(traineeResult.lastID);
+                const traineeResult = await window.db.run(
+                    'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
+                    [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                );
+                insertedTraineeIds.push(traineeResult.lastID);
 
-                    // Also create a user account for the trainee
+                // User account creation with retry logic for unique usernames
+                let username = trainee.forename.toLowerCase();
+                const password = trainee.surname.toLowerCase();
+                let userCreated = false;
+                let attempt = 0;
+
+                while (!userCreated) {
                     try {
-                        const username = trainee.forename.toLowerCase();
-                        const password = trainee.surname.toLowerCase();
                         await window.db.run(
                             'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
                             [trainee.forename, trainee.surname, 'candidate', username, password]
                         );
+                        userCreated = true;
                     } catch (userError) {
-                        console.warn(`Could not create user for ${trainee.forename} ${trainee.surname}. It might already exist. Error: ${userError.message}`);
+                        if (userError.message.includes('SQLITE_CONSTRAINT') && userError.message.includes('users.username')) {
+                            attempt++;
+                            username = `${trainee.forename.toLowerCase()}${attempt}`;
+                        } else {
+                            console.error(`Failed to create user for ${trainee.forename} ${trainee.surname} due to an unexpected error:`, userError);
+                            break; // Exit loop on other errors
+                        }
                     }
                 }
             }
-            
-            if (insertedTraineeIds.length !== trainees.length) {
-                alert('Some trainees were not added because they were missing a forename or surname.');
-            }
 
-            // 3. Now, update the datapack with the collected trainee IDs
-            const traineeIdsString = insertedTraineeIds.join(',');
+            // Update datapack with trainee info
             await window.db.run(
-                'UPDATE datapack SET trainee_ids = ? WHERE id = ?',
-                [traineeIdsString, newDatapackId]
+                'UPDATE datapack SET trainee_ids = ?, total_trainee_count = ?, status = ? WHERE id = ?',
+                [insertedTraineeIds.join(','), insertedTraineeIds.length, 'pre course', datapackId]
             );
 
-            // Reset the form to its initial state, clearing the canvas
             resetForm();
-
+            fetchIncompleteDatapacks(); // Refresh list
         } catch (error) {
-            console.error('Failed to create event:', error);
-            // Optionally, provide a more user-friendly error message here
+            console.error('Failed to create or update event:', error);
         }
     };
 
     const formatDate = (dateString) => {
-        if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
+        if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return 'Invalid Date';
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('en-GB').format(date);
+    };
+
+    const formatIncompleteTitle = (dp) => {
+        if (!dp || !dp.start_date || !dp.courseName || !dp.forename || !dp.surname) return "Invalid Datapack";
+        
+        const date = new Date(dp.start_date);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2);
+        
+        const initial = dp.forename.charAt(0).toUpperCase();
+        
+        return `${day}.${month}.${year} ${dp.courseName} ${initial} ${dp.surname}`;
+    };
+
+    const getPageTitle = () => {
+        if (!activeDatapackId) {
+            return 'New Registration Form';
+        }
+
+        const course = courses.find(c => c.id === formState.courseId);
+        const trainer = trainers.find(t => t.id === formState.trainerId);
+
+        if (course && trainer && formState.startDate) {
+            const dp = {
+                start_date: formState.startDate,
+                courseName: course.name,
+                forename: trainer.forename,
+                surname: trainer.surname
+            };
+            return `Editing ${formatIncompleteTitle(dp)}`;
+        }
+
+        return `Editing Register #${activeDatapackId}`; // Fallback
     };
 
     const renderRegistrationForm = () => (
         <div className="p-8 h-full overflow-y-auto relative">
              <button onClick={resetForm} className="absolute top-4 right-4 text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">New Registration Form</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">
+                {getPageTitle()}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Dropdown
                     label="Course Title"
@@ -258,14 +416,21 @@ const CreationScreen = () => {
                 </div>
             )}
             
-            {/* Create Event Button */}
-            <div className="mt-8 text-right">
+            {/* Action Buttons */}
+            <div className="mt-8 flex justify-end gap-4">
+                 <button
+                    onClick={handleSaveIncomplete}
+                    className={`px-6 py-2 bg-yellow-500 text-white font-semibold rounded-md ${!isSaveable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-600'}`}
+                    disabled={!isSaveable}
+                >
+                    {activeDatapackId ? 'Update Incomplete' : 'Save Incomplete'}
+                </button>
                 <button 
                     onClick={handleCreateEvent} 
                     className={`px-6 py-2 bg-blue-600 text-white font-semibold rounded-md ${!isSubmittable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                     disabled={!isSubmittable}
                 >
-                    Create New Event
+                    {activeDatapackId ? 'Update & Finalize Event' : 'Create New Event'}
                 </button>
             </div>
         </div>
@@ -275,26 +440,32 @@ const CreationScreen = () => {
         <div className="flex h-full bg-gray-100">
             {/* Left Column */}
             <div className="w-1/5 bg-white p-6 shadow-md flex flex-col">
-                <div>
                 <h2 className="text-xl font-bold mb-6">Create</h2>
                 <button
-                        onClick={resetForm}
-                    className="w-full text-left p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={resetForm}
+                    className="w-full text-left p-3 mb-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                        New Register
-                    </button>
+                    New Register
+                </button>
+                <div className="border-t pt-4 mt-4">
+                    <h3 className="text-lg font-semibold mb-2">Incomplete Registers</h3>
+                    <div className="space-y-2">
+                        {incompleteDatapacks.map(dp => (
+                            <button
+                                key={dp.id}
+                                onClick={() => handleLoadDatapack(dp.id)}
+                                className={`w-full text-left p-2 rounded-md ${activeDatapackId === dp.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 hover:bg-gray-200'}`}
+                            >
+                                <div className="font-bold">{formatIncompleteTitle(dp)}</div>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Right Column (Canvas) */}
             <div className="w-4/5 bg-white">
-                {activeRegisterId ? (
-                    renderRegistrationForm()
-                ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500">Select a register to edit or create a new one.</p>
-                    </div>
-                )}
+                {renderRegistrationForm()}
             </div>
         </div>
     );

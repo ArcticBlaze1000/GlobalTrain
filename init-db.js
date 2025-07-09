@@ -20,7 +20,7 @@ const tables = [
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
     { name: 'competencies', schema: `CREATE TABLE competencies (id INTEGER PRIMARY KEY, name TEXT)` },
-    { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
+    { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT, status TEXT)` },
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
     { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
     { name: 'flags', schema: `CREATE TABLE flags (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, datapack_id INTEGER, document_id INTEGER, trainee_id INTEGER, user_id INTEGER NOT NULL, user_sent_to_id INTEGER NOT NULL, message TEXT NOT NULL, page TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL DEFAULT (datetime('now')), attempted_by TEXT, picked_up_at TEXT, dropped_at TEXT, resolved_at TEXT, resolved_by INTEGER, resolution_notes TEXT, signature TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), FOREIGN KEY (trainee_id) REFERENCES trainees(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (user_sent_to_id) REFERENCES users(id), FOREIGN KEY (resolved_by) REFERENCES users(id))` },
@@ -329,11 +329,11 @@ const traineesToSeed = [
     { forename: 'Liam', surname: 'Anderson', sponsor: 'Colas Rail', sentry_number: '258369', datapack: 5 }
 ];
 const datapackToSeed = [
-    { course_id: 1, trainer_id: 3, start_date: '2025-06-30', duration: 1, total_trainee_count: 1, trainee_ids: '1' },
-    { course_id: 2, trainer_id: 4, start_date: '2025-06-29', duration: 2, total_trainee_count: 3, trainee_ids: '2,3,4' },
-    { course_id: 3, trainer_id: 3, start_date: '2025-06-26', duration: 5, total_trainee_count: 2, trainee_ids: '5,6' },
-    { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8' },
-    { course_id: 3, trainer_id: 3, start_date: '2025-06-27', duration: 5, total_trainee_count: 2, trainee_ids: '9,10' }
+    { course_id: 1, trainer_id: 3, start_date: '2025-06-30', duration: 1, total_trainee_count: 1, trainee_ids: '1', status: 'live' },
+    { course_id: 2, trainer_id: 4, start_date: '2025-06-29', duration: 2, total_trainee_count: 3, trainee_ids: '2,3,4', status: 'live' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-06-26', duration: 5, total_trainee_count: 2, trainee_ids: '5,6', status: 'live' },
+    { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8', status: 'live' },
+    { course_id: 3, trainer_id: 3, start_date: '2025-06-27', duration: 5, total_trainee_count: 2, trainee_ids: '9,10', status: 'live' }
 ];
 
 const seedFlags = () => {
@@ -437,7 +437,7 @@ db.all('SELECT id FROM competencies', [], (err, competencies) => {
     const competencyIds = competencies.map(c => c.id);
 
     db.serialize(() => {
-        const datapackStmt = db.prepare(`INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids) VALUES (?, ?, ?, ?, ?, ?)`);
+        const datapackStmt = db.prepare(`INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids, status) VALUES (?, ?, ?, ?, ?, ?, ?)`);
         datapackToSeed.forEach(dp => datapackStmt.run(Object.values(dp)));
         datapackStmt.finalize();
 
