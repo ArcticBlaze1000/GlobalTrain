@@ -3,7 +3,7 @@ import React from 'react';
 const Form = () => {
     return (
         <div>
-            {/* Placeholder for EmergencyPhoneCallExercise Form */}
+            {/* Placeholder for SentinelPreChecks Form */}
         </div>
     );
 };
