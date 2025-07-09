@@ -453,26 +453,68 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         return newGroupedQuestions;
     }, [groupedQuestions]);
 
-    const handleCompetencyInputChange = (fieldName, traineeId, competencyId, value) => {
+    const handleCompetencyInputChange = (traineeId, competencyId, value) => {
+        const fieldName = 'competency_grid'; // Centralize the field name
         const currentGridData = responses[fieldName]?.data || {};
-        const currentTraineeData = currentGridData[traineeId] || {};
-        const updatedTraineeData = { ...currentTraineeData, [competencyId]: value };
-        const updatedGridData = { ...currentGridData, [traineeId]: updatedTraineeData };
-    
-        const isComplete = trainees.every(t => {
-            const traineeData = updatedGridData[t.id];
-            if (!traineeData) return false;
-            return competencies.every(c => traineeData[c.id] && String(traineeData[c.id]).trim() !== '');
-        });
-    
-        const newResponses = {
-            ...responses,
-            [fieldName]: { ...responses[fieldName], data: updatedGridData, completed: isComplete }
+        const updatedTraineeData = {
+            ...(currentGridData[traineeId] || {}),
+            [competencyId]: value
         };
-        setResponses(newResponses);
+        const updatedGridData = {
+            ...currentGridData,
+            [traineeId]: updatedTraineeData
+        };
     
-        const valueToSave = JSON.stringify(updatedGridData);
-        debouncedSave(fieldName, valueToSave);
+        // Update local state immediately for responsiveness
+        setResponses(prev => ({
+            ...prev,
+            [fieldName]: { ...prev[fieldName], data: updatedGridData }
+        }));
+    
+        // Debounce the save to the database
+        debouncedGridSave(fieldName, updatedGridData);
+    };
+
+    const renderCompetencyGrid = () => {
+        if (!documentDetails || documentDetails.name !== 'Register' || competencies.length === 0) {
+            return null;
+        }
+
+        const isEditable = canUserEdit(documentDetails.access, user.role);
+        const gridData = responses.competency_grid?.data || {};
+
+        return (
+            <div className="py-3 border-t">
+                <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-700">Competency Grid</h4>
+                    <div className="w-1/5 flex justify-center">
+                        {!!responses.competency_grid?.completed && (
+                            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        )}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-3 pl-2">
+                    {trainees.map(trainee => (
+                        <div key={trainee.id} className="flex items-center">
+                            <label className="w-2/5 text-sm text-gray-600 truncate pr-2" title={`${trainee.forename} ${trainee.surname}`}>
+                                {trainee.forename} {trainee.surname}
+                            </label>
+                            <select
+                                value={gridData[trainee.id] || ''}
+                                onChange={(e) => handleCompetencyInputChange(trainee.id, e.target.value, e.target.value)}
+                                className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
+                                disabled={!isEditable}
+                            >
+                                <option value="">Select...</option>
+                                {competencies.map(competency => (
+                                    <option key={competency.id} value={competency.id}>{competency.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
     };
 
     return (

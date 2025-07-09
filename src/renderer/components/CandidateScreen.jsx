@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useEvent } from '../context/EventContext';
 import QuestionnaireForm from './Common/QuestionnaireForm';
+import ProgressIndicator from './Common/ProgressIndicator';
 import PreCourseForm from './General/PreCourse/Form';
 import PostCourseForm from './General/PostCourse/Form';
 import LeavingForm from './General/LeavingForm/Form';
@@ -25,20 +26,6 @@ const formatDocName = (name) => {
     if (!name) return '';
     // Add a space before any capital letter that is preceded by a lowercase letter.
     return name.replace(/([a-z])([A-Z])/g, '$1 $2');
-};
-
-const ProgressIndicator = ({ progress }) => {
-    if (progress === null || progress === undefined) {
-        return <span className="text-red-500 font-bold text-xl">?</span>;
-    }
-    if (progress === 100) {
-        return <span className="text-green-500 text-xl">✔</span>;
-    }
-    return (
-        <span className="text-red-500 font-bold text-sm">
-            {progress}%
-        </span>
-    );
 };
 
 const CandidateScreen = ({ user, openSignatureModal }) => {
@@ -219,7 +206,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         <div className="flex flex-col">
             {items.map((item) => {
                 const isSelected = selectedItem?.id === item.id;
-                const progress = docProgress[item.id] || 0;
+                const progress = docProgress[item.id];
                 return (
                     <button
                         key={item.id}

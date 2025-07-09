@@ -324,199 +324,160 @@ app.on('ready', () => {
   });
   
   ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
-    // Fetch datapack details first to get duration and trainee IDs
-    const datapack = await new Promise((resolve, reject) => {
-        db.get('SELECT trainee_ids, duration FROM datapack WHERE id = ?', [datapackId], (err, row) => {
-            if (err) reject(err); else resolve(row);
-        });
-    });
-    const traineeIds = datapack?.trainee_ids ? datapack.trainee_ids.split(',') : [];
-    const eventDuration = datapack?.duration || 0;
+    // 1. Fetch all necessary data in parallel
+    const [datapack, questions, allResponses, document] = await Promise.all([
+        new Promise((resolve, reject) => db.get('SELECT trainee_ids, duration, course_id FROM datapack WHERE id = ?', [datapackId], (err, row) => err ? reject(err) : resolve(row))),
+        new Promise((resolve, reject) => db.all('SELECT * FROM questionnaires WHERE document_id = ?', [documentId], (err, rows) => err ? reject(err) : resolve(rows))),
+        new Promise((resolve, reject) => db.all('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, documentId], (err, rows) => err ? reject(err) : resolve(rows))),
+        new Promise((resolve, reject) => db.get('SELECT name FROM documents WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row)))
+    ]);
 
-    // 1. Get all questions for the document.
-    const questions = await new Promise((resolve, reject) => {
-        db.all('SELECT * FROM questionnaires WHERE document_id = ?', [documentId], (err, rows) => {
-            if (err) reject(err); else resolve(rows);
-        });
-    });
-
-    if (questions.length === 0) {
-        return 100;
-    }
-
-    // 2. Get all responses for this document within this datapack.
-    const responseRows = await new Promise((resolve, reject) => {
-        const sql = `SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?`;
-        db.all(sql, [datapackId, documentId], (err, rows) => {
-            if (err) reject(err); else resolve(rows);
-        });
-    });
-    
-    // Create a map for easy lookup of responses.
-    const responseMap = responseRows.reduce((acc, row) => {
-        acc[row.field_name] = row;
+    const traineeIds = datapack?.trainee_ids ? datapack.trainee_ids.split(',').filter(id => id) : [];
+    const responseMap = allResponses.reduce((acc, row) => {
+        acc[row.field_name] = row.response_data;
         return acc;
     }, {});
 
-    // --- PRE-CALCULATION SETUP ---
-    // Fetch document details and relevant competencies if we're dealing with the Register.
-    const documentDetails = await new Promise((resolve, reject) => db.get('SELECT name FROM documents WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row)));
-    let relevantCompetencyNames = [];
-    if (documentDetails && documentDetails.name === 'Register' && datapack.course_id) {
-        const course = await new Promise((resolve, reject) => db.get('SELECT competency_ids FROM courses WHERE id = ?', [datapack.course_id], (err, row) => err ? reject(err) : resolve(row)));
-        if (course && course.competency_ids) {
-            const courseCompetencyIds = course.competency_ids.split(',').filter(id => id);
-            if (courseCompetencyIds.length > 0) {
-                const courseCompetencies = await new Promise((resolve, reject) => {
-                    const sql = `SELECT name FROM competencies WHERE id IN (${courseCompetencyIds.map(() => '?').join(',')})`;
-                    db.all(sql, courseCompetencyIds, (err, rows) => err ? reject(err) : resolve(rows));
-                });
-                relevantCompetencyNames = courseCompetencies.map(c => c.name);
-            }
-        }
-    }
+    // 2. Build the list of active questions that require completion
+    let activeQuestions = [];
 
-    // 3. Determine which questions are currently required, respecting event duration and dependencies.
-    const activeQuestions = [];
+    // A. Add questions from the database, respecting dependencies and course duration
     for (const q of questions) {
-        // For day-based questions, only include them if they are within the event's duration.
+        // Skip day-specific questions if they are outside the event's duration
         if (q.field_name.startsWith('day_')) {
             const dayNumber = parseInt(q.field_name.split('_')[1], 10);
-            if (!isNaN(dayNumber) && dayNumber > eventDuration) {
-                continue; // Skip questions for days beyond the event's duration.
+            if (!isNaN(dayNumber) && dayNumber > (datapack?.duration || 0)) {
+                continue;
             }
         }
-
-        // For Register competency questions, only include them if they are relevant to the course.
-        if (q.section === 'COMPETENCIES' && documentDetails.name === 'Register') {
-            if (!relevantCompetencyNames.includes(q.question_text)) {
-                continue; // Skip competencies not in this course.
-            }
+        // For the Register, we handle competencies separately, so skip the DB version
+        if (document.name === 'Register' && q.section === 'COMPETENCIES') {
+            continue;
         }
 
-        if (q.required === 'yes') {
-            activeQuestions.push(q);
-        } else if (q.required === 'dependant' && q.dependency) {
-            const dependencyResponse = responseMap[q.dependency]?.response_data;
-            // A dependency is now met if the response is non-empty.
+        let isRequired = q.required === 'yes';
+        if (q.required === 'dependant' && q.dependency) {
+            const dependencyResponse = responseMap[q.dependency];
             if (dependencyResponse && String(dependencyResponse).trim() !== '') {
-                activeQuestions.push(q);
+                isRequired = true;
             }
+        }
+        if (isRequired) {
+            activeQuestions.push(q);
         }
     }
 
-    if (activeQuestions.length === 0) {
-        return 100; // No required questions, so it's 100% complete.
-    }
+    // B. For the Register, manually add competency grid checks based on the course
+    if (document.name === 'Register' && datapack.course_id) {
+        const course = await new Promise((resolve, reject) => db.get('SELECT competency_ids FROM courses WHERE id = ?', [datapack.course_id], (err, row) => err ? reject(err) : resolve(row)));
+        const courseCompetencyIds = course?.competency_ids ? course.competency_ids.split(',').filter(id => id) : [];
+        
+        if (courseCompetencyIds.length > 0) {
+            const courseCompetencies = await new Promise((resolve, reject) => {
+                const sql = `SELECT id, name FROM competencies WHERE id IN (${courseCompetencyIds.map(() => '?').join(',')})`;
+                db.all(sql, courseCompetencyIds, (err, rows) => err ? reject(err) : resolve(rows));
+            });
 
-    // 4. Count how many of the active questions are completed and track their status.
-    let completedCount = 0;
-    const completionStatusMap = new Map();
-
-    for (const q of activeQuestions) {
-        const response = responseMap[q.field_name];
-        let isComplete = false;
-
-        if (response) {
-            switch (q.input_type) {
-                case 'checkbox':
-                    isComplete = response.response_data === 'true';
-                    break;
-                case 'tri_toggle':
-                    isComplete = response.response_data !== 'neutral' && response.response_data !== '';
-                    break;
-                case 'attendance_grid':
-                case 'trainee_checkbox_grid':
-                case 'trainee_date_grid':
-                case 'trainee_dropdown_grid':
-                case 'trainee_yes_no_grid':
-                case 'signature_grid':
-                    try {
-                        const gridData = JSON.parse(response.response_data || '{}');
-                        isComplete = traineeIds.every(id => gridData[id] !== undefined && gridData[id] !== '');
-                    } catch {
-                        isComplete = false;
-                    }
-                    break;
-                default:
-                    isComplete = response.response_data && String(response.response_data).trim() !== '';
-                    break;
+            for (const competency of courseCompetencies) {
+                const fieldName = `competency_${competency.name.toLowerCase().replace(/[\s/]+/g, '_')}`;
+                activeQuestions.push({
+                    field_name: fieldName,
+                    input_type: 'trainee_dropdown_grid', // This is a standard grid check
+                });
             }
-        }
-
-        completionStatusMap.set(q.field_name, isComplete);
-        if (isComplete) {
-            completedCount++;
         }
     }
     
-    // 5. Calculate percentage.
-    const percentage = activeQuestions.length > 0 ? Math.round((completedCount / activeQuestions.length) * 100) : 100;
+    if (activeQuestions.length === 0) return 100; // Nothing to complete
 
-    // 6. Build a transaction to update both document_progress and the responses completed flag.
-    const queries = [];
+    // 3. Count how many active questions are actually complete
+    let completedCount = 0;
+    const completionStatusMap = new Map();
+    for (const q of activeQuestions) {
+        const responseData = responseMap[q.field_name];
+        let isComplete = false;
+        
+        switch (q.input_type) {
+            case 'checkbox':
+                isComplete = responseData === 'true';
+                break;
+            case 'tri_toggle':
+                isComplete = responseData !== 'neutral' && responseData !== '';
+                break;
+            case 'competency_grid': // Our custom type
+                try {
+                    const gridData = JSON.parse(responseData || '{}');
+                    // Check that every required competency for THIS course has a non-empty value for every trainee
+                    isComplete = traineeIds.every(t_id => 
+                        q.required_ids.every(c_id => 
+                            gridData[t_id] && gridData[t_id][c_id] !== undefined && gridData[t_id][c_id] !== ''
+                        )
+                    );
+                } catch { isComplete = false; }
+                break;
+            case 'attendance_grid':
+            case 'trainee_checkbox_grid':
+            case 'trainee_date_grid':
+            case 'trainee_dropdown_grid':
+            case 'trainee_yes_no_grid':
+            case 'signature_grid':
+                try {
+                    const gridData = JSON.parse(responseData || '{}');
+                    isComplete = traineeIds.every(id => gridData[id] !== undefined && gridData[id] !== '');
+                } catch { isComplete = false; }
+                break;
+            default: // Catches text, dropdown, signature, etc.
+                isComplete = responseData && String(responseData).trim() !== '';
+                break;
+        }
+        if (isComplete) {
+            completedCount++;
+        }
+        completionStatusMap.set(q.field_name, isComplete);
+    }
 
-    // Query for the document_progress table
-    queries.push([
+    // 4. Calculate percentage and update the database and UI
+    const percentage = Math.round((completedCount / activeQuestions.length) * 100);
+
+    const dbQueries = [];
+    // Query to update the overall progress percentage
+    dbQueries.push([
         `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) 
          VALUES (?, ?, ?, ?)
          ON CONFLICT(datapack_id, document_id, trainee_id) 
          DO UPDATE SET completion_percentage = excluded.completion_percentage;`,
         [datapackId, documentId, traineeId, percentage]
     ]);
-
-    // Queries for the responses table
+    // Queries to update the 'completed' flag for each individual response
     for (const [fieldName, isComplete] of completionStatusMap.entries()) {
-        queries.push([
+        dbQueries.push([
             `UPDATE responses SET completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?`,
             [isComplete ? 1 : 0, datapackId, documentId, fieldName]
         ]);
     }
-    
-    // Execute the transaction
+
+    // Execute all updates in a single transaction
     await new Promise((resolve, reject) => {
         db.serialize(() => {
-            db.run('BEGIN TRANSACTION', (err) => {
-                if (err) {
-                    console.error('TRANSACTION START FAILED:', err);
-                    return reject(err);
+            db.run('BEGIN TRANSACTION', err => { if (err) return reject(err); });
+            for (const [sql, params] of dbQueries) {
+                db.run(sql, params, function(err) { if (err) { db.run('ROLLBACK'); return reject(err); }});
+            }
+            db.run('COMMIT', err => {
+                if (err) { db.run('ROLLBACK'); return reject(err); }
+                
+                const window = BrowserWindow.getFocusedWindow();
+                if (window) {
+                    window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
                 }
-                for (const [sql, params] of queries) {
-                    db.run(sql, params, function(err) {
-                        if (err) {
-                            console.error('TRANSACTION QUERY FAILED:', err, sql, params);
-                            db.run('ROLLBACK');
-                            return reject(err);
-                        }
-                    });
-                }
-                db.run('COMMIT', (err) => {
-                    if (err) {
-                        console.error('TRANSACTION COMMIT FAILED:', err);
-                        db.run('ROLLBACK');
-                        return reject(err);
-                    }
-                    
-                    // After a successful commit, send the new progress to the renderer.
-                    const window = BrowserWindow.getFocusedWindow();
-                    if (window) {
-                        window.webContents.send('progress-updated', {
-                            datapackId,
-                            documentId,
-                            traineeId,
-                            progress: percentage
-                        });
-                    }
-
-                    resolve();
-                });
+                resolve();
             });
         });
     });
 
     return percentage;
   });
-  
+
   ipcMain.handle('get-courses', async () => {
     return queryDb('SELECT * FROM courses ORDER BY name');
   });

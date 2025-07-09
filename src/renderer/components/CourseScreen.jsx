@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useEvent } from '../context/EventContext';
+import ProgressIndicator from './Common/ProgressIndicator';
 import RegisterForm from './General/Register/Form';
 import TrainingCourseChecklistForm from './General/TrainingCourseChecklist/Form';
 import TrainingAndWeldingTrackSafetyBreifingForm from './PTS/TrainingAndWeldingTrackSafetyBreifing/Form';
@@ -21,20 +22,6 @@ const formatDocName = (name) => {
     if (!name) return '';
     // Add a space before any capital letter that is preceded by a lowercase letter.
     return name.replace(/([a-z])([A-Z])/g, '$1 $2');
-};
-
-const ProgressIndicator = ({ progress }) => {
-    if (progress === null || progress === undefined) {
-        return <span className="text-red-500 font-bold text-xl">?</span>;
-    }
-    if (progress === 100) {
-        return <span className="text-green-500 text-xl">✔</span>;
-    }
-    return (
-        <span className="text-red-500 font-bold text-sm">
-            {progress}%
-        </span>
-    );
 };
 
 const CourseScreen = ({ user, openSignatureModal }) => {
