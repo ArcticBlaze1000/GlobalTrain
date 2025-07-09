@@ -6,6 +6,7 @@ import UsersScreen from './UsersScreen';
 import SignatureModal from './Common/SignatureModal';
 import { useEvent } from '../context/EventContext';
 import AdminScreen from './AdminScreen';
+import FlagModal from './Common/FlagModal';
 
 // A local component for rendering tab buttons to reduce repetition
 const TabButton = ({ name, activeTab, setActiveTab }) => {
@@ -68,6 +69,7 @@ const Dashboard = ({ user, onLogout }) => {
     };
     const [activeTab, setActiveTab] = useState(getDefaultTab());
     const [signatureState, setSignatureState] = useState({ isOpen: false, onSave: null, initialData: null });
+    const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
 
     const openSignatureModal = (onSave, initialData = null) => {
         setSignatureState({
@@ -110,6 +112,7 @@ const Dashboard = ({ user, onLogout }) => {
             {/* User info and Logout button on the right */}
             <div className="flex items-center space-x-4">
                 <button
+                    onClick={() => setIsFlagModalOpen(true)}
                     className="flex items-center space-x-2 px-3 py-1 border-2 border-red-700 text-red-700 bg-red-100 rounded-md font-bold hover:bg-red-700 hover:text-white transition-colors duration-200"
                 >
                     <svg
@@ -155,6 +158,10 @@ const Dashboard = ({ user, onLogout }) => {
                 onClose={closeSignatureModal}
                 onSave={signatureState.onSave}
                 signatureData={signatureState.initialData}
+            />
+            <FlagModal 
+                show={isFlagModalOpen}
+                onClose={() => setIsFlagModalOpen(false)}
             />
         </div>
     );

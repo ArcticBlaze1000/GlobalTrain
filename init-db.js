@@ -23,6 +23,7 @@ const tables = [
     { name: 'datapack', schema: `CREATE TABLE datapack (id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER, trainer_id INTEGER, start_date TEXT, duration INTEGER, total_trainee_count INTEGER, trainee_ids TEXT)` },
     { name: 'permissions', schema: `CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL)` },
     { name: 'document_progress', schema: `CREATE TABLE IF NOT EXISTS document_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_id INTEGER, completion_percentage INTEGER NOT NULL, UNIQUE(datapack_id, document_id, trainee_id))` },
+    { name: 'flags', schema: `CREATE TABLE flags (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, datapack_id INTEGER, document_id INTEGER, trainee_id INTEGER, user_id INTEGER NOT NULL, user_sent_to_id INTEGER NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', content TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), resolved_at TEXT, resolution_notes TEXT, signature TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), FOREIGN KEY (trainee_id) REFERENCES trainees(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (user_sent_to_id) REFERENCES users(id))` },
 ];
 // --- Seed Data ---
 const usersToSeed = [
