@@ -13,7 +13,6 @@ import LogbookEntriesForm from '../General/LogbookEntries/Form';
 import QuestionnaireAndFeedbackForm from '../General/QuestionnaireAndFeedbackForm/Form';
 import ScenarioAssessmentForm from '../General/ScenarioAssessment/Form';
 import WorkbookForm from '../General/Workbook/Form';
-import EvidenceOfLogbookForm from '../General/EvidenceOfLogbook/Form';
 import PhotographicIDForm from '../General/PhotographicID/Form';
 import PhoneticQuizForm from '../PTS/PhoneticQuiz/Form';
 import EmergencyPhoneCallExerciseForm from '../PTS/EmergencyPhoneCallExercise/Form';
@@ -34,7 +33,6 @@ const formMap = {
     'QuestionnaireAndFeedbackForm': QuestionnaireAndFeedbackForm,
     'ScenarioAssessment': ScenarioAssessmentForm,
     'Workbook': WorkbookForm,
-    'EvidenceOfLogbook': EvidenceOfLogbookForm,
     'PhotographicID': PhotographicIDForm,
     'PhoneticQuiz': PhoneticQuizForm,
     'EmergencyPhoneCallExercise': EmergencyPhoneCallExerciseForm,

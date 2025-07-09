@@ -497,34 +497,29 @@ app.on('ready', () => {
   });
 
   ipcMain.handle('check-document-file', async (event, { datapackId, documentName, traineeDetails }) => {
-    const docInfo = {
-        // Photos
+    const docNameToTypeMap = {
         'Swipes': { type: 'photo', scope: 'course', docId: 15 },
-        'EvidenceOfLogbook': { type: 'photo', scope: 'candidate', docId: 25 },
         'PhotographicID': { type: 'photo', scope: 'candidate', docId: 18 },
-
-        // PDFs
-        'PhoneticQuiz': { type: 'pdf', scope: 'candidate', docId: 7 },
-        'AssessmentReview': { type: 'pdf', scope: 'candidate', docId: 23 },
-        'Certificates': { type: 'pdf', scope: 'candidate', docId: 24 },
-        'GeneralTrackVisitForm': { type: 'pdf', scope: 'course', docId: 14 },
-        'KnowledgeAssessment': { type: 'pdf', scope: 'candidate', docId: 21 },
-        'LogbookEntries': { type: 'pdf', scope: 'candidate', docId: 17 },
-        'PracticalAssessment': { type: 'pdf', scope: 'candidate', docId: 11 },
-        'QuestionnaireAndFeedbackForm': { type: 'pdf', scope: 'candidate', docId: 19 },
-        'ScenarioAssessment': { type: 'pdf', scope: 'candidate', docId: 22 },
-        'SWP': { type: 'pdf', scope: 'course', docId: 16 },
-        'Workbook': { type: 'pdf', scope: 'candidate', docId: 20 },
-        'EmergencyPhoneCallExercise': { type: 'pdf', scope: 'candidate', docId: 8 },
-        'RecertEmergencyCallPracticalAssessment': { type: 'pdf', scope: 'candidate', docId: 12 },
-        'TrackWalkDeliveryRequirements': { type: 'pdf', scope: 'course', docId: 13 }
+        'AssessmentReview': { type: 'photo', scope: 'candidate', docId: 23 },
+        'Certificates': { type: 'photo', scope: 'candidate', docId: 24 },
+        'GeneralTrackVisitForm': { type: 'photo', scope: 'course', docId: 14 },
+        'KnowledgeAssessment': { type: 'questionnaire', scope: 'candidate', docId: 21 },
+        'LogbookEntries': { type: 'photo', scope: 'candidate', docId: 17 },
+        'PracticalAssessment': { type: 'photo', scope: 'candidate', docId: 11 },
+        'QuestionnaireAndFeedbackForm': { type: 'questionnaire', scope: 'candidate', docId: 19 },
+        'ScenarioAssessment': { type: 'questionnaire', scope: 'candidate', docId: 22 },
+        'SWP': { type: 'photo', scope: 'course', docId: 16 },
+        'Workbook': { type: 'photo', scope: 'candidate', docId: 20 },
+        'EmergencyPhoneCallExercise': { type: 'photo', scope: 'candidate', docId: 8 },
+        'RecertEmergencyCallPracticalAssessment': { type: 'photo', scope: 'candidate', docId: 12 },
+        'TrackWalkDeliveryRequirements': { type: 'photo', scope: 'course', docId: 13 }
     };
 
-    if (!docInfo[documentName]) {
+    if (!docNameToTypeMap[documentName]) {
         return { exists: false, message: 'Document type not configured for checking.' };
     }
 
-    const docDetails = docInfo[documentName];
+    const docDetails = docNameToTypeMap[documentName];
     const allowedTypes = docDetails.type === 'photo' ? ['.jpg', '.jpeg', '.png'] : ['.pdf'];
     
     try {

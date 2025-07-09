@@ -18,9 +18,8 @@ import LogbookEntriesForm from './General/LogbookEntries/Form';
 import QuestionnaireAndFeedbackForm from './General/QuestionnaireAndFeedbackForm/Form';
 import ScenarioAssessmentForm from './General/ScenarioAssessment/Form';
 import WorkbookForm from './General/Workbook/Form';
-import EvidenceOfLogbookForm from './General/EvidenceOfLogbook/Form';
 import PhotographicIDForm from './General/PhotographicID/Form';
-import FileCheckDisplay from './Common/FileCheckDisplay';
+import FileCheckDisplay from './common/FileCheckDisplay';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -291,8 +290,8 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 'LogbookEntries': LogbookEntriesForm,
                 'ScenarioAssessment': ScenarioAssessmentForm,
                 'Workbook': WorkbookForm,
-                'EvidenceOfLogbook': EvidenceOfLogbookForm,
                 'PhotographicID': PhotographicIDForm,
+                'Swipes': SwipesForm,
             };
 
             const FormComponent = forms[docName] || QuestionnaireForm;
