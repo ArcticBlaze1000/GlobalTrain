@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Dropdown from './Common/Dropdown';
 import { debounce } from 'lodash';
 
+const capitalize = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 const CreationScreen = () => {
     // --- STATE MANAGEMENT ---
     const [courses, setCourses] = useState([]);
@@ -170,16 +175,19 @@ const CreationScreen = () => {
             const allTraineeIds = [];
 
             for (const trainee of trainees) {
+                const forename = capitalize(trainee.forename);
+                const surname = capitalize(trainee.surname);
+
                 if (trainee.id) { // Existing trainee -> UPDATE
                     await window.db.run(
                         'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ? WHERE id = ?',
-                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
                     );
                     allTraineeIds.push(trainee.id);
                 } else { // New trainee -> INSERT
                     const result = await window.db.run(
                         'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
-                        [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
                     );
                     allTraineeIds.push(result.lastID);
                 }
@@ -211,66 +219,81 @@ const CreationScreen = () => {
         try {
             let datapackId = activeDatapackId;
 
+            // Step 1: Insert or update the datapack
             if (datapackId) {
-                // Update existing incomplete datapack
                 await window.db.run(
                     'UPDATE datapack SET course_id = ?, trainer_id = ?, start_date = ?, duration = ? WHERE id = ?',
                     [courseId, trainerId, startDate, duration, datapackId]
                 );
-
-                // Clear existing trainees for this datapack before inserting new ones
-                await window.db.run('DELETE FROM trainees WHERE datapack = ?', [datapackId]);
             } else {
-                // Create new datapack entry
                 const datapackResult = await window.db.run(
-                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, total_trainee_count, trainee_ids, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [courseId, trainerId, startDate, duration, trainees.length, '', 'live']
+                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (?, ?, ?, ?, ?)',
+                    [courseId, trainerId, startDate, duration, 'pre course']
                 );
                 datapackId = datapackResult.lastID;
             }
 
-            // Insert trainees and create user accounts
-            const insertedTraineeIds = [];
+            // Step 2: Synchronize trainees and create user accounts
+            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = ?', [datapackId]);
+            const dbTraineeIds = dbTrainees.map(t => t.id);
+            const formTraineeIds = trainees.map(t => t.id).filter(Boolean);
+
+            const traineesToDelete = dbTraineeIds.filter(id => !formTraineeIds.includes(id));
+            if (traineesToDelete.length > 0) {
+                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.join(',')})`);
+            }
+
+            const allTraineeIds = [];
             for (const trainee of trainees) {
-                const traineeResult = await window.db.run(
-                    'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
-                    [trainee.forename, trainee.surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
-                );
-                insertedTraineeIds.push(traineeResult.lastID);
+                const forename = capitalize(trainee.forename);
+                const surname = capitalize(trainee.surname);
 
-                // User account creation with retry logic for unique usernames
-                let username = trainee.forename.toLowerCase();
-                const password = trainee.surname.toLowerCase();
-                let userCreated = false;
-                let attempt = 0;
+                if (trainee.id) {
+                    await window.db.run(
+                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ? WHERE id = ?',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.id]
+                    );
+                    allTraineeIds.push(trainee.id);
+                } else {
+                    const traineeResult = await window.db.run(
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack) VALUES (?, ?, ?, ?, ?, ?)',
+                        [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId]
+                    );
+                    const newTraineeId = traineeResult.lastID;
+                    allTraineeIds.push(newTraineeId);
 
-                while (!userCreated) {
-                    try {
-                        await window.db.run(
-                            'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
-                            [trainee.forename, trainee.surname, 'candidate', username, password]
-                        );
-                        userCreated = true;
-                    } catch (userError) {
-                        if (userError.message.includes('SQLITE_CONSTRAINT') && userError.message.includes('users.username')) {
-                            attempt++;
-                            username = `${trainee.forename.toLowerCase()}${attempt}`;
-                        } else {
-                            console.error(`Failed to create user for ${trainee.forename} ${trainee.surname} due to an unexpected error:`, userError);
-                            break; // Exit loop on other errors
+                    let username = forename.toLowerCase();
+                    const password = surname.toLowerCase();
+                    let userCreated = false;
+                    let attempt = 0;
+                    while (!userCreated) {
+                        try {
+                            await window.db.run(
+                                'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
+                                [forename, surname, 'candidate', username, password]
+                            );
+                            userCreated = true;
+                        } catch (userError) {
+                            if (userError.message.includes('SQLITE_CONSTRAINT') && userError.message.includes('users.username')) {
+                                attempt++;
+                                username = `${forename.toLowerCase()}${attempt}`;
+                            } else {
+                                console.error(`Failed to create user for ${forename} ${surname} due to an unexpected error:`, userError);
+                                break;
+                            }
                         }
                     }
                 }
             }
 
-            // Update datapack with trainee info
+            // Step 3: Finalize datapack
             await window.db.run(
                 'UPDATE datapack SET trainee_ids = ?, total_trainee_count = ?, status = ? WHERE id = ?',
-                [insertedTraineeIds.join(','), insertedTraineeIds.length, 'pre course', datapackId]
+                [allTraineeIds.join(','), allTraineeIds.length, 'pre course', datapackId]
             );
 
             resetForm();
-            fetchIncompleteDatapacks(); // Refresh list
+            fetchIncompleteDatapacks();
         } catch (error) {
             console.error('Failed to create or update event:', error);
         }
