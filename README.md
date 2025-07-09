@@ -81,6 +81,21 @@ To ensure a structured and auditable workflow, training events (Datapacks) now m
 
 - **Controlled Visibility**: This status-driven system ensures that each screen in the application only shows relevant data: drafts in `CreationScreen`, pending events in `AdminScreen`, and fully approved events in the live training screens.
 
+### **Advanced Flagging System**
+To enhance collaboration and issue resolution, the application includes a sophisticated flagging system. This allows any user to raise a "flag" on a specific page, document, or even a trainee, to draw an administrator's attention to a potential issue.
+
+- **Context-Aware Flagging**: Users can raise a flag from any screen in the application. The system automatically captures the context, including the active event (Datapack), the selected document, and the trainee in view, linking this information directly to the flag.
+- **Role-Based Workflow**:
+    - Any user can create a flag and send it to an `admin` or `dev`.
+    - Administrators manage all incoming flags through a dedicated **Flags Management** screen within the Admin Panel.
+- **Flag Lifecycle**: Flags move through a clear lifecycle, tracked by status:
+    1.  **`open`**: The initial state when a flag is created.
+    2.  **`in-progress`**: An admin has picked up the flag and is actively working on it.
+    3.  **`resolved`**: The issue has been addressed and the flag is closed.
+    4.  **`rejected`**: The flag was deemed unnecessary and was closed without action.
+- **Live Document View**: When an administrator picks up a flag that is linked to a specific document, the system provides a **live, interactive view of that document directly within the flag details screen**. This allows the admin to see all existing data, make necessary corrections, and fill out the form without ever leaving the Admin Panel, streamlining the resolution process.
+- **Detailed Audit Trail**: The system records who raised the flag, who it was sent to, when it was picked up, and how it was resolved, providing a complete audit trail for every issue.
+
 ### **Database-Driven Document Generation**
 - The structure of all forms and checklists is defined in the database, not in the code.
 - Supports a wide variety of input types including standard inputs, interactive elements (tri-toggles, signatures), and complex data grids.
@@ -143,6 +158,7 @@ The application's flexibility comes from its comprehensive SQLite database (`dat
 | `responses`              | Stores all submitted form data with trainee associations and completion tracking.                                                       |
 | `competencies`           | Professional competencies that can be assessed and tracked.                                                                             |
 | `document_progress`      | **NEW**: Persists the completion percentage of documents for each trainee, ensuring state is saved across sessions.                        |
+| `flags`                  | **NEW**: Manages the flagging system. Stores details about raised issues, including context (datapack, document, trainee), status, resolution notes, and a full audit trail. |
 | `permissions`            | Role-based permission system for fine-grained access control.                                                                           |
 
 ### Project Structure
@@ -170,6 +186,10 @@ global-train/
             ├── Dashboard.jsx        # Main application dashboard with tabs
             ├── CreationScreen.jsx   # Training event creation and management
             ├── AdminScreen.jsx      # Admin approval screen
+            ├── Admin/               # Components specific to the Admin Panel
+            │   ├── CoursesManagement.jsx # Interface for course management
+            │   ├── FlagsManagement.jsx   # Main view for managing flags
+            │   └── FlagDetailView.jsx    # Detailed view for a single flag
             ├── CourseScreen.jsx     # Course-level document management
             ├── CandidateScreen.jsx  # Candidate-level document management
             ├── UsersScreen.jsx      # User management (admin only)
