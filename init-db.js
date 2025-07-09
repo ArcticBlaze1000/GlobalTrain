@@ -15,7 +15,7 @@ const tables = [
     { name: 'users', schema: `CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT, surname TEXT, role TEXT, username TEXT UNIQUE, password TEXT)` },
     { name: 'trainees', schema: `CREATE TABLE trainees (id INTEGER PRIMARY KEY AUTOINCREMENT, forename TEXT NOT NULL, surname TEXT NOT NULL, sponsor TEXT, sentry_number TEXT, additional_comments TEXT, datapack INTEGER)` },
     { name: 'courses', schema: `CREATE TABLE courses (id INTEGER PRIMARY KEY, name TEXT, doc_ids TEXT, competency_ids TEXT, course_length INTEGER, non_mandatory_doc_ids TEXT)` },
-    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT, competency_ids TEXT)` },
+    { name: 'documents', schema: `CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, scope TEXT, visible TEXT, location TEXT, type TEXT)` },
     { name: 'questionnaires', schema: `CREATE TABLE questionnaires (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, section TEXT, question_text TEXT NOT NULL, input_type TEXT NOT NULL, field_name TEXT NOT NULL, access TEXT, has_comments TEXT DEFAULT 'NO', required TEXT DEFAULT 'yes', dependency TEXT DEFAULT '', FOREIGN KEY (document_id) REFERENCES documents(id))` },
     { name: 'questionnaire_options', schema: `CREATE TABLE questionnaire_options (id INTEGER PRIMARY KEY AUTOINCREMENT, question_field_name TEXT NOT NULL, option_value TEXT NOT NULL)` },
     { name: 'responses', schema: `CREATE TABLE responses (id INTEGER PRIMARY KEY AUTOINCREMENT, datapack_id INTEGER NOT NULL, document_id INTEGER NOT NULL, trainee_ids TEXT, field_name TEXT NOT NULL, response_data TEXT, completed BOOLEAN DEFAULT 0, additional_comments TEXT, FOREIGN KEY (datapack_id) REFERENCES datapack(id), FOREIGN KEY (document_id) REFERENCES documents(id), UNIQUE(datapack_id, document_id, field_name))` },
@@ -81,38 +81,38 @@ const coursesToSeed = [
     { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
 ];
 const documentsToSeed = [
-    { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', competency_ids: '1' },
-    { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'ProgressRecord', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'PracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'TrackWalkDeliveryRequirements', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'Swipes', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'SWP', scope: 'course', visible: 'dev,admin,trainer' },
-    { name: 'LogbookEntries', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'PhotographicID', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'QuestionnaireAndFeedbackForm', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'Workbook', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'KnowledgeAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer' },
-    { name: 'EvidenceOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer' },
+    { name: 'Register', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'TrainingCourseChecklist', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'TrainingAndWeldingTrackSafetyBreifing', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
+    { name: 'Pre Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
+    { name: 'Post Course', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
+    { name: 'LeavingForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'PhoneticQuiz', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'questionnaire' },
+    { name: 'EmergencyPhoneCallExercise', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
+    { name: 'ProgressRecord', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'DeviationForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'PracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'RecertEmergencyCallPracticalAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
+    { name: 'TrackWalkDeliveryRequirements', scope: 'course', visible: 'dev,admin,trainer', location: 'PTS', type: 'scanned pdf' },
+    { name: 'GeneralTrackVisitForm', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'Swipes', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'SWP', scope: 'course', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'LogbookEntries', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'PhotographicID', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned photo' },
+    { name: 'QuestionnaireAndFeedbackForm', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
+    { name: 'Workbook', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'KnowledgeAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
+    { name: 'ScenarioAssessment', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'questionnaire' },
+    { name: 'AssessmentReview', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'Certificates', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
+    { name: 'EvidenceOfLogbook', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf' },
     // Admin Documents
-    { name: 'BookingForm', scope: 'admin', visible: 'dev,admin' },
-    { name: 'JoiningInstructions', scope: 'admin', visible: 'dev,admin' },
-    { name: 'EmailConfirmation', scope: 'admin', visible: 'dev,admin' },
-    { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin' },
-    { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin' },
-    { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin' }
+    { name: 'BookingForm', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
+    { name: 'JoiningInstructions', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
+    { name: 'EmailConfirmation', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
+    { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
+    { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' },
+    { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf' }
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)
@@ -370,8 +370,8 @@ db.serialize(() => {
     usersToSeed.forEach(user => userStmt.run(Object.values(user)));
     userStmt.finalize();
 
-    const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible) VALUES (?, ?, ?)`);
-    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible));
+    const docStmt = db.prepare(`INSERT INTO documents (name, scope, visible, location, type) VALUES (?, ?, ?, ?, ?)`);
+    documentsToSeed.forEach(doc => docStmt.run(doc.name, doc.scope, doc.visible, doc.location, doc.type));
     docStmt.finalize();
 
     const courseStmt = db.prepare(`INSERT INTO courses (id, name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (?, ?, ?, ?, ?, ?)`);
