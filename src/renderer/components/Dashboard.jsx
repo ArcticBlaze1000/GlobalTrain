@@ -109,6 +109,24 @@ const Dashboard = ({ user, onLogout }) => {
 
             {/* User info and Logout button on the right */}
             <div className="flex items-center space-x-4">
+                <button
+                    className="flex items-center space-x-2 px-3 py-1 border-2 border-red-700 text-red-700 bg-red-100 rounded-md font-bold hover:bg-red-700 hover:text-white transition-colors duration-200"
+                >
+                    <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path 
+                            d="M6 3v18M6 5h12l-4 4 4 4H6z"
+                            stroke="currentColor" 
+                            strokeWidth="1"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                    <span>FLAG</span>
+                </button>
                 <span className="text-sm text-gray-600">
                     Welcome, {user.forename} ({user.role})
                 </span>
