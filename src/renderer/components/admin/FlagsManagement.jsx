@@ -8,33 +8,74 @@ const statusStyles = {
     rejected: { text: 'text-gray-900', bg: 'bg-gray-200' },
 };
 
+const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleString('en-GB') : 'N/A';
+
+// Reusable table component for displaying a list of flags
+const FlagTable = ({ title, flags, onFlagSelect, children }) => (
+    <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+            {children}
+        </div>
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <table className="min-w-full leading-normal">
+                <thead>
+                    <tr>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Raised By</th>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sent To</th>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {flags.length > 0 ? flags.map((flag) => (
+                        <tr key={flag.id}>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.title}</td>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.raised_by}</td>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.sent_to}</td>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${statusStyles[flag.status]?.text || ''}`}>
+                                    <span aria-hidden className={`absolute inset-0 ${statusStyles[flag.status]?.bg || ''} opacity-50 rounded-full`}></span>
+                                    <span className="relative">{flag.status}</span>
+                                </span>
+                            </td>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
+                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
+                                <button onClick={() => onFlagSelect(flag)} className="text-indigo-600 hover:text-indigo-900">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    )) : (
+                        <tr>
+                            <td colSpan="6" className="text-center p-5 text-gray-500">No flags in this category.</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+);
+
+
 const FlagsManagement = ({ user }) => {
     const [flags, setFlags] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedFlag, setSelectedFlag] = useState(null);
-
-    const handleFlagUpdate = (updatedFlag) => {
-        // Update the flag in the main list
-        setFlags(currentFlags => 
-            currentFlags.map(f => f.id === updatedFlag.id ? updatedFlag : f)
-        );
-        // Also update the currently selected flag to re-render the detail view
-        setSelectedFlag(updatedFlag);
-    };
+    const [filterMode, setFilterMode] = useState('1d'); // '1d', '1w', '1m', 'custom'
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     useEffect(() => {
-        if (selectedFlag) return; // Don't refetch when viewing a detail
-
         const fetchFlags = async () => {
             if (!user) {
                 setIsLoading(false);
                 return;
             }
-
             setIsLoading(true);
             try {
-                // This query joins the flags table with the users table twice 
-                // to get the names of both the user who raised the flag and who it was sent to.
                 let query = `
                     SELECT 
                         f.*, 
@@ -44,22 +85,14 @@ const FlagsManagement = ({ user }) => {
                     JOIN users raiser ON f.user_id = raiser.id
                     JOIN users receiver ON f.user_sent_to_id = receiver.id
                 `;
-
-                // Filter flags based on the current user's role.
                 if (user.role === 'admin') {
-                    // Admins only see flags sent to other admins.
                     query += ` WHERE receiver.role = 'admin'`;
                 } else if (user.role !== 'dev') {
-                    // If the user is not a dev or an admin, show no flags.
-                    // This is a safeguard, as routing should prevent this.
                     setFlags([]);
                     setIsLoading(false);
                     return;
                 }
-                // Devs see all flags, so no WHERE clause is added for them.
-
                 query += ' ORDER BY f.created_at DESC';
-
                 const result = await window.db.query(query);
                 setFlags(result);
             } catch (error) {
@@ -70,9 +103,14 @@ const FlagsManagement = ({ user }) => {
         };
 
         fetchFlags();
-    }, [user, selectedFlag]);
+    }, [user]);
 
-    const formatDate = (dateString) => new Date(dateString).toLocaleString('en-GB');
+    const handleFlagUpdate = (updatedFlag) => {
+        setFlags(currentFlags => 
+            currentFlags.map(f => f.id === updatedFlag.id ? updatedFlag : f)
+        );
+        setSelectedFlag(updatedFlag);
+    };
 
     if (isLoading) {
         return <div className="p-6">Loading flags...</div>;
@@ -82,50 +120,108 @@ const FlagsManagement = ({ user }) => {
         return <FlagDetailView flag={selectedFlag} user={user} onBackToList={() => setSelectedFlag(null)} onUpdate={handleFlagUpdate} />;
     }
 
+    const getFilteredFlags = (status) => {
+        const statusMap = {
+            open: ['open'],
+            'in-progress': ['in-progress'],
+            closed: ['resolved', 'rejected'],
+        };
+        const targetStatuses = statusMap[status] || [];
+        let filtered = flags.filter(f => targetStatuses.includes(f.status));
+
+        if (status === 'closed') {
+            let start;
+            let end;
+
+            if (filterMode === 'custom') {
+                start = startDate ? new Date(startDate) : null;
+                if(start) start.setHours(0, 0, 0, 0);
+                end = endDate ? new Date(endDate) : null;
+                if(end) end.setHours(23, 59, 59, 999);
+            } else {
+                const now = new Date();
+                end = new Date(); // Today
+                end.setHours(23, 59, 59, 999);
+                start = new Date();
+                start.setHours(0, 0, 0, 0);
+
+                const timeLimits = {
+                    '1d': 1,
+                    '1w': 7,
+                    '1m': 30,
+                };
+                start.setDate(now.getDate() - (timeLimits[filterMode] || 0));
+            }
+            
+            if (start || end) {
+                filtered = filtered.filter(f => {
+                    if (!f.resolved_at) return false;
+                    const resolvedDate = new Date(f.resolved_at);
+                    if (start && end) return resolvedDate >= start && resolvedDate <= end;
+                    if (start) return resolvedDate >= start;
+                    if (end) return resolvedDate <= end;
+                    return true;
+                });
+            }
+        }
+        return filtered;
+    };
+    
+    const FilterButton = ({ period, label }) => (
+        <button
+            onClick={() => setFilterMode(period)}
+            className={`px-3 py-1 text-sm font-medium rounded-md ${
+                filterMode === period ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+        >
+            {label}
+        </button>
+    );
+
     return (
         <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Flags</h2>
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Raised By</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sent To</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Page</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {flags.map((flag) => (
-                            <tr key={flag.id}>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.title}</td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.raised_by}</td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.sent_to}</td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.page}</td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${
-                                        statusStyles[flag.status]?.text || statusStyles.rejected.text
-                                    }`}>
-                                        <span aria-hidden className={`absolute inset-0 ${
-                                            statusStyles[flag.status]?.bg || statusStyles.rejected.bg
-                                        } opacity-50 rounded-full`}></span>
-                                        <span className="relative">{flag.status}</span>
-                                    </span>
-                                </td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
-                                    <button onClick={() => setSelectedFlag(flag)} className="text-indigo-600 hover:text-indigo-900">
-                                        View
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <FlagTable title="Open" flags={getFilteredFlags('open')} onFlagSelect={setSelectedFlag} />
+            <FlagTable title="In Progress" flags={getFilteredFlags('in-progress')} onFlagSelect={setSelectedFlag} />
+            <FlagTable title="Closed" flags={getFilteredFlags('closed')} onFlagSelect={setSelectedFlag}>
+                <div className="flex flex-col items-end space-y-2">
+                    <div className="flex items-center space-x-2">
+                        <FilterButton period="1d" label="1 Day" />
+                        <FilterButton period="1w" label="1 Week" />
+                        <FilterButton period="1m" label="1 Month" />
+                        <FilterButton period="custom" label="Custom" />
+                    </div>
+                    {filterMode === 'custom' && (
+                        <div className="flex items-center space-x-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <label htmlFor="start-date" className="text-sm font-medium text-gray-700">From</label>
+                                <input 
+                                    type="date" 
+                                    id="start-date" 
+                                    value={startDate} 
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <label htmlFor="end-date" className="text-sm font-medium text-gray-700">To</label>
+                                <input 
+                                    type="date" 
+                                    id="end-date" 
+                                    value={endDate} 
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                />
+                            </div>
+                            <button
+                                onClick={() => { setStartDate(''); setEndDate(''); }}
+                                className="px-3 py-1 text-sm font-medium bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </FlagTable>
         </div>
     );
 };
