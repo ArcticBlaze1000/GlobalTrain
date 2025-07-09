@@ -149,7 +149,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex-grow overflow-y-auto">
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
-                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <AdminScreen user={user} />}
+                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <AdminScreen user={user} openSignatureModal={openSignatureModal} />}
                 {user.role !== 'candidate' && activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
                 {activeTab === 'candidate' && <CandidateScreen user={user} openSignatureModal={openSignatureModal} />}
             </div>

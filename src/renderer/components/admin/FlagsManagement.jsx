@@ -74,7 +74,7 @@ const FlagTable = ({ title, flags, onFlagSelect, children }) => {
 };
 
 
-const FlagsManagement = ({ user }) => {
+const FlagsManagement = ({ user, openSignatureModal }) => {
     const [flags, setFlags] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedFlag, setSelectedFlag] = useState(null);
@@ -131,7 +131,7 @@ const FlagsManagement = ({ user }) => {
     }
 
     if (selectedFlag) {
-        return <FlagDetailView flag={selectedFlag} user={user} onBackToList={() => setSelectedFlag(null)} onUpdate={handleFlagUpdate} />;
+        return <FlagDetailView flag={selectedFlag} user={user} onBackToList={() => setSelectedFlag(null)} onUpdate={handleFlagUpdate} openSignatureModal={openSignatureModal} />;
     }
 
     const getFilteredFlags = (status) => {

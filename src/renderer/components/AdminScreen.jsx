@@ -9,7 +9,7 @@ const RegisterPlaceholder = () => (
     </div>
 );
 
-const AdminScreen = ({ user }) => {
+const AdminScreen = ({ user, openSignatureModal }) => {
     const [activeTab, setActiveTab] = useState('courses');
 
     const renderContent = () => {
@@ -17,7 +17,7 @@ const AdminScreen = ({ user }) => {
             case 'courses':
                 return <CoursesManagement user={user} />;
             case 'flags':
-                return <FlagsManagement user={user} />;
+                return <FlagsManagement user={user} openSignatureModal={openSignatureModal} />;
             case 'register':
                 return <RegisterPlaceholder />;
             default:

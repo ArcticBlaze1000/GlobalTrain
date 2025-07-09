@@ -1,16 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import SignatureModal from '../Common/SignatureModal';
 
-const FlagDetailView = ({ flag, user, onBackToList, onUpdate }) => {
+// Dynamically imported forms
+import PreCourseForm from '../General/PreCourse/Form';
+import PostCourseForm from '../General/PostCourse/Form';
+import LeavingForm from '../General/LeavingForm/Form';
+import PracticalAssessmentForm from '../General/PracticalAssessment/Form';
+import AssessmentReviewForm from '../General/AssessmentReview/Form';
+import CertificatesForm from '../General/Certificates/Form';
+import KnowledgeAssessmentForm from '../General/KnowledgeAssessment/Form';
+import LogbookEntriesForm from '../General/LogbookEntries/Form';
+import QuestionnaireAndFeedbackForm from '../General/QuestionnaireAndFeedbackForm/Form';
+import ScenarioAssessmentForm from '../General/ScenarioAssessment/Form';
+import WorkbookForm from '../General/Workbook/Form';
+import EvidenceOfLogbookForm from '../General/EvidenceOfLogbook/Form';
+import PhotographicIDForm from '../General/PhotographicID/Form';
+import PhoneticQuizForm from '../PTS/PhoneticQuiz/Form';
+import EmergencyPhoneCallExerciseForm from '../PTS/EmergencyPhoneCallExercise/Form';
+import RecertEmergencyCallPracticalAssessmentForm from '../PTS/RecertEmergencyCallPracticalAssessment/Form';
+import TrackWalkDeliveryRequirementsForm from '../PTS/TrackWalkDeliveryRequirements/Form';
+import QuestionnaireForm from '../Common/QuestionnaireForm';
+
+
+const formMap = {
+    'PreCourse': PreCourseForm,
+    'PostCourse': PostCourseForm,
+    'LeavingForm': LeavingForm,
+    'PracticalAssessment': PracticalAssessmentForm,
+    'AssessmentReview': AssessmentReviewForm,
+    'Certificates': CertificatesForm,
+    'KnowledgeAssessment': KnowledgeAssessmentForm,
+    'LogbookEntries': LogbookEntriesForm,
+    'QuestionnaireAndFeedbackForm': QuestionnaireAndFeedbackForm,
+    'ScenarioAssessment': ScenarioAssessmentForm,
+    'Workbook': WorkbookForm,
+    'EvidenceOfLogbook': EvidenceOfLogbookForm,
+    'PhotographicID': PhotographicIDForm,
+    'PhoneticQuiz': PhoneticQuizForm,
+    'EmergencyPhoneCallExercise': EmergencyPhoneCallExerciseForm,
+    'RecertEmergencyCallPracticalAssessment': RecertEmergencyCallPracticalAssessmentForm,
+    'TrackWalkDeliveryRequirements': TrackWalkDeliveryRequirementsForm,
+};
+
+const DynamicFormProvider = ({ documentName, ...props }) => {
+    const FormComponent = formMap[documentName] || QuestionnaireForm;
+    return <FormComponent {...props} />;
+};
+
+const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal }) => {
     // Local state to manage the flag's data dynamically
     const [currentFlag, setCurrentFlag] = useState(flag);
-    useEffect(() => {
-        setCurrentFlag(flag);
-    }, [flag]);
-    
     const [resolutionNotes, setResolutionNotes] = useState('');
     const [signature, setSignature] = useState(null);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+    
+    // State for holding the data needed to render the form
+    const [formData, setFormData] = useState({
+        eventDetails: null,
+        documentDetails: null,
+        traineeDetails: null,
+        isLoading: false,
+    });
+
+    useEffect(() => {
+        setCurrentFlag(flag);
+    }, [flag]);
 
     // Determines if the current user is the one who has the flag picked up
     const isCurrentUserAssignee = () => {
@@ -18,6 +72,34 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate }) => {
         const attemptedByArray = JSON.parse(currentFlag.attempted_by);
         return attemptedByArray[attemptedByArray.length - 1] === user.id;
     };
+
+    useEffect(() => {
+        const fetchFormData = async () => {
+            if (isCurrentUserAssignee() && currentFlag.datapack_id && currentFlag.document_id) {
+                setFormData(prev => ({ ...prev, isLoading: true }));
+                try {
+                    const eventDetails = await window.db.query('SELECT * FROM datapack WHERE id = ?', [currentFlag.datapack_id]);
+                    const documentDetails = await window.db.query('SELECT * FROM documents WHERE id = ?', [currentFlag.document_id]);
+                    let traineeDetails = null;
+                    if (currentFlag.trainee_id) {
+                        traineeDetails = await window.db.query('SELECT * FROM trainees WHERE id = ?', [currentFlag.trainee_id]);
+                    }
+
+                    setFormData({
+                        eventDetails: eventDetails[0],
+                        documentDetails: documentDetails[0],
+                        traineeDetails: traineeDetails ? traineeDetails[0] : null,
+                        isLoading: false
+                    });
+                } catch (error) {
+                    console.error("Failed to fetch form data for flag:", error);
+                    setFormData(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        };
+
+        fetchFormData();
+    }, [currentFlag, user.id]);
 
     const handlePickUp = async () => {
         const now = new Date().toISOString();
@@ -118,6 +200,25 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate }) => {
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">Message</h3>
                 <p className="text-gray-800 bg-gray-50 p-4 rounded-md whitespace-pre-wrap">{currentFlag.message}</p>
             </div>
+
+            {isCurrentUserAssignee() && formData.documentDetails && (
+                <div className="my-6">
+                    <h3 className="text-2xl font-semibold text-gray-800 border-t pt-6 mt-6 mb-4">Live Document View</h3>
+                    {formData.isLoading ? <p>Loading document...</p> : (
+                        <div className="border p-4 rounded-md bg-gray-50">
+                            <DynamicFormProvider
+                                documentName={formData.documentDetails.name}
+                                user={user}
+                                eventDetails={formData.eventDetails}
+                                documentDetails={formData.documentDetails}
+                                selectedTraineeId={currentFlag.trainee_id}
+                                traineeDetails={formData.traineeDetails}
+                                openSignatureModal={openSignatureModal}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="bg-gray-50 p-6 rounded-lg">
                 <h3 className="text-xl font-semibold text-gray-700 mb-4">Resolve Flag</h3>
