@@ -257,6 +257,31 @@ const questionnairesToSeed = [
     // Swipes Questions (document_id = 15)
     { document_id: 15, section: 'MAIN', question_text: 'Upload Signed Document', input_type: 'upload', field_name: 'upload_signed_swipes', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
+    // --- Upload Questions for Scanned/Email Documents ---
+    { document_id: 7, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_phoneticquiz', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 8, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_emergencyphonecallexercise', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 11, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_practicalassessmentindividual', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 12, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_recertemergencycallpracticalassessment', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 13, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_trackwalkdeliveryrequirements', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 16, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_swp', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 17, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_logbookentries', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 18, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_photographicid', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 19, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_questionnaireandfeedbackform', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 20, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_workbook', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 21, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_knowledgeassessment', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 22, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_scenarioassessment', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 23, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_assessmentreview', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 24, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_certificates', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 25, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_issueoflogbook', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 26, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_practicalassessmentgroup', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 27, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_bookingform', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 28, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_joininginstructions', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 29, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_emailconfirmation', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 30, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_subsponsorpaperwork', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 31, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sponsorsnotificationofresults', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 32, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sentinelnotificationofresults', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 33, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sentinelprechecks', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    
     // DeviationForm Questions (document_id = 10)
     { document_id: 10, section: 'MAIN', question_text: 'Reason for Deviation', input_type: 'textarea', field_name: 'deviation_reason', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
     { document_id: 10, section: 'MAIN', question_text: 'Trainer Signature', input_type: 'signature_box', field_name: 'deviation_trainer_signature', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
