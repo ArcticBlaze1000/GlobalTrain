@@ -277,10 +277,10 @@ const questionnairesToSeed = [
     { document_id: 27, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_bookingform', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
     { document_id: 28, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_joininginstructions', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
     { document_id: 29, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_emailconfirmation', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
-    { document_id: 30, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_subsponsorpaperwork', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 30, section: 'MAIN', question_text: 'Upload Document', input_type: 'sub_sponsor_upload_grid', field_name: 'upload_subsponsorpaperwork', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
     { document_id: 31, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sponsorsnotificationofresults', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
     { document_id: 32, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sentinelnotificationofresults', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
-    { document_id: 33, section: 'MAIN', question_text: 'Upload Document', input_type: 'upload', field_name: 'upload_sentinelprechecks', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 33, section: 'MAIN', question_text: 'Upload Document', input_type: 'trainee_upload_grid', field_name: 'upload_sentinelprechecks', access: 'admin', has_comments: 'NO', required: 'yes', dependency: '' },
     
     // DeviationForm Questions (document_id = 10)
     { document_id: 10, section: 'MAIN', question_text: 'Reason for Deviation', input_type: 'textarea', field_name: 'deviation_reason', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
@@ -357,9 +357,9 @@ const traineesToSeed = [
 ];
 const datapackToSeed = [
     { course_id: 1, trainer_id: 3, start_date: '2025-06-30', duration: 1, total_trainee_count: 1, trainee_ids: '1', status: 'live' },
-    { course_id: 2, trainer_id: 4, start_date: '2025-06-29', duration: 2, total_trainee_count: 3, trainee_ids: '2,3,4', status: 'live' },
+    { course_id: 2, trainer_id: 4, start_date: '2025-06-29', duration: 2, total_trainee_count: 3, trainee_ids: '2,3,4', status: 'pre course' },
     { course_id: 3, trainer_id: 3, start_date: '2025-06-26', duration: 5, total_trainee_count: 2, trainee_ids: '5,6', status: 'live' },
-    { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8', status: 'live' },
+    { course_id: 1, trainer_id: 4, start_date: '2025-07-01', duration: 1, total_trainee_count: 2, trainee_ids: '7,8', status: 'pre course' },
     { course_id: 3, trainer_id: 3, start_date: '2025-06-27', duration: 5, total_trainee_count: 2, trainee_ids: '9,10', status: 'live' }
 ];
 
