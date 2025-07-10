@@ -446,14 +446,38 @@ app.on('ready', () => {
     const percentage = Math.round((completedCount / activeQuestions.length) * 100);
 
     const dbQueries = [];
-    // Query to update the overall progress percentage
-    dbQueries.push([
-        `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) 
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(datapack_id, document_id, trainee_id) 
-         DO UPDATE SET completion_percentage = excluded.completion_percentage;`,
-        [datapackId, documentId, traineeId, percentage]
-    ]);
+    
+    // Check if a progress record already exists
+    const existingProgress = await new Promise((resolve, reject) => {
+        let sql = 'SELECT id FROM document_progress WHERE datapack_id = ? AND document_id = ?';
+        const params = [datapackId, documentId];
+
+        if (traineeId) {
+            sql += ' AND trainee_id = ?';
+            params.push(traineeId);
+        } else {
+            sql += ' AND trainee_id IS NULL';
+        }
+        
+        db.get(sql, params, (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+        });
+    });
+
+    // If it exists, update it. Otherwise, insert a new record.
+    if (existingProgress) {
+        dbQueries.push([
+            `UPDATE document_progress SET completion_percentage = ? WHERE id = ?`,
+            [percentage, existingProgress.id]
+        ]);
+    } else {
+        dbQueries.push([
+            `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (?, ?, ?, ?)`,
+            [datapackId, documentId, traineeId, percentage]
+        ]);
+    }
+    
     // Queries to update the 'completed' flag for each individual response
     for (const [fieldName, isComplete] of completionStatusMap.entries()) {
         dbQueries.push([
