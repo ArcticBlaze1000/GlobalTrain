@@ -37,6 +37,34 @@ const canUserEdit = (questionAccess, userRole) => {
     return false;
 };
 
+const getFileNameHint = (docDetails, event, trainee) => {
+    if (!docDetails || !event) return '';
+
+    const docName = docDetails.name.replace(/\s+/g, '_');
+    
+    switch (docDetails.save) {
+        case 'candidate name':
+        case 'additional exercises contents':
+            if (trainee) {
+                return `Required name: ${trainee.forename}_${trainee.surname}_${docName}`;
+            }
+            return `Required name format: {FirstName}_{LastName}_${docName}`;
+        
+        case 'course documentation':
+        case 'booking form and joining instructions':
+        case 'sub sponsor request':
+        case 'admin':
+            if(event.courseName) {
+                const courseName = event.courseName.replace(/\s+/g, '_');
+                return `Required name: ${courseName}_${docName}`;
+            }
+            return `Required name format: {CourseName}_${docName}`;
+
+        default:
+            return `Required name: ${docName}`;
+    }
+};
+
 // Debounce function to delay database updates
 const debounce = (func, delay) => {
     let timeout;
@@ -84,6 +112,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         datapackId: eventDetails?.id,
         documentId: documentDetails?.id
     }), [eventDetails, documentDetails]);
+
+    const selectedTrainee = useMemo(() => {
+        if (!selectedTraineeId || !trainees.length) return null;
+        return trainees.find(t => t.id === parseInt(selectedTraineeId, 10));
+    }, [selectedTraineeId, trainees]);
 
     // Fetch questions and initialize responses
     useEffect(() => {
@@ -549,7 +582,29 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                              )}
                          
                          {qs.map((q) => {
-                                if (q.input_type === 'daily_time_pair') {
+                                 if (q.input_type === 'upload') {
+                                     const isEditable = canUserEdit(q.access, user.role);
+                                     return (
+                                         <div key={q.id} className={`py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
+                                             <div className="flex items-start justify-between">
+                                                 <div className="w-1/3 pt-1">
+                                                     <span className="text-gray-700 font-medium">{q.question_text}</span>
+                                                 </div>
+                                                 <div className="w-2/3">
+                                                     <UploadQuestion
+                                                         question={q}
+                                                         value={responses[q.field_name]?.data || ''}
+                                                         onChange={(value) => handleInputChange(q.field_name, value)}
+                                                         disabled={!isEditable}
+                                                         documentDetails={documentDetails}
+                                                         fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
+                                                     />
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     );
+                                 }
+                                 if (q.input_type === 'daily_time_pair') {
                                     const { startQuestion, finishQuestion } = q;
                                     const isEditable = canUserEdit(startQuestion.access, user.role);
                                     const startTimeValue = responses[startQuestion.field_name]?.data || '';
@@ -1195,6 +1250,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                     onChange={(value) => handleInputChange(q.field_name, value)}
                                                     disabled={!isEditable}
                                                     documentDetails={documentDetails}
+                                                    fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
                                                 />
                                             )}
                                         </div>
