@@ -1,13 +1,15 @@
 import React from 'react';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 
-const Form = ({ documentDetails }) => {
+const Form = (props) => {
     return (
-        <div className="p-4 border rounded-lg bg-gray-50">
-            <h2 className="text-lg font-semibold mb-4">{documentDetails.name}</h2>
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg">
-                <p className="text-gray-500">File upload functionality will be here.</p>
-            </div>
-        </div>
+        <QuestionnaireForm
+            {...props}
+            pdfButtonText="Save ScenarioAssessment PDF"
+            onPdfButtonClick={() => alert('PDF generation for ScenarioAssessment is not yet implemented.')}
+            valueColumnHeader=""
+            hideCompletedColumn={true}
+        />
     );
 };
 
