@@ -1,10 +1,15 @@
 import React from 'react';
+import QuestionnaireForm from '../../Common/QuestionnaireForm';
 
-const Form = () => {
+const Form = (props) => {
     return (
-        <div>
-            {/* Placeholder for Swipes Form */}
-        </div>
+        <QuestionnaireForm
+            {...props}
+            pdfButtonText="Save Swipes PDF"
+            onPdfButtonClick={() => alert('PDF generation for Swipes is not yet implemented.')}
+            valueColumnHeader=""
+            hideCompletedColumn={true}
+        />
     );
 };
 

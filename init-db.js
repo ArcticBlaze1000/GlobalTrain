@@ -255,8 +255,7 @@ const questionnairesToSeed = [
     { document_id: 14, section: 'ATTENDEES', question_text: 'Trainee Signatures', input_type: 'signature_grid', field_name: 'trainee_signatures', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // Swipes Questions (document_id = 15)
-    { document_id: 15, section: 'HEADER', question_text: 'Please select the trainee swipe file', input_type: 'file_upload_button', field_name: 'swipe_file', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
-    { document_id: 15, section: 'MAIN', question_text: 'Trainee Swipes', input_type: 'swipe_grid', field_name: 'trainee_swipes', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
+    { document_id: 15, section: 'MAIN', question_text: 'Upload Signed Document', input_type: 'upload', field_name: 'upload_signed_swipes', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },
 
     // DeviationForm Questions (document_id = 10)
     { document_id: 10, section: 'MAIN', question_text: 'Reason for Deviation', input_type: 'textarea', field_name: 'deviation_reason', access: 'trainer', has_comments: 'NO', required: 'yes', dependency: '' },

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TriToggleButton from './TriToggleButton';
+import UploadQuestion from './UploadQuestion';
 
 const parseTime = (timeStr) => {
     if (!timeStr) return null;
@@ -71,7 +72,7 @@ const debounce = (func, delay) => {
     return debounced;
 };
 
-const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate, currentProgress }) => {
+const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureModal, showPdfButton = true, pdfButtonText = "Generate PDF", onPdfButtonClick, valueColumnHeader = "Yes/No", selectedTraineeId, onDeviationUpdate, currentProgress, hideCompletedColumn = false }) => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [openComments, setOpenComments] = useState({}); // Tracks which comment boxes are open
@@ -540,14 +541,14 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                     <div className="space-y-3 p-4">
                         {/* Header Row */}
                             {section !== 'Comments' && !section.startsWith('Day ') && (
-                        <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
-                            <span className="w-3/5">Item</span>
-                            <span className="w-1/5 text-center">Completed</span>
-                            <span className="w-1/5 text-center">{valueColumnHeader}</span>
-                        </div>
-                            )}
-                        
-                        {qs.map((q) => {
+                         <div className="flex items-center justify-between font-bold text-gray-500 text-sm">
+                             <span className={hideCompletedColumn ? "w-4/5" : "w-3/5"}>Item</span>
+                             {!hideCompletedColumn && <span className="w-1/5 text-center">Completed</span>}
+                             <span className="w-1/5 text-center">{valueColumnHeader}</span>
+                         </div>
+                             )}
+                         
+                         {qs.map((q) => {
                                 if (q.input_type === 'daily_time_pair') {
                                     const { startQuestion, finishQuestion } = q;
                                     const isEditable = canUserEdit(startQuestion.access, user.role);
@@ -1073,7 +1074,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                             return (
                                 <div key={q.id} className={`flex flex-col py-3 border-t ${!isEditable ? 'opacity-60' : ''}`}>
                                     <div className="flex items-center justify-between">
-                                        <div className="w-3/5 flex items-center">
+                                        <div className={`${hideCompletedColumn ? "w-4/5" : "w-3/5"} flex items-center`}>
                                             <span className="text-gray-700 font-medium">{q.question_text}</span>
                                             {q.has_comments === 'YES' && isEditable && (
                                                 <button onClick={() => toggleComment(q.field_name)} className="ml-4 text-xs text-blue-500 hover:underline">
@@ -1082,12 +1083,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                             )}
                                         </div>
                                         
-                                        <div className="w-1/5 flex justify-center">
+                                        {!hideCompletedColumn && <div className="w-1/5 flex justify-center">
                                             {!!responses[q.field_name]?.completed && (
                                                 <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                                             )}
-                                        </div>
-
+                                        </div>}
+ 
                                         <div className="w-1/5 flex justify-center">
                                             {q.input_type === 'checkbox' && (
                                                 <input
@@ -1186,6 +1187,15 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                         <span className="text-gray-500 text-sm">Click to Sign</span>
                                                     )}
                                                 </div>
+                                            )}
+                                            {q.input_type === 'upload' && (
+                                                <UploadQuestion
+                                                    question={q}
+                                                    value={responses[q.field_name]?.data || ''}
+                                                    onChange={(value) => handleInputChange(q.field_name, value)}
+                                                    disabled={!isEditable}
+                                                    documentDetails={documentDetails}
+                                                />
                                             )}
                                         </div>
                                     </div>
