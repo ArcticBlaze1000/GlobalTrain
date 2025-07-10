@@ -22,6 +22,11 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
 
     const acceptOptions = documentDetails?.type ? fileTypeMap[documentDetails.type] : null;
 
+    const requiredName = useMemo(() => {
+        if (!fileNameHint) return '';
+        return fileNameHint.replace('Required name: ', '').replace('Required name format: ', '');
+    }, [fileNameHint]);
+
     const onDrop = useCallback((acceptedFiles, fileRejections) => {
         if (fileRejections.length > 0) {
             const rejectedFiles = fileRejections.map(rejection => `${rejection.file.name} (${rejection.errors.map(e => e.message).join(', ')})`).join('\n');
@@ -57,11 +62,6 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
         setUploadedFile(null);
         onChange('');
     };
-
-    const requiredName = useMemo(() => {
-        if (!fileNameHint) return '';
-        return fileNameHint.replace('Required name: ', '').replace('Required name format: ', '');
-    }, [fileNameHint]);
 
     const handleCopy = () => {
         if (!requiredName) return;
