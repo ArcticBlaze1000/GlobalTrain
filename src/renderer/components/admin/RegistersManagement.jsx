@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import PreCourseChecklist from './PreCourseChecklist';
+
+const PRE_COURSE_DOC_IDS = [27, 28, 29, 33, 30];
 
 const RegisterTable = ({ title, registers, onRegisterSelect }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -32,12 +35,12 @@ const RegisterTable = ({ title, registers, onRegisterSelect }) => {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {registers.length > 0 ? registers.map((reg) => (
-                                <tr key={reg.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{reg.courseName}</td>
+                                <tr key={reg.id} onClick={() => onRegisterSelect(reg)} className="hover:bg-gray-100 cursor-pointer">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 hover:text-blue-800">{reg.courseName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{`${reg.trainerForename} ${reg.trainerSurname}`}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(reg.start_date)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        0% {/* Placeholder for completion */}
+                                        {reg.completion ? `${Math.round(reg.completion)}%` : '0%'}
                                     </td>
                                 </tr>
                             )) : (
@@ -54,53 +57,89 @@ const RegisterTable = ({ title, registers, onRegisterSelect }) => {
 };
 
 
-const RegistersManagement = () => {
+const RegistersManagement = ({ user, openSignatureModal }) => {
     const [registers, setRegisters] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedRegister, setSelectedRegister] = useState(null);
+
+    const fetchRegisters = async () => {
+        setLoading(true);
+        try {
+            const fetchedRegisters = await window.db.query(`
+                SELECT 
+                    d.*, 
+                    c.name as courseName,
+                    u.forename as trainerForename,
+                    u.surname as trainerSurname,
+                    (
+                        SELECT AVG(dp.completion_percentage) 
+                        FROM document_progress dp 
+                        WHERE dp.datapack_id = d.id AND dp.document_id IN (${PRE_COURSE_DOC_IDS.join(',')})
+                    ) as completion
+                FROM datapack d
+                JOIN courses c ON d.course_id = c.id
+                JOIN users u ON d.trainer_id = u.id
+                WHERE d.status IN ('pre course', 'post course')
+                ORDER BY d.start_date DESC
+            `);
+            setRegisters(fetchedRegisters);
+        } catch (error) {
+            console.error("Failed to fetch registers:", error);
+        }
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const fetchRegisters = async () => {
-            setLoading(true);
-            try {
-                const fetchedRegisters = await window.db.query(`
-                    SELECT 
-                        d.id, 
-                        d.status,
-                        d.start_date,
-                        c.name as courseName,
-                        u.forename as trainerForename,
-                        u.surname as trainerSurname
-                    FROM datapack d
-                    JOIN courses c ON d.course_id = c.id
-                    JOIN users u ON d.trainer_id = u.id
-                    WHERE d.status IN ('pre course', 'post course')
-                    ORDER BY d.start_date DESC
-                `);
-                setRegisters(fetchedRegisters);
-            } catch (error) {
-                console.error("Failed to fetch registers:", error);
-            }
-            setLoading(false);
-        };
-
         fetchRegisters();
     }, []);
-    
-    const preCourseRegisters = registers.filter(r => r.status === 'pre course');
-    const postCourseRegisters = registers.filter(r => r.status === 'post course');
 
+    const handleSelectRegister = (register) => {
+        if (register.status === 'pre course') {
+            setSelectedRegister(register);
+        } else {
+            alert("This functionality is only for 'Pre Course' registers at the moment.");
+        }
+    };
+    
+    const handleBackToList = () => {
+        setSelectedRegister(null);
+        fetchRegisters(); // Refetch to get the latest statuses and progress
+    };
+
+    const preCourseRegisters = useMemo(() => 
+        registers.filter(r => r.status === 'pre course'),
+    [registers]);
+
+    const postCourseRegisters = useMemo(() =>
+        registers.filter(r => r.status === 'post course'),
+    [registers]);
+
+    if (loading) {
+        return <div className="p-6 text-center">Loading registers...</div>;
+    }
+
+    if (selectedRegister) {
+        return (
+            <PreCourseChecklist 
+                register={selectedRegister} 
+                onBackToList={handleBackToList}
+            />
+        );
+    }
+    
     return (
         <div className="p-6 bg-gray-100 min-h-screen">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Registers</h1>
-            
-            {loading ? (
-                <p>Loading registers...</p>
-            ) : (
-                <>
-                    <RegisterTable title="Pre Course" registers={preCourseRegisters} />
-                    <RegisterTable title="Post Course" registers={postCourseRegisters} />
-                </>
-            )}
+            <RegisterTable 
+                title="Pre Course" 
+                registers={preCourseRegisters} 
+                onRegisterSelect={handleSelectRegister} 
+            />
+            <RegisterTable 
+                title="Post Course" 
+                registers={postCourseRegisters} 
+                onRegisterSelect={handleSelectRegister}
+            />
         </div>
     );
 };

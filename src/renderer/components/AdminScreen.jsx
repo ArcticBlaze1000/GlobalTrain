@@ -13,7 +13,7 @@ const AdminScreen = ({ user, openSignatureModal }) => {
             case 'flags':
                 return <FlagsManagement user={user} openSignatureModal={openSignatureModal} />;
             case 'register':
-                return <RegistersManagement />;
+                return <RegistersManagement user={user} openSignatureModal={openSignatureModal} />;
             default:
                 return <CoursesManagement user={user} />;
         }
