@@ -139,10 +139,7 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
 
     const handleCopy = () => {
         if (!requiredName) return;
-        const textToCopy = requiredName.includes('_Part_X')
-            ? requiredName.replace('_Part_X', '')
-            : requiredName;
-        navigator.clipboard.writeText(textToCopy).then(() => {
+        navigator.clipboard.writeText(requiredName).then(() => {
             setCopySuccess('Copied!');
             setTimeout(() => setCopySuccess(''), 2000);
         }, () => {

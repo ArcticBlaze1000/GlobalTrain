@@ -122,6 +122,7 @@ const RegistersManagement = ({ user, openSignatureModal }) => {
         return (
             <PreCourseChecklist 
                 register={selectedRegister} 
+                user={user}
                 onBackToList={handleBackToList}
             />
         );

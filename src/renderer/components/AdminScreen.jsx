@@ -4,7 +4,7 @@ import FlagsManagement from './Admin/FlagsManagement';
 import RegistersManagement from './Admin/RegistersManagement';
 
 const AdminScreen = ({ user, openSignatureModal }) => {
-    const [activeTab, setActiveTab] = useState('courses');
+    const [activeTab, setActiveTab] = useState(null);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -15,7 +15,11 @@ const AdminScreen = ({ user, openSignatureModal }) => {
             case 'register':
                 return <RegistersManagement user={user} openSignatureModal={openSignatureModal} />;
             default:
-                return <CoursesManagement user={user} />;
+                return (
+                    <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-500 text-xl">Select a category from the admin panel to begin.</p>
+                    </div>
+                );
         }
     };
 

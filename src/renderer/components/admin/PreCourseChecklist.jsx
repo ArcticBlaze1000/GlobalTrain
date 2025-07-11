@@ -92,6 +92,8 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
                             documentDetails={selectedDocument}
                             openSignatureModal={openSignatureModal}
                             showPdfButton={false}
+                            valueColumnHeader='Status'
+                            hideCompletedColumn={true}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full">
