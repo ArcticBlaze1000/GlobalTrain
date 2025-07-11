@@ -37,18 +37,22 @@ const canUserEdit = (questionAccess, userRole) => {
     return false;
 };
 
-const getFileNameHint = (docDetails, event, trainee) => {
+const getFileNameHint = (docDetails, event, trainee, allowMultiple = false) => {
     if (!docDetails || !event) return '';
 
     const docName = docDetails.name.replace(/\s+/g, '_');
+    let baseName = '';
     
     switch (docDetails.save) {
         case 'candidate name':
         case 'additional exercises contents':
             if (trainee) {
-                return `Required name: ${trainee.forename}_${trainee.surname}_${docName}`;
+                baseName = `${trainee.forename}_${trainee.surname}_${docName}`;
+            } else {
+                baseName = `{FirstName}_{LastName}_${docName}`;
+                return `Required name format: ${baseName}${allowMultiple ? '_Part_X' : ''}`;
             }
-            return `Required name format: {FirstName}_{LastName}_${docName}`;
+            break;
         
         case 'course documentation':
         case 'booking form and joining instructions':
@@ -56,13 +60,22 @@ const getFileNameHint = (docDetails, event, trainee) => {
         case 'admin':
             if(event.courseName) {
                 const courseName = event.courseName.replace(/\s+/g, '_');
-                return `Required name: ${courseName}_${docName}`;
+                baseName = `${courseName}_${docName}`;
+            } else {
+                baseName = `{CourseName}_${docName}`;
+                return `Required name format: ${baseName}${allowMultiple ? '_Part_X' : ''}`;
             }
-            return `Required name format: {CourseName}_${docName}`;
+            break;
 
         default:
-            return `Required name: ${docName}`;
+            baseName = docName;
+            break;
     }
+
+    if (allowMultiple) {
+        return `Required name: ${baseName}_Part_X`;
+    }
+    return `Required name: ${baseName}`;
 };
 
 // Debounce function to delay database updates
@@ -221,6 +234,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                     parsedData = responseData === 'true';
                 } else if (q.input_type === 'tri_toggle') {
                     parsedData = responseData;
+                } else if (q.input_type === 'upload' && q.allow_multiple) {
+                    try {
+                        parsedData = responseData ? JSON.parse(responseData) : [];
+                    } catch (e) {
+                        parsedData = [];
+                    }
                 } else if (q.input_type === 'attendance_grid' || q.input_type === 'trainee_checkbox_grid' || q.input_type === 'trainee_date_grid' || q.input_type === 'trainee_dropdown_grid' || q.input_type === 'competency_grid' || q.input_type === 'trainee_yes_no_grid' || q.input_type === 'signature_grid' || q.input_type === 'dynamic_comments_section') {
                     try {
                         parsedData = responseData ? JSON.parse(responseData) : {};
@@ -265,22 +284,30 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     const handleSaveUploads = async () => {
         const stagedFiles = [];
         for (const fieldName in responses) {
+            const question = questions.find(q => q.field_name === fieldName);
+            if (!question || question.input_type !== 'upload') continue;
+    
             const response = responses[fieldName];
-            if (typeof response.data === 'object' && response.data && response.data.data) {
-                stagedFiles.push({
-                    fieldName,
-                    fileInfo: response.data
+            const data = response.data;
+    
+            if (question.allow_multiple && Array.isArray(data)) {
+                data.forEach(fileInfo => {
+                    if (fileInfo && fileInfo.data) {
+                        stagedFiles.push({ fieldName, fileInfo, isMultiple: true });
+                    }
                 });
+            } else if (!question.allow_multiple && data && data.data) {
+                stagedFiles.push({ fieldName, fileInfo: data, isMultiple: false });
             }
         }
     
         if (stagedFiles.length === 0) {
-            setSaveStatus({ message: 'No new files to save.', type: 'error' });
+            setSaveStatus({ message: 'No new files to save.', type: 'info' });
             setTimeout(() => setSaveStatus({ message: '', type: '' }), 3000);
             return;
         }
     
-        const savePromises = stagedFiles.map(async ({ fieldName, fileInfo }) => {
+        const savePromises = stagedFiles.map(async ({ fieldName, fileInfo, isMultiple }) => {
             const payload = {
                 fileData: fileInfo.data,
                 fileName: fileInfo.name,
@@ -290,7 +317,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             };
             const result = await window.electron.saveUploadedFile(payload);
             if (result.success) {
-                return { fieldName, filePath: result.filePath, success: true };
+                return { fieldName, file: { name: fileInfo.name, path: result.filePath }, success: true, isMultiple };
             } else {
                 return { fieldName, error: result.error, success: false };
             }
@@ -304,17 +331,37 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         if (failedSaves.length > 0) {
             const errorMessages = failedSaves.map(f => f.error).join(', ');
             setSaveStatus({ message: `Error: ${errorMessages}`, type: 'error' });
-            setTimeout(() => setSaveStatus({ message: '', type: '' }), 5000);
-        } else if (successfulSaves.length > 0) {
+        }
+        
+        if (successfulSaves.length > 0) {
             const newResponses = { ...responses };
             const dbUpdates = [];
     
-            for (const { fieldName, filePath } of successfulSaves) {
-                newResponses[fieldName] = { ...newResponses[fieldName], data: filePath, completed: true };
+            const updatesByField = successfulSaves.reduce((acc, { fieldName, file, isMultiple }) => {
+                if (!acc[fieldName]) acc[fieldName] = { files: [], isMultiple };
+                acc[fieldName].files.push(file);
+                return acc;
+            }, {});
+    
+            for (const fieldName in updatesByField) {
+                const { files: newFiles, isMultiple } = updatesByField[fieldName];
+                let finalValue, updatedResponseData;
+
+                if (isMultiple) {
+                    const existingFiles = (responses[fieldName].data || []).filter(f => f.path);
+                    const allFiles = [...existingFiles, ...newFiles];
+                    finalValue = JSON.stringify(allFiles);
+                    updatedResponseData = allFiles;
+                } else {
+                    finalValue = newFiles[0].path;
+                    updatedResponseData = finalValue;
+                }
+    
+                newResponses[fieldName] = { ...newResponses[fieldName], data: updatedResponseData, completed: true };
                 dbUpdates.push(
                     window.db.run(
                         'UPDATE responses SET response_data = ?, completed = 1 WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
-                        [filePath, datapackId, documentId, fieldName]
+                        [finalValue, datapackId, documentId, fieldName]
                     )
                 );
             }
@@ -460,7 +507,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     };
 
     const handleInputChange = (fieldName, value, inputType) => {
-        const completed = inputType === 'upload' ? (typeof value === 'object' && value.name) : !!value;
+        let completed;
+        const question = questions.find(q => q.field_name === fieldName);
+        
+        if (inputType === 'upload') {
+            if (question?.allow_multiple) {
+                completed = Array.isArray(value) && value.length > 0;
+            } else {
+                completed = value && value.name;
+            }
+        } else {
+            completed = !!value;
+        }
+
         setResponses(prev => ({
             ...prev,
             [fieldName]: {
@@ -470,7 +529,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             }
         }));
 
-        if (inputType !== 'upload') { // Uploads are saved manually
+        if (inputType !== 'upload') {
             debouncedSave(fieldName, value, completed, responses[fieldName]?.comments || '');
         }
     };
@@ -658,11 +717,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                  <div className="w-2/3">
                                                      <UploadQuestion
                                                          question={q}
-                                                         value={responses[q.field_name]?.data || ''}
-                                                         onChange={(value) => handleInputChange(q.field_name, value)}
+                                                         value={responses[q.field_name]?.data}
+                                                         onChange={(value) => handleInputChange(q.field_name, value, q.input_type)}
                                                          disabled={!isEditable}
                                                          documentDetails={documentDetails}
-                                                         fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
+                                                         fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee, q.allow_multiple)}
                                                          eventDetails={eventDetails}
                                                          selectedTrainee={selectedTrainee}
                                                      />
@@ -1313,11 +1372,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                             {q.input_type === 'upload' && (
                                                 <UploadQuestion
                                                     question={q}
-                                                    value={responses[q.field_name]?.data || ''}
-                                                    onChange={(value) => handleInputChange(q.field_name, value)}
+                                                    value={responses[q.field_name]?.data}
+                                                    onChange={(value) => handleInputChange(q.field_name, value, q.input_type)}
                                                     disabled={!isEditable}
                                                     documentDetails={documentDetails}
-                                                    fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
+                                                    fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee, q.allow_multiple)}
                                                     eventDetails={eventDetails}
                                                     selectedTrainee={selectedTrainee}
                                                 />

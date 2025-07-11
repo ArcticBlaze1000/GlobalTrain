@@ -17,19 +17,35 @@ const fileTypeMap = {
 };
 
 const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint, eventDetails, selectedTrainee }) => {
-    const [uploadedFile, setUploadedFile] = useState(null);
+    const { allow_multiple: allowMultiple } = question;
+    const [uploadedFiles, setUploadedFiles] = useState([]);
     const [copySuccess, setCopySuccess] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
-        if (typeof value === 'string' && value) {
-            setUploadedFile({ name: value });
-        } else if (typeof value === 'object' && value && value.name) {
-            setUploadedFile({ name: value.name });
-        } else {
-            setUploadedFile(null);
+        if (!value) {
+            setUploadedFiles([]);
+            return;
         }
-    }, [value]);
+
+        let filesArray = [];
+        if (allowMultiple) {
+            try {
+                const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+                filesArray = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                console.error("Failed to parse multiple files value:", e);
+                filesArray = [];
+            }
+        } else {
+            if (typeof value === 'string' && value) {
+                filesArray = [{ name: value.split(/[\\/]/).pop(), path: value }];
+            } else if (value && value.name) {
+                filesArray = [value];
+            }
+        }
+        setUploadedFiles(filesArray.filter(f => f && f.name));
+    }, [value, allowMultiple]);
 
     const acceptOptions = documentDetails?.type ? fileTypeMap[documentDetails.type] : null;
 
@@ -46,56 +62,87 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
             return;
         }
 
-        const file = acceptedFiles[0];
-        if (file) {
-            // Check if the file name matches the required name, if a specific name is given
-            if (requiredName && !requiredName.includes('{') && !requiredName.includes('}')) {
-                const uploadedFileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
-                if (uploadedFileNameWithoutExt.toLowerCase() !== requiredName.toLowerCase()) {
-                    alert(`Incorrect file name.\n\nPlease name the file: "${requiredName}"`);
-                    return; // Stop processing the file if the name doesn't match
+        setIsProcessing(true);
+
+        const processFile = (file) => {
+            return new Promise((resolve, reject) => {
+                if (requiredName && !requiredName.includes('{') && !requiredName.includes('}')) {
+                    const uploadedFileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+                    if (allowMultiple) {
+                        const requiredPrefix = requiredName.replace('_Part_X', '_Part').toLowerCase();
+                        if (!uploadedFileNameWithoutExt.toLowerCase().startsWith(requiredPrefix)) {
+                            alert(`Incorrect file name.\n\nPlease name the file like: "${requiredName.replace('_Part_X', '_Part_1')}"`);
+                            return reject('Incorrect file name.');
+                        }
+                    } else {
+                        if (uploadedFileNameWithoutExt.toLowerCase() !== requiredName.toLowerCase()) {
+                            alert(`Incorrect file name.\n\nPlease name the file: "${requiredName}"`);
+                            return reject('Incorrect file name.');
+                        }
+                    }
+                }
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const fileData = reader.result.split(',')[1]; // Get base64 part
+                    resolve({ name: file.name, data: fileData, type: file.type });
+                };
+                reader.onerror = (error) => {
+                    console.error('Error reading file:', error);
+                    reject(error);
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+        
+        try {
+            const processedFiles = await Promise.all(acceptedFiles.map(processFile));
+
+            if (allowMultiple) {
+                const updatedFiles = [...uploadedFiles, ...processedFiles];
+                setUploadedFiles(updatedFiles);
+                onChange(updatedFiles);
+            } else {
+                const singleFile = processedFiles[0];
+                if (singleFile) {
+                    setUploadedFiles([singleFile]);
+                    onChange(singleFile);
                 }
             }
-
-            setIsProcessing(true);
-
-            // Read file as Base64 and pass it up to be staged
-            const reader = new FileReader();
-            reader.onload = () => {
-                const fileData = reader.result.split(',')[1]; // Get base64 part
-                const stagedFile = {
-                    name: file.name,
-                    data: fileData,
-                    type: file.type
-                };
-                onChange(stagedFile); // Pass the staged file object up to the parent
-                setIsProcessing(false);
-            };
-            reader.onerror = (error) => {
-                console.error('Error reading file:', error);
-                alert('Error reading file.');
-                setIsProcessing(false);
-            };
-            reader.readAsDataURL(file);
+        } catch (error) {
+            if (error !== 'Incorrect file name.') {
+                alert('Error processing files.');
+            }
+        } finally {
+            setIsProcessing(false);
         }
-    }, [onChange, acceptOptions, requiredName]);
+    }, [allowMultiple, onChange, uploadedFiles, requiredName]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         disabled,
-        multiple: false,
+        multiple: allowMultiple,
         accept: acceptOptions,
     });
 
-    const removeFile = (e) => {
+    const removeFile = (e, fileToRemove) => {
         e.stopPropagation();
-        setUploadedFile(null);
-        onChange('');
+        const newFiles = uploadedFiles.filter(file => (file.name !== fileToRemove.name));
+        setUploadedFiles(newFiles);
+
+        if (allowMultiple) {
+            onChange(newFiles);
+        } else {
+            onChange(null);
+        }
     };
 
     const handleCopy = () => {
         if (!requiredName) return;
-        navigator.clipboard.writeText(requiredName).then(() => {
+        const textToCopy = requiredName.includes('_Part_X')
+            ? requiredName.replace('_Part_X', '')
+            : requiredName;
+        navigator.clipboard.writeText(textToCopy).then(() => {
             setCopySuccess('Copied!');
             setTimeout(() => setCopySuccess(''), 2000);
         }, () => {
@@ -150,29 +197,33 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
             <div className="w-1/2">
                 <div
                     {...getRootProps()}
-                    className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer h-full flex items-center justify-center
+                    className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer h-full flex flex-col items-center justify-center
                         ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                         ${disabled || isProcessing ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
                 >
                     <input {...getInputProps()} />
                     {isProcessing ? (
                         <p className="text-gray-500">Processing...</p>
-                    ) : uploadedFile ? (
-                        <div className="flex items-center justify-between w-full">
-                            <span className="text-gray-700 truncate">{uploadedFile.name.split(/[\\/]/).pop()}</span>
-                            {!disabled && (
-                                <button
-                                    onClick={removeFile}
-                                    className="ml-4 text-red-500 hover:text-red-700 font-semibold"
-                                    aria-label="Remove file"
-                                >
-                                    &times;
-                                </button>
-                            )}
+                    ) : uploadedFiles.length > 0 ? (
+                        <div className="w-full">
+                            {uploadedFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between w-full py-1">
+                                    <span className="text-gray-700 truncate text-sm">{file.name}</span>
+                                    {!disabled && (
+                                        <button
+                                            onClick={(e) => removeFile(e, file)}
+                                            className="ml-2 text-red-500 hover:text-red-700 font-semibold text-xs"
+                                            aria-label={`Remove ${file.name}`}
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         <p className="text-gray-500">
-                            {isDragActive ? 'Drop the file here...' : "Upload file here"}
+                            {isDragActive ? 'Drop the file here...' : `Upload file${allowMultiple ? 's' : ''} here`}
                         </p>
                     )}
                 </div>
