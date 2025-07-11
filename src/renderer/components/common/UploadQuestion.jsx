@@ -16,9 +16,10 @@ const fileTypeMap = {
     },
 };
 
-const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint }) => {
+const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint, eventDetails, selectedTrainee }) => {
     const [uploadedFile, setUploadedFile] = useState(value ? { name: value } : null);
     const [copySuccess, setCopySuccess] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
 
     const acceptOptions = documentDetails?.type ? fileTypeMap[documentDetails.type] : null;
 
@@ -27,7 +28,7 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
         return fileNameHint.replace('Required name: ', '').replace('Required name format: ', '');
     }, [fileNameHint]);
 
-    const onDrop = useCallback((acceptedFiles, fileRejections) => {
+    const onDrop = useCallback(async (acceptedFiles, fileRejections) => {
         if (fileRejections.length > 0) {
             const rejectedFiles = fileRejections.map(rejection => `${rejection.file.name} (${rejection.errors.map(e => e.message).join(', ')})`).join('\n');
             const allowedTypes = acceptOptions ? Object.values(acceptOptions).flat().join(', ') : 'the correct';
@@ -45,10 +46,47 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
                     return; // Stop processing the file if the name doesn't match
                 }
             }
-            setUploadedFile(file);
-            onChange(file.name);
+
+            setIsUploading(true);
+
+            // Read file as Base64
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const fileData = reader.result.split(',')[1]; // Get base64 part
+                
+                const payload = {
+                    fileData,
+                    fileName: file.name,
+                    eventDetails,
+                    documentDetails,
+                    traineeDetails: selectedTrainee
+                };
+
+                try {
+                    const result = await window.electron.saveUploadedFile(payload);
+                    if (result.success) {
+                        setUploadedFile({ name: result.filePath });
+                        onChange(result.filePath); // Save the full path
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to save uploaded file:', error);
+                    alert(`Error saving file: ${error.message}`);
+                    setUploadedFile(null);
+                    onChange('');
+                } finally {
+                    setIsUploading(false);
+                }
+            };
+            reader.onerror = (error) => {
+                console.error('Error reading file:', error);
+                alert('Error reading file.');
+                setIsUploading(false);
+            };
+            reader.readAsDataURL(file);
         }
-    }, [onChange, acceptOptions, requiredName]);
+    }, [onChange, acceptOptions, requiredName, eventDetails, documentDetails, selectedTrainee]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -122,12 +160,14 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
                     {...getRootProps()}
                     className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer h-full flex items-center justify-center
                         ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-                        ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
+                        ${disabled || isUploading ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
                 >
                     <input {...getInputProps()} />
-                    {uploadedFile ? (
+                    {isUploading ? (
+                        <p className="text-gray-500">Uploading...</p>
+                    ) : uploadedFile ? (
                         <div className="flex items-center justify-between w-full">
-                            <span className="text-gray-700 truncate">{uploadedFile.name}</span>
+                            <span className="text-gray-700 truncate">{uploadedFile.name.split(/[\\/]/).pop()}</span>
                             {!disabled && (
                                 <button
                                     onClick={removeFile}

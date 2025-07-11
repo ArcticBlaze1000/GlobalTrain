@@ -208,6 +208,56 @@ ipcMain.handle('save-pdf', async (event, payload) => {
     }
 });
 
+ipcMain.handle('save-uploaded-file', async (event, payload) => {
+    const { fileData, fileName, eventDetails, documentDetails, traineeDetails } = payload;
+    
+    // 1. Determine the correct directory path
+    const documentsPath = app.getPath('documents');
+    const baseDir = path.join(documentsPath, 'Global Train Trainers', 'Training');
+    const monthFolderName = formatDateForPath(eventDetails.start_date, 'mm. month yyyy');
+    const trainerInitial = eventDetails.forename ? eventDetails.forename.charAt(0) : '';
+    const specificFolderName = `${formatDateForPath(eventDetails.start_date, 'dd.mm.yyyy')} ${eventDetails.courseName} ${trainerInitial} ${eventDetails.surname}`;
+    const candidateBaseDir = path.join(baseDir, monthFolderName, specificFolderName, 'Candidate');
+
+    let finalPath;
+    let filename = fileName; // Use the original file name
+
+    if (documentDetails.scope === 'candidate' && traineeDetails) {
+        const traineeFolderIndex = (eventDetails.trainee_ids.split(',').indexOf(String(traineeDetails.id)) + 1).toString().padStart(2, '0');
+        const candidateFolderName = `${traineeFolderIndex} ${traineeDetails.forename} ${traineeDetails.surname}`;
+        // Use the 'save' property from documentDetails for the subfolder
+        const subFolder = documentDetails.save || 'Uploads';
+        finalPath = path.join(candidateBaseDir, candidateFolderName, subFolder);
+    } else {
+        // This is a course-level document.
+        finalPath = path.join(candidateBaseDir, 'Course Documentation', 'Uploads');
+    }
+    
+    // Ensure the directory exists
+    try {
+        await fs.promises.mkdir(finalPath, { recursive: true });
+    } catch (error) {
+        console.error('Failed to create directory for uploaded file:', error);
+        return { success: false, error: `Could not create directory at ${finalPath}` };
+    }
+
+    const filePath = path.join(finalPath, filename);
+
+    // 2. Decode Base64 and save the file
+    try {
+        const fileBuffer = Buffer.from(fileData, 'base64');
+        await fs.promises.writeFile(filePath, fileBuffer);
+        
+        // Optionally, open the folder containing the saved file
+        shell.showItemInFolder(filePath);
+
+        return { success: true, filePath };
+    } catch (error) {
+        console.error('Failed to save uploaded file:', error);
+        return { success: false, error: error.message };
+    }
+});
+
 ipcMain.handle('app-quit', () => {
     app.quit();
 });

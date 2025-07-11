@@ -598,6 +598,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                          disabled={!isEditable}
                                                          documentDetails={documentDetails}
                                                          fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
+                                                         eventDetails={eventDetails}
+                                                         selectedTrainee={selectedTrainee}
                                                      />
                                                  </div>
                                              </div>
@@ -1251,6 +1253,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                     disabled={!isEditable}
                                                     documentDetails={documentDetails}
                                                     fileNameHint={getFileNameHint(documentDetails, eventDetails, selectedTrainee)}
+                                                    eventDetails={eventDetails}
+                                                    selectedTrainee={selectedTrainee}
                                                 />
                                             )}
                                         </div>
