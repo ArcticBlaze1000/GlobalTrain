@@ -40,8 +40,10 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
             // If user is a trainer, only fetch their events. Admins/devs see all.
             if (user.role === 'trainer') {
-                query += ' WHERE d.trainer_id = ?';
+                query += ' WHERE d.trainer_id = ? AND d.status = "live"';
                 params.push(user.id);
+            } else {
+                query += ' WHERE d.status = "live"';
             }
 
             query += ' ORDER BY d.start_date ASC';

@@ -43,7 +43,7 @@ const Dashboard = ({ user, onLogout }) => {
                             `SELECT d.id, d.course_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids, c.competency_ids
                              FROM datapack d
                              JOIN courses c ON d.course_id = c.id
-                             WHERE d.id = ?`,
+                             WHERE d.id = ? AND d.status = "live"`,
                             [trainee.datapack]
                         );
     
