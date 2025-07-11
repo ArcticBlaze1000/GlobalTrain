@@ -225,12 +225,13 @@ ipcMain.handle('save-uploaded-file', async (event, payload) => {
     if (documentDetails.scope === 'candidate' && traineeDetails) {
         const traineeFolderIndex = (eventDetails.trainee_ids.split(',').indexOf(String(traineeDetails.id)) + 1).toString().padStart(2, '0');
         const candidateFolderName = `${traineeFolderIndex} ${traineeDetails.forename} ${traineeDetails.surname}`;
-        // Use the 'save' property from documentDetails for the subfolder
-        const subFolder = documentDetails.save || 'Uploads';
-        finalPath = path.join(candidateBaseDir, candidateFolderName, subFolder);
+        const candidateParentDir = path.join(candidateBaseDir, candidateFolderName);
+        // Use the 'save' property from documentDetails for the subfolder if it exists
+        finalPath = documentDetails.save ? path.join(candidateParentDir, documentDetails.save) : candidateParentDir;
     } else {
         // This is a course-level document.
-        finalPath = path.join(candidateBaseDir, 'Course Documentation', 'Uploads');
+        const courseDocDir = path.join(candidateBaseDir, 'Course Documentation');
+        finalPath = documentDetails.save ? path.join(courseDocDir, documentDetails.save) : courseDocDir;
     }
     
     // Ensure the directory exists

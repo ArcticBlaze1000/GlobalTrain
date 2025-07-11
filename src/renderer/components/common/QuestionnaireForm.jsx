@@ -107,11 +107,16 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     const [questionOptions, setQuestionOptions] = useState({});
     const [trainees, setTrainees] = useState([]);
     const [competencies, setCompetencies] = useState([]);
+    const [saveStatus, setSaveStatus] = useState({ message: '', type: '' });
     
     const { datapackId, documentId } = useMemo(() => ({
         datapackId: eventDetails?.id,
         documentId: documentDetails?.id
     }), [eventDetails, documentDetails]);
+
+    const hasUploadQuestion = useMemo(() => {
+        return questions.some(q => q.input_type === 'upload');
+    }, [questions]);
 
     const selectedTrainee = useMemo(() => {
         if (!selectedTraineeId || !trainees.length) return null;
@@ -257,10 +262,75 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         });
     }, [datapackId, documentId, selectedTraineeId, documentDetails.scope]);
 
-    const debouncedSave = useCallback(debounce(async (fieldName, value) => {
+    const handleSaveUploads = async () => {
+        const stagedFiles = [];
+        for (const fieldName in responses) {
+            const response = responses[fieldName];
+            if (typeof response.data === 'object' && response.data && response.data.data) {
+                stagedFiles.push({
+                    fieldName,
+                    fileInfo: response.data
+                });
+            }
+        }
+    
+        if (stagedFiles.length === 0) {
+            setSaveStatus({ message: 'No new files to save.', type: 'error' });
+            setTimeout(() => setSaveStatus({ message: '', type: '' }), 3000);
+            return;
+        }
+    
+        const savePromises = stagedFiles.map(async ({ fieldName, fileInfo }) => {
+            const payload = {
+                fileData: fileInfo.data,
+                fileName: fileInfo.name,
+                eventDetails,
+                documentDetails,
+                traineeDetails: selectedTrainee
+            };
+            const result = await window.electron.saveUploadedFile(payload);
+            if (result.success) {
+                return { fieldName, filePath: result.filePath, success: true };
+            } else {
+                return { fieldName, error: result.error, success: false };
+            }
+        });
+    
+        const results = await Promise.all(savePromises);
+    
+        const successfulSaves = results.filter(r => r.success);
+        const failedSaves = results.filter(r => !r.success);
+    
+        if (failedSaves.length > 0) {
+            const errorMessages = failedSaves.map(f => f.error).join(', ');
+            setSaveStatus({ message: `Error: ${errorMessages}`, type: 'error' });
+            setTimeout(() => setSaveStatus({ message: '', type: '' }), 5000);
+        } else if (successfulSaves.length > 0) {
+            const newResponses = { ...responses };
+            const dbUpdates = [];
+    
+            for (const { fieldName, filePath } of successfulSaves) {
+                newResponses[fieldName] = { ...newResponses[fieldName], data: filePath, completed: true };
+                dbUpdates.push(
+                    window.db.run(
+                        'UPDATE responses SET response_data = ?, completed = 1 WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                        [filePath, datapackId, documentId, fieldName]
+                    )
+                );
+            }
+    
+            await Promise.all(dbUpdates);
+            setResponses(newResponses);
+            setSaveStatus({ message: 'Saved successfully!', type: 'success' });
+            setTimeout(() => setSaveStatus({ message: '', type: '' }), 3000);
+        }
+    };
+
+    // Debounced save function for text inputs etc.
+    const debouncedSave = useCallback(debounce(async (fieldName, value, completed, comments) => {
         await window.db.run(
-            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
-            [value, datapackId, documentId, fieldName]
+            'UPDATE responses SET response_data = ?, completed = ?, additional_comments = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [value, completed ? 1 : 0, comments, datapackId, documentId, fieldName]
         );
         triggerRecalculation();
     }, 500), [datapackId, documentId, triggerRecalculation]);
@@ -306,7 +376,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         setResponses(newResponses);
 
         const valueToSave = JSON.stringify(newData);
-        debouncedSave(fieldName, valueToSave);
+        debouncedSave(fieldName, valueToSave, false, ''); // No completed status for comments
     };
     
     const handleGridInputChange = (fieldName, traineeId, value, inputType) => {
@@ -390,24 +460,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     };
 
     const handleInputChange = (fieldName, value, inputType) => {
-        let responseData;
-        if (inputType === 'checkbox') {
-            responseData = value;
-        } else {
-            responseData = value;
-        }
-
-        const newResponses = {
-            ...responses,
+        const completed = inputType === 'upload' ? (typeof value === 'object' && value.name) : !!value;
+        setResponses(prev => ({
+            ...prev,
             [fieldName]: {
-                ...responses[fieldName],
-                data: responseData
+                ...prev[fieldName],
+                data: value,
+                completed: prev[fieldName]?.completed || completed
             }
-        };
-        setResponses(newResponses);
+        }));
 
-        const valueToSave = inputType === 'checkbox' ? String(responseData) : responseData;
-        debouncedSave(fieldName, valueToSave);
+        if (inputType !== 'upload') { // Uploads are saved manually
+            debouncedSave(fieldName, value, completed, responses[fieldName]?.comments || '');
+        }
     };
 
     const handleCommentChange = (fieldName, comments) => {
@@ -1279,8 +1344,21 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 );
             })}
             
-            {showPdfButton && (
-                <div className="pt-4 flex justify-end">
+            <div className="pt-4 flex justify-end items-center space-x-4">
+                {saveStatus.message && (
+                    <span className={`text-sm font-medium ${saveStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {saveStatus.message}
+                    </span>
+                )}
+                {hasUploadQuestion ? (
+                    <button 
+                        onClick={handleSaveUploads}
+                        className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                        title={`Save ${documentDetails.name}`}
+                    >
+                        Save {documentDetails.name}
+                    </button>
+                ) : showPdfButton ? (
                     <button 
                         onClick={handleGenerateAndCache}
                         className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -1289,8 +1367,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                     >
                         {pdfButtonText}
                     </button>
-                </div>
-            )}
+                ) : null}
+            </div>
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 const fileTypeMap = {
@@ -17,9 +17,19 @@ const fileTypeMap = {
 };
 
 const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint, eventDetails, selectedTrainee }) => {
-    const [uploadedFile, setUploadedFile] = useState(value ? { name: value } : null);
+    const [uploadedFile, setUploadedFile] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    useEffect(() => {
+        if (typeof value === 'string' && value) {
+            setUploadedFile({ name: value });
+        } else if (typeof value === 'object' && value && value.name) {
+            setUploadedFile({ name: value.name });
+        } else {
+            setUploadedFile(null);
+        }
+    }, [value]);
 
     const acceptOptions = documentDetails?.type ? fileTypeMap[documentDetails.type] : null;
 
@@ -47,46 +57,28 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
                 }
             }
 
-            setIsUploading(true);
+            setIsProcessing(true);
 
-            // Read file as Base64
+            // Read file as Base64 and pass it up to be staged
             const reader = new FileReader();
-            reader.onload = async () => {
+            reader.onload = () => {
                 const fileData = reader.result.split(',')[1]; // Get base64 part
-                
-                const payload = {
-                    fileData,
-                    fileName: file.name,
-                    eventDetails,
-                    documentDetails,
-                    traineeDetails: selectedTrainee
+                const stagedFile = {
+                    name: file.name,
+                    data: fileData,
+                    type: file.type
                 };
-
-                try {
-                    const result = await window.electron.saveUploadedFile(payload);
-                    if (result.success) {
-                        setUploadedFile({ name: result.filePath });
-                        onChange(result.filePath); // Save the full path
-                    } else {
-                        throw new Error(result.error);
-                    }
-                } catch (error) {
-                    console.error('Failed to save uploaded file:', error);
-                    alert(`Error saving file: ${error.message}`);
-                    setUploadedFile(null);
-                    onChange('');
-                } finally {
-                    setIsUploading(false);
-                }
+                onChange(stagedFile); // Pass the staged file object up to the parent
+                setIsProcessing(false);
             };
             reader.onerror = (error) => {
                 console.error('Error reading file:', error);
                 alert('Error reading file.');
-                setIsUploading(false);
+                setIsProcessing(false);
             };
             reader.readAsDataURL(file);
         }
-    }, [onChange, acceptOptions, requiredName, eventDetails, documentDetails, selectedTrainee]);
+    }, [onChange, acceptOptions, requiredName]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -160,11 +152,11 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
                     {...getRootProps()}
                     className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer h-full flex items-center justify-center
                         ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-                        ${disabled || isUploading ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
+                        ${disabled || isProcessing ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
                 >
                     <input {...getInputProps()} />
-                    {isUploading ? (
-                        <p className="text-gray-500">Uploading...</p>
+                    {isProcessing ? (
+                        <p className="text-gray-500">Processing...</p>
                     ) : uploadedFile ? (
                         <div className="flex items-center justify-between w-full">
                             <span className="text-gray-700 truncate">{uploadedFile.name.split(/[\\/]/).pop()}</span>
