@@ -77,7 +77,7 @@ const competenciesToSeed = [
     { name: 'SAI ERAS' }
 ];
 const coursesToSeed = [
-    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
+    { id: 1, name: 'PTS Initial', doc_ids: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33', competency_ids: '1', course_length: 1, non_mandatory_doc_ids: '7,8' }, 
     { id: 2, name: 'PTS Recert', doc_ids: '1,2,3,9,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '1', course_length: 2, non_mandatory_doc_ids: '' }, 
     { id: 3, name: 'PTS DCCR', doc_ids: '1,2,3,4,5,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31', competency_ids: '2', course_length: 5, non_mandatory_doc_ids: '' }
 ];

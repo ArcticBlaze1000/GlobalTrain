@@ -237,6 +237,7 @@ const CoursesManagement = ({ user }) => {
                         <tr>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Course Name</th>
                              <th className="p-3 text-left text-sm font-semibold text-gray-600">Length</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Admin Documents</th>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Course Documents</th>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Candidate Documents</th>
                             <th className="p-3 text-left text-sm font-semibold text-gray-600">Competencies</th>
@@ -254,6 +255,22 @@ const CoursesManagement = ({ user }) => {
                                 <tr key={course.id} className="border-b hover:bg-gray-50">
                                     <td className="p-3 font-medium">{course.name}</td>
                                     <td className="p-3 text-sm">{course.course_length}d</td>
+                                    <td className="p-3 text-sm text-gray-700">
+                                        <ul className="list-disc list-inside">
+                                            {courseDocs.map(id => {
+                                                const doc = getDocDetails(id);
+                                                if (doc && doc.scope === 'admin') {
+                                                    const isNonMandatory = nonMandatoryDocs.includes(id);
+                                                    return (
+                                                        <li key={id} className={isNonMandatory ? 'text-gray-500' : ''}>
+                                                            {doc.name}{isNonMandatory ? ' (Non-Mandatory)' : ''}
+                                                        </li>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </ul>
+                                    </td>
                                     <td className="p-3 text-sm text-gray-700">
                                         <ul className="list-disc list-inside">
                                             {courseDocs.map(id => {
