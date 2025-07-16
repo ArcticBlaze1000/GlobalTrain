@@ -125,10 +125,32 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         }
     };
 
+    const handleRevertStatus = async () => {
+        if (!register) return;
+        try {
+            await window.db.run(
+                "UPDATE datapack SET status = 'incomplete' WHERE id = ?",
+                [register.id]
+            );
+            setAlertInfo({
+                show: true,
+                title: 'Status Updated',
+                message: 'The event status has been reverted to incomplete.'
+            });
+        } catch (error) {
+            console.error('Failed to update datapack status:', error);
+            setAlertInfo({
+                show: true,
+                title: 'Error',
+                message: 'Failed to revert the status. Please try again.'
+            });
+        }
+    };
+
     const handleCloseAlert = () => {
         setAlertInfo({ show: false, title: '', message: '' });
-        if (alertInfo.title === 'Success!') {
-            onBackToList(); // Go back to the list view only on success
+        if (alertInfo.title === 'Success!' || alertInfo.title === 'Status Updated') {
+            onBackToList(); // Go back to the list view on success or status update
         }
     };
 
@@ -188,6 +210,12 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
                                 }`}
                             >
                                 {allDocumentsCompleted ? 'Submit Pre-Course Checklist' : 'Checklist Incomplete'}
+                            </button>
+                            <button
+                                onClick={handleRevertStatus}
+                                className="w-full py-2.5 px-4 mt-2 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out"
+                            >
+                                Revert to Incomplete
                             </button>
                         </div>
                     </div>
