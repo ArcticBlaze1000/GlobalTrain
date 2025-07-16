@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { FaFileUpload, FaCheckCircle, FaTrashAlt, FaInfoCircle, FaCopy } from 'react-icons/fa';
 
 const fileTypeMap = {
     'scanned photo': {
@@ -16,125 +17,93 @@ const fileTypeMap = {
     },
 };
 
-const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint, eventDetails, selectedTrainee }) => {
+const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, fileNameHint }) => {
     const { allow_multiple: allowMultiple } = question;
-    const [uploadedFiles, setUploadedFiles] = useState([]);
+    const [files, setFiles] = useState([]); 
     const [copySuccess, setCopySuccess] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    useEffect(() => {
-        if (!value) {
-            setUploadedFiles([]);
-            return;
-        }
-
-        let filesArray = [];
-        if (allowMultiple) {
-            try {
-                const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-                filesArray = Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-                console.error("Failed to parse multiple files value:", e);
-                filesArray = [];
-            }
-        } else {
-            if (typeof value === 'string' && value) {
-                filesArray = [{ name: value.split(/[\\/]/).pop(), path: value }];
-            } else if (value && value.name) {
-                filesArray = [value];
-            }
-        }
-        setUploadedFiles(filesArray.filter(f => f && f.name));
-    }, [value, allowMultiple]);
-
-    const acceptOptions = documentDetails?.type ? fileTypeMap[documentDetails.type] : null;
 
     const requiredName = useMemo(() => {
         if (!fileNameHint) return '';
-        return fileNameHint.replace('Required name: ', '').replace('Required name format: ', '');
+        return fileNameHint.replace('Required name: ', '');
     }, [fileNameHint]);
 
-    const onDrop = useCallback(async (acceptedFiles, fileRejections) => {
+    useEffect(() => {
+        if (!value) {
+            setFiles([]);
+            return;
+        }
+        try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            const initialFiles = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+            // Ensure initial files from DB are marked as 'uploaded'
+            setFiles(initialFiles.map(f => ({ name: f.name, url: f.url, status: 'uploaded' })));
+        } catch {
+            setFiles([]);
+        }
+    }, [value]);
+
+    const onDrop = useCallback((acceptedFiles, fileRejections) => {
+        // Validation for incorrect file types
         if (fileRejections.length > 0) {
-            const rejectedFiles = fileRejections.map(rejection => `${rejection.file.name} (${rejection.errors.map(e => e.message).join(', ')})`).join('\n');
-            const allowedTypes = acceptOptions ? Object.values(acceptOptions).flat().join(', ') : 'the correct';
-            alert(`File upload failed for:\n${rejectedFiles}\n\nPlease upload files of type: ${allowedTypes}.`);
+            const rejectedFiles = fileRejections.map(rej => rej.file.name).join(', ');
+            alert(`File type not accepted for: ${rejectedFiles}`);
             return;
         }
 
-        setIsProcessing(true);
+        // Validation for file names
+        for (const file of acceptedFiles) {
+            const isTraineeSpecific = requiredName.includes('TraineeFirstName_TraineeLastName');
+            
+            // If it's a trainee-specific file, we skip the rigid name check
+            // as the backend will parse the name. We just need to ensure it's not empty.
+            if (isTraineeSpecific) {
+                continue; 
+            }
 
-        const processFile = (file) => {
-            return new Promise((resolve, reject) => {
-                if (requiredName && !requiredName.includes('{') && !requiredName.includes('}')) {
-                    const uploadedFileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
-                    if (allowMultiple) {
-                        const requiredPrefix = requiredName.replace('_Part_X', '_Part').toLowerCase();
-                        if (!uploadedFileNameWithoutExt.toLowerCase().startsWith(requiredPrefix)) {
-                            alert(`Incorrect file name.\n\nPlease name the file like: "${requiredName.replace('_Part_X', '_Part_1')}"`);
-                            return reject('Incorrect file name.');
-                        }
-                    } else {
-                        if (uploadedFileNameWithoutExt.toLowerCase() !== requiredName.toLowerCase()) {
-                            alert(`Incorrect file name.\n\nPlease name the file: "${requiredName}"`);
-                            return reject('Incorrect file name.');
-                        }
+            if (requiredName) {
+                const uploadedFileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+                if (allowMultiple) {
+                    const requiredPrefix = requiredName.replace('_Part_X', '').toLowerCase();
+                    if (!uploadedFileNameWithoutExt.toLowerCase().startsWith(requiredPrefix)) {
+                        alert(`Incorrect file name for "${file.name}".\nPlease name the file starting with: "${requiredName.replace('_Part_X', '')}"`);
+                        return; // Stop the process
+                    }
+                } else {
+                    if (uploadedFileNameWithoutExt.toLowerCase() !== requiredName.toLowerCase()) {
+                        alert(`Incorrect file name.\nPlease name the file: "${requiredName}"`);
+                        return; // Stop the process
                     }
                 }
+            }
+        }
 
+        const readFileAsBase64 = (file) => {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = () => {
-                    const fileData = reader.result.split(',')[1]; // Get base64 part
-                    resolve({ name: file.name, data: fileData, type: file.type });
-                };
-                reader.onerror = (error) => {
-                    console.error('Error reading file:', error);
-                    reject(error);
-                };
+                reader.onload = () => resolve({
+                    name: file.name,
+                    data: reader.result.split(',')[1],
+                    type: file.type,
+                    status: 'staged'
+                });
+                reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
             });
         };
-        
-        try {
-            const processedFiles = await Promise.all(acceptedFiles.map(processFile));
 
-            if (allowMultiple) {
-                const updatedFiles = [...uploadedFiles, ...processedFiles];
-                setUploadedFiles(updatedFiles);
-                onChange(updatedFiles);
-            } else {
-                const singleFile = processedFiles[0];
-                if (singleFile) {
-                    setUploadedFiles([singleFile]);
-                    onChange(singleFile);
-                }
-            }
-        } catch (error) {
-            if (error !== 'Incorrect file name.') {
-                alert('Error processing files.');
-            }
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [allowMultiple, onChange, uploadedFiles, requiredName]);
+        Promise.all(acceptedFiles.map(readFileAsBase64)).then(newFiles => {
+            const existingUploaded = files.filter(f => f.status === 'uploaded');
+            const updatedFiles = allowMultiple ? [...existingUploaded, ...newFiles] : newFiles;
+            setFiles(updatedFiles);
+            onChange(updatedFiles);
+        });
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        disabled,
-        multiple: allowMultiple,
-        accept: acceptOptions,
-    });
+    }, [allowMultiple, files, onChange, requiredName]);
 
-    const removeFile = (e, fileToRemove) => {
-        e.stopPropagation();
-        const newFiles = uploadedFiles.filter(file => (file.name !== fileToRemove.name));
-        setUploadedFiles(newFiles);
-
-        if (allowMultiple) {
-            onChange(newFiles);
-        } else {
-            onChange(null);
-        }
+    const removeFile = (indexToRemove) => {
+        const updatedFiles = files.filter((_, index) => index !== indexToRemove);
+        setFiles(updatedFiles);
+        onChange(updatedFiles.length > 0 ? updatedFiles : null);
     };
 
     const handleCopy = () => {
@@ -148,83 +117,58 @@ const UploadQuestion = ({ question, value, onChange, disabled, documentDetails, 
         });
     };
 
-    const allowedFileTypesHint = useMemo(() => {
-        if (!acceptOptions) return null;
-        return Object.values(acceptOptions).flat().join(', ');
-    }, [acceptOptions]);
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, disabled, accept: documentDetails?.type ? fileTypeMap[documentDetails.type] : null });
 
     return (
-        <div className="flex w-full items-start space-x-4">
-            <div className="w-1/2">
-                {(fileNameHint || allowedFileTypesHint) && (
-                    <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4 h-full">
-                        {fileNameHint && (
-                            <div>
-                                <label htmlFor="required-name" className="block text-sm font-medium text-gray-700 mb-1">Required File Name</label>
-                                <div className="flex items-center space-x-2">
-                                    <input
-                                        id="required-name"
-                                        type="text"
-                                        readOnly
-                                        value={requiredName}
-                                        className="flex-grow p-2 bg-gray-200 border border-gray-300 rounded-md text-sm text-gray-700 font-mono focus:ring-0 focus:border-gray-300"
-                                        onFocus={(e) => e.target.select()}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleCopy}
-                                        className="px-3 py-2 bg-blue-500 text-white text-sm font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                    >
-                                        Copy
-                                    </button>
-                                </div>
-                                {copySuccess && <p className="text-xs text-green-600 mt-1">{copySuccess}</p>}
-                            </div>
-                        )}
-                        {allowedFileTypesHint && (
-                            <div>
-                                 <label className="block text-sm font-medium text-gray-700 mb-1">Allowed File Types</label>
-                                 <p className="text-sm text-gray-600">{allowedFileTypesHint}</p>
-                            </div>
-                        )}
-                    </div>
-                )}
+        <div className="bg-white p-4 rounded-lg border border-gray-200 w-full space-y-4">
+             {fileNameHint && (
+                <div className="flex items-center p-3 rounded-md bg-blue-50 border border-blue-200">
+                    <FaInfoCircle className="text-blue-500 mr-3 text-xl flex-shrink-0" />
+                    <p className="text-sm text-blue-700 font-mono flex-grow">{fileNameHint}</p>
+                    <button
+                        type="button"
+                        onClick={handleCopy}
+                        className="ml-4 px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+                        title="Copy name hint to clipboard"
+                    >
+                        <FaCopy className="mr-1" />
+                        Copy
+                    </button>
+                    {copySuccess && <p className="text-xs text-green-600 ml-2">{copySuccess}</p>}
+                </div>
+            )}
+            
+            <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-md text-center cursor-pointer transition-colors
+                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+                ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}>
+                <input {...getInputProps()} />
+                <FaFileUpload className="mx-auto text-3xl text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">
+                    {isDragActive ? 'Drop here...' : `Drag & drop or click to select`}
+                </p>
+                {documentDetails?.type && <p className="text-xs text-gray-500 mt-1">Accepted types: {Object.values(fileTypeMap[documentDetails.type] || {}).flat().join(', ')}</p>}
             </div>
 
-            <div className="w-1/2">
-                <div
-                    {...getRootProps()}
-                    className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer h-full flex flex-col items-center justify-center
-                        ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-                        ${disabled || isProcessing ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400'}`}
-                >
-                    <input {...getInputProps()} />
-                    {isProcessing ? (
-                        <p className="text-gray-500">Processing...</p>
-                    ) : uploadedFiles.length > 0 ? (
-                        <div className="w-full">
-                            {uploadedFiles.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between w-full py-1">
-                                    <span className="text-gray-700 truncate text-sm">{file.name}</span>
-                                    {!disabled && (
-                                        <button
-                                            onClick={(e) => removeFile(e, file)}
-                                            className="ml-2 text-red-500 hover:text-red-700 font-semibold text-xs"
-                                            aria-label={`Remove ${file.name}`}
-                                        >
-                                            &times;
-                                        </button>
-                                    )}
+            {files.length > 0 && (
+                <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Selected Files</h4>
+                    <ul className="space-y-2">
+                        {files.map((file, index) => (
+                            <li key={index} className={`flex items-center justify-between p-2 rounded-md border-l-4 ${file.status === 'uploaded' ? 'bg-green-50 border-green-500' : 'bg-blue-50 border-blue-500'}`}>
+                                <div className="flex items-center space-x-3">
+                                    {file.status === 'uploaded' ? <FaCheckCircle className="text-green-600" /> : <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" title="Staged for upload"></div>}
+                                    <span className="text-sm text-gray-800 truncate">{file.name}</span>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-gray-500">
-                            {isDragActive ? 'Drop the file here...' : `Upload file${allowMultiple ? 's' : ''} here`}
-                        </p>
-                    )}
+                                {!disabled && (
+                                    <button onClick={() => removeFile(index)} className="text-gray-500 hover:text-red-600">
+                                        <FaTrashAlt />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

@@ -3,6 +3,15 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const puppeteer = require('puppeteer');
+require('dotenv').config();
+const { BlobServiceClient } = require('@azure/storage-blob');
+
+const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
+if (!AZURE_STORAGE_CONNECTION_STRING) {
+    console.error("Azure Storage Connection String is not set. Please create a .env file and set AZURE_STORAGE_CONNECTION_STRING.");
+    // We don't want the app to run without this, but we also don't want to crash it immediately.
+    // The upload function will handle the error gracefully.
+}
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
@@ -144,6 +153,87 @@ ipcMain.handle('get-logo-base64', async () => {
     }
 });
 
+const formatDateForPath = (date, format) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const monthName = d.toLocaleString('default', { month: 'long' });
+
+    if (format === 'mm. month yyyy') {
+        return `${month} ${monthName} ${year}`;
+    }
+    if (format === 'dd.mm.yyyy') {
+        return `${day}.${month}.${year}`;
+    }
+    return date.toString();
+};
+
+const buildBlobPath = async (eventDetails, documentDetails, traineeDetails, fileName) => {
+    const monthFolderName = formatDateForPath(eventDetails.start_date, 'mm. month yyyy');
+    
+    // Fetch trainer details from the database using trainer_id from eventDetails
+    const trainerRows = await queryDb('SELECT forename, surname FROM users WHERE id = ?', [eventDetails.trainer_id]);
+    const trainer = trainerRows[0] || {};
+    const trainerInitial = trainer.forename ? trainer.forename.charAt(0) : '';
+    const trainerSurname = trainer.surname || '';
+
+    const eventFolderName = `${formatDateForPath(eventDetails.start_date, 'dd.mm.yyyy')} ${eventDetails.courseName} ${trainerInitial} ${trainerSurname}`;
+
+    let finalSubPath = documentDetails.save || '';
+
+    // If the trainee isn't directly provided, try to infer from the filename
+    let targetTrainee = traineeDetails;
+    if (!targetTrainee && documentDetails.scope === 'candidate') {
+        const nameParts = fileName.split('_');
+        if (nameParts.length >= 2) {
+            const forename = nameParts[0];
+            const surname = nameParts[1];
+            // Find the trainee in the event's trainee list
+            const allTrainees = await queryDb(`SELECT * FROM trainees WHERE id IN (${eventDetails.trainee_ids})`);
+            targetTrainee = allTrainees.find(t => t.forename === forename && t.surname === surname);
+        }
+    }
+
+    // This is the key change: Only create indexed trainee folders for the generic 'Candidates/' path
+    if (documentDetails.scope === 'candidate' && targetTrainee && finalSubPath === 'Candidates/') {
+        const traineeIndex = (eventDetails.trainee_ids.split(',').indexOf(String(targetTrainee.id)) + 1).toString().padStart(2, '0');
+        const candidateFolderName = `${traineeIndex}_${targetTrainee.forename}_${targetTrainee.surname}`;
+        finalSubPath = `Candidates/${candidateFolderName}/`;
+    }
+    
+    return `Training/${monthFolderName}/${eventFolderName}/${finalSubPath}`;
+};
+
+ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, eventDetails, documentDetails, traineeDetails }) => {
+    if (!AZURE_STORAGE_CONNECTION_STRING) {
+        throw new Error('Azure Storage connection string is not configured.');
+    }
+
+    try {
+        const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+        
+        const containerName = 'documents'; // All documents will go into this single container
+        const containerClient = blobServiceClient.getContainerClient(containerName);
+        await containerClient.createIfNotExists();
+
+        const basePath = await buildBlobPath(eventDetails, documentDetails, traineeDetails, fileName);
+        const blobPath = `${basePath}${fileName}`;
+
+        const blockBlobClient = containerClient.getBlockBlobClient(blobPath);
+        
+        const buffer = Buffer.from(fileData, 'base64');
+        
+        await blockBlobClient.uploadData(buffer);
+
+        // Return the URL of the uploaded blob
+        return blockBlobClient.url;
+    } catch (error) {
+        console.error('Error uploading to Azure Blob Storage:', error.message);
+        throw new Error(`Failed to upload ${fileName} to Azure.`);
+    }
+});
+
 ipcMain.handle('app-quit', () => {
     app.quit();
 });
@@ -253,6 +343,15 @@ app.on('ready', () => {
                 break;
             case 'tri_toggle':
                 isComplete = responseData !== 'neutral' && responseData !== '';
+                break;
+            case 'upload':
+                try {
+                    const files = JSON.parse(responseData || '[]');
+                    // Complete if there is at least one file that is not staged (i.e., has been uploaded)
+                    isComplete = files.length > 0 && files.some(f => f.status === 'uploaded');
+                } catch {
+                    isComplete = false;
+                }
                 break;
             case 'competency_grid': // Our custom type
                 try {
