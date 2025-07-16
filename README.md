@@ -42,19 +42,6 @@ The main application screens (`Admin`, `Course`, and `Candidate`) have been rede
 - **Draft Management**: Save incomplete training event registrations as drafts with auto-save functionality.
 - **Automatic Folder Management**: On startup, the application synchronizes and creates structured folder systems for all past and present training events, ensuring consistency.
 
-### **Physical Document Validation**
-A unique system that bridges the gap between digital tracking and physical paperwork.
-- **Live File Counting**: Forms can be configured to monitor specific folders on the file system. The UI displays a live status of how many files are present versus how many are expected.
-- **Precise Folder Structure Validation**: The system now validates against a highly specific and realistic folder structure, ensuring physical documents are correctly filed.
-    1.  **Mandatory Candidate Documents**: These are files that are unique to each trainee and are required for their record. The system looks for them inside a folder named after the document within the candidate's personal directory.
-        - **Path**: `.../[Date] [Course] [Trainer]/[Candidate Name]/[DocumentName]/`
-        - **Example**: `.../01-01-2024 PTS Sykes/01 John Doe/PracticalAssessment/`
-    2.  **Non-Mandatory & Shared Documents**: These are typically exercises or documents that may not be specific to one candidate or are part of a group activity. They are stored in a shared folder for the event.
-        - **Path**: `.../[Date] [Course] [Trainer]/Candidate/Additional Exercsies Contents/[DocumentName]/`
-        - **Example**: `.../01-01-2024 PTS Sykes/Candidate/Additional Exercsies Contents/PhoneticQuiz/`
-- **Conditional PDF Generation**: The "Generate PDF" button is disabled until the physical file requirements are met, ensuring a complete audit trail.
-- **Persistent Progress**: The completion status is saved to the database, so it persists across application restarts and user sessions.
-
 ### **Candidate-Centric Document Management (`CandidateScreen.jsx`)**
 The `CandidateScreen` provides a focused interface for managing all documentation and details related to a single trainee within a specific event. It's a key view for trainers who need to track individual progress.
 

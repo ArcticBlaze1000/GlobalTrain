@@ -13,8 +13,6 @@ contextBridge.exposeInMainWorld('electron', {
   recalculateAndUpdateProgress: (args) => ipcRenderer.invoke('recalculate-and-update-progress', args),
   onProgressUpdate: (callback) => ipcRenderer.on('progress-updated', callback),
   initializeUserSession: (user) => ipcRenderer.invoke('initialize-user-session', user),
-  savePdf: (payload) => ipcRenderer.invoke('save-pdf', payload),
-  saveUploadedFile: (payload) => ipcRenderer.invoke('save-uploaded-file', payload),
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
   getCssPath: () => ipcRenderer.invoke('get-css-path'),
@@ -26,7 +24,6 @@ contextBridge.exposeInMainWorld('electron', {
   addCourse: (course) => ipcRenderer.invoke('add-course', course),
   updateCourse: (course) => ipcRenderer.invoke('update-course', course),
   deleteCourse: (id) => ipcRenderer.invoke('delete-course', id),
-  checkDocumentFile: (args) => ipcRenderer.invoke('check-document-file', args),
   // --- Dev Tools ---
   dev_regenerateLastPdf: () => ipcRenderer.invoke('dev:regenerate-last-pdf')
 });
