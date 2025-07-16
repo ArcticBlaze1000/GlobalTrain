@@ -69,20 +69,37 @@ const RegistersManagement = ({ user, openSignatureModal }) => {
                 SELECT 
                     d.*, 
                     c.name as courseName,
+                    c.doc_ids as courseDocIds,
                     u.forename as trainerForename,
-                    u.surname as trainerSurname,
-                    (
-                        SELECT AVG(dp.completion_percentage) 
-                        FROM document_progress dp 
-                        WHERE dp.datapack_id = d.id AND dp.document_id IN (${PRE_COURSE_DOC_IDS.join(',')})
-                    ) as completion
+                    u.surname as trainerSurname
                 FROM datapack d
                 JOIN courses c ON d.course_id = c.id
                 JOIN users u ON d.trainer_id = u.id
                 WHERE d.status IN ('pre course', 'post course')
                 ORDER BY d.start_date DESC
             `);
-            setRegisters(fetchedRegisters);
+            
+            const registersWithCompletion = await Promise.all(fetchedRegisters.map(async (reg) => {
+                const courseDocIds = reg.courseDocIds ? reg.courseDocIds.split(',').map(Number) : [];
+                // Find the intersection of pre-course docs and the docs for this specific course
+                const applicableDocIds = PRE_COURSE_DOC_IDS.filter(id => courseDocIds.includes(id));
+
+                let completion = 0;
+                if (applicableDocIds.length > 0) {
+                    const progressResult = await window.db.get(
+                        `SELECT AVG(dp.completion_percentage) as avg_completion
+                         FROM document_progress dp 
+                         WHERE dp.datapack_id = ? AND dp.document_id IN (${applicableDocIds.join(',')})`,
+                        [reg.id]
+                    );
+                    completion = progressResult.avg_completion || 0;
+                }
+                
+                // Attach the applicable IDs to the register object for the checklist to use
+                return { ...reg, completion, applicableDocIds };
+            }));
+
+            setRegisters(registersWithCompletion);
         } catch (error) {
             console.error("Failed to fetch registers:", error);
         }

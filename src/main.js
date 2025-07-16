@@ -47,6 +47,18 @@ ipcMain.handle('db-query', async (event, sql, params = []) => {
     });
 });
 
+ipcMain.handle('db-get', async (event, sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(row);
+            }
+        });
+    });
+});
+
 ipcMain.handle('db-run', async (event, sql, params = []) => {
     return new Promise((resolve, reject) => {
         db.run(sql, params, function (err) { // Must use function() to get 'this' scope

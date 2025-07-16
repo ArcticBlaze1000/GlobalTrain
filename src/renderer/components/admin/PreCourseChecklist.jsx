@@ -16,6 +16,15 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
     useEffect(() => {
         const fetchChecklistData = async () => {
             if (!register) return;
+            
+            // Use the pre-filtered list of applicable doc IDs from the register object
+            const applicableDocIds = register.applicableDocIds || [];
+            if (applicableDocIds.length === 0) {
+                setDocuments([]);
+                setIsLoading(false);
+                return;
+            }
+
             setIsLoading(true);
             setActiveEvent(null);
 
@@ -38,16 +47,16 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
                     setActiveEvent(eventData);
                 }
 
-                const docPlaceholders = PRE_COURSE_DOC_IDS.map(() => '?').join(',');
+                const docPlaceholders = applicableDocIds.map(() => '?').join(',');
                 const docDetails = await window.db.query(
-                    `SELECT * FROM documents WHERE id IN (${docPlaceholders}) ORDER BY INSTR(',${PRE_COURSE_DOC_IDS.join(',')},', ',' || id || ',')`,
-                    PRE_COURSE_DOC_IDS
+                    `SELECT * FROM documents WHERE id IN (${docPlaceholders}) ORDER BY INSTR(',${applicableDocIds.join(',')},', ',' || id || ',')`,
+                    applicableDocIds
                 );
 
-                const progressPlaceholders = PRE_COURSE_DOC_IDS.map(() => '?').join(',');
+                const progressPlaceholders = applicableDocIds.map(() => '?').join(',');
                 const docProgress = await window.db.query(
                     `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND document_id IN (${progressPlaceholders})`,
-                    [register.id, ...PRE_COURSE_DOC_IDS]
+                    [register.id, ...applicableDocIds]
                 );
 
                 const progressMap = docProgress.reduce((acc, progress) => {
@@ -79,10 +88,13 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         const fetchProgress = async () => {
             if (!register) return;
     
-            const progressPlaceholders = PRE_COURSE_DOC_IDS.map(() => '?').join(',');
+            const applicableDocIds = register.applicableDocIds || [];
+            if (applicableDocIds.length === 0) return;
+
+            const progressPlaceholders = applicableDocIds.map(() => '?').join(',');
             const docProgress = await window.db.query(
                 `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND document_id IN (${progressPlaceholders})`,
-                [register.id, ...PRE_COURSE_DOC_IDS]
+                [register.id, ...applicableDocIds]
             );
     
             const progressMap = docProgress.reduce((acc, progress) => {
@@ -101,7 +113,7 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
     
     const formatDocName = (name) => name.replace(/([a-z])([A-Z])/g, '$1 $2');
 
-    const allDocumentsCompleted = documents.every(doc => doc.progress === 100);
+    const allDocumentsCompleted = documents.length > 0 && documents.every(doc => doc.progress === 100);
 
     const handleSubmitChecklist = async () => {
         if (!register || !allDocumentsCompleted) return;
