@@ -233,7 +233,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 
                 let parsedData;
                 if (q.input_type === 'checkbox') {
-                    parsedData = responseData === 'true';
+                    parsedData = responseData === 'true' || responseData === 1 || responseData === '1';
                 } else if (q.input_type === 'tri_toggle') {
                     parsedData = responseData;
                 } else if (q.input_type === 'upload' && q.allow_multiple) {
@@ -533,6 +533,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             completed = !!value;
         }
 
+        const valueToSave = inputType === 'checkbox' ? (value ? 1 : 0) : value;
+
         setResponses(prev => ({
             ...prev,
             [fieldName]: {
@@ -543,7 +545,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         }));
 
         if (inputType !== 'upload') {
-            debouncedSave(fieldName, value, completed, responses[fieldName]?.comments || '');
+            debouncedSave(fieldName, valueToSave, completed, responses[fieldName]?.comments || '');
         }
     };
 

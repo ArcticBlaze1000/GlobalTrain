@@ -190,7 +190,7 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
         
         switch (q.input_type) {
             case 'checkbox':
-                isComplete = responseData === 'true';
+                isComplete = responseData === 'true' || responseData === 1 || responseData === '1';
                 break;
             case 'tri_toggle':
                 isComplete = responseData !== 'neutral' && responseData !== '';
