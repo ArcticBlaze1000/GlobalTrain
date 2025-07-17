@@ -11,20 +11,30 @@ The core philosophy of this application is **flexibility through a database-driv
 ## Technology Stack
 
 ### Core Technologies
-- **Frontend**: React 19.1.0 with Vite 6.3.5 as the build tool
+- **Frontend**: React 19.1.0
+- **Build Tool**: Vite 6.3.5
 - **Desktop Framework**: Electron 36.5.0
-- **Database**: SQLite 3 5.1.7
+- **Database**: SQLite3 5.1.7, with `tedious` for SQL Server connections
 - **Styling**: Tailwind CSS 3.4.17
+- **Cloud Storage**: Azure Blob Storage 12.27.0
 
 ### Key Dependencies
-- **PDF Generation**: Puppeteer 24.10.2, pdf-lib 1.17.1
-- **Digital Signatures**: react-signature-canvas 1.1.0-alpha.2
-- **Utilities**: Lodash 4.17.21, uuid 11.1.0
-- **Development**: Vite, PostCSS, Autoprefixer
+- **PDF Generation**: `pdf-lib` 1.17.1, `puppeteer` 24.10.2
+- **Digital Signatures**: `react-signature-canvas` 1.1.0-alpha.2
+- **File Management**: `react-dropzone` 14.3.8
+- **Utilities**: `lodash` 4.17.21, `uuid` 11.1.0
 
 ---
 
 ## Key Features
+
+### **Advanced Course Configuration**
+The application now features a powerful, modal-based interface for course management, allowing administrators to dynamically define every aspect of a training program. This system provides granular control over course structure, ensuring that training events are tailored, consistent, and easy to manage.
+
+- **Create and Edit Courses**: Admins can add new courses or modify existing ones through an intuitive modal.
+- **Set Course Details**: Define the course name and duration (in days).
+- **Assign Documents & Competencies**: Link specific documents and competencies to each course from a master list.
+- **Non-Mandatory Documents**: Mark certain documents as non-mandatory, allowing for flexible training requirements where some paperwork may be optional.
 
 ### **Enhanced Role-Based Access Control (RBAC)**
 A comprehensive login system that tailors the user experience to the logged-in user's role:
@@ -32,9 +42,6 @@ A comprehensive login system that tailors the user experience to the logged-in u
 - **Admin**: Complete management access including user management and system configuration.
 - **Trainer**: Focused view for managing assigned training events and completing documentation.
 - **Candidate**: Self-service portal for completing pre-course assessments and viewing personal training data.
-
-### **Responsive UI with Independent Scrolling**
-The main application screens (`Admin`, `Course`, and `Candidate`) have been redesigned with a modern flexbox layout. This creates a more intuitive user experience where side panels (like event lists or document lists) remain fixed, while the main content area scrolls independently. This prevents page-level scrollbars and ensures that key navigation elements are always visible, even when working with long forms or large data sets.
 
 ### **Dynamic Event & Datapack Management**
 - Create and manage **Courses** (e.g., PTS, PTS Recert, COSS Initial).
@@ -46,82 +53,20 @@ The main application screens (`Admin`, `Course`, and `Candidate`) have been rede
 The `CandidateScreen` provides a focused interface for managing all documentation and details related to a single trainee within a specific event. It's a key view for trainers who need to track individual progress.
 
 - **Three-Panel Layout**: The screen is divided into three distinct, interactive panels for an efficient workflow:
-    1.  **Event Candidates (Left)**: A list of all trainees enrolled in the currently active training event. Selecting a candidate updates the other two panels.
-    2.  **Required Documents (Middle)**: Displays a list of all documents required for the selected candidate, filtered by their course and the trainer's role. Each document shows a real-time completion percentage (`✔` for 100%, `?` for untouched, or a percentage).
-    3.  **Form Canvas (Right)**: The main work area where the selected document's form is rendered for completion. If no document is selected, it shows the candidate's key details (Sponsor, Sentry Number, etc.).
-
-- **Dynamic Form Rendering**: Based on the document selected, this view dynamically loads and renders the appropriate React form component (e.g., `PreCourseForm`, `PhoneticQuizForm`, `PracticalAssessmentForm`). This is driven by the `documents` table in the database.
-
-- **Real-time Progress Updates**: The screen listens for progress updates from across the application. If another user is working on a document for the selected candidate, the progress indicator will update automatically without needing a manual refresh.
-
-- **Integrated PDF Generation**: Trainers can generate a PDF of any completed or in-progress form directly from this screen. The system renders the form component to HTML, applies the application's styles, and uses Electron's backend services to create and save a PDF file.
-
-- **Specialized Document Handling**: Includes logic to conditionally display certain forms, such as the `LeavingForm`, which only appears when a trainer toggles a specific checkbox, keeping the UI clean and context-aware.
-
-### **Event Lifecycle Management**
-To ensure a structured and auditable workflow, training events (Datapacks) now move through a distinct lifecycle managed by a `status` field in the database. This prevents incomplete or unverified events from appearing live to trainers and candidates.
-
-- **Three Statuses**:
-    1.  **`new`**: The default state for an event created in the **Creation Screen**. At this stage, it is considered a draft and is only visible to the user who created it.
-    2.  **`admin`**: When a user in the Creation Screen is satisfied with the draft, they can "Send to Admin". This changes the status to `admin` and makes the event visible in the **Admin Screen** for final review and approval.
-    3.  **`cleared`**: After an administrator reviews the event details in the Admin Screen, they can "Clear" it. This sets the status to `cleared`, making the event live and accessible in the **Course Screen** and **Candidate Screen** for trainers and candidates.
-
-- **Controlled Visibility**: This status-driven system ensures that each screen in the application only shows relevant data: drafts in `CreationScreen`, pending events in `AdminScreen`, and fully approved events in the live training screens.
+    1.  **Event Candidates (Left)**: A list of all trainees enrolled in the currently active training event.
+    2.  **Required Documents (Middle)**: Displays a list of all documents required for the selected candidate.
+    3.  **Form Canvas (Right)**: The main work area where the selected document's form is rendered for completion.
 
 ### **Advanced Flagging System**
 To enhance collaboration and issue resolution, the application includes a sophisticated flagging system. This allows any user to raise a "flag" on a specific page, document, or even a trainee, to draw an administrator's attention to a potential issue.
 
-- **Context-Aware Flagging**: Users can raise a flag from any screen in the application. The system automatically captures the context, including the active event (Datapack), the selected document, and the trainee in view, linking this information directly to the flag.
-- **Role-Based Workflow**:
-    - Any user can create a flag and send it to an `admin` or `dev`.
-    - Administrators manage all incoming flags through a dedicated **Flags Management** screen within the Admin Panel.
-- **Flag Lifecycle**: Flags move through a clear lifecycle, tracked by status:
-    1.  **`open`**: The initial state when a flag is created.
-    2.  **`in-progress`**: An admin has picked up the flag and is actively working on it.
-    3.  **`resolved`**: The issue has been addressed and the flag is closed.
-    4.  **`rejected`**: The flag was deemed unnecessary and was closed without action.
-- **Live Document View**: When an administrator picks up a flag that is linked to a specific document, the system provides a **live, interactive view of that document directly within the flag details screen**. This allows the admin to see all existing data, make necessary corrections, and fill out the form without ever leaving the Admin Panel, streamlining the resolution process.
-- **Detailed Audit Trail**: The system records who raised the flag, who it was sent to, when it was picked up, and how it was resolved, providing a complete audit trail for every issue.
-
 ### **Database-Driven Document Generation**
 - The structure of all forms and checklists is defined in the database, not in the code.
-- Supports a wide variety of input types including standard inputs, interactive elements (tri-toggles, signatures), and complex data grids.
-
-### **Comprehensive Document Types**
-The application now supports **25 different document types**, each with a specific scope and purpose. Many of these are new and their implementation details might vary.
-
-| #  | Name                                     | Type              | Scope       | Description                                                 |
-|----|------------------------------------------|-------------------|-------------|-------------------------------------------------------------|
-| 1  | Register                                 | Questionnaire     | Course      | Attendance, competency tracking, and final results.         |
-| 2  | Training Course Checklist                | Questionnaire     | Course      | Pre-course and learner pack verification.                   |
-| 3  | Training & Welding Track Safety Briefing | Questionnaire     | Course      | Practical safety training and sign-off.                     |
-| 4  | Pre Course                               | Questionnaire     | Candidate   | Equality, diversity, and self-assessment info.              |
-| 5  | Post Course                              | *Placeholder*     | Candidate   | Future use for post-training documentation.                 |
-| 6  | Leaving Form                             | Questionnaire     | Candidate   | Documentation for candidates who leave a course early.      |
-| 7  | Phonetic Quiz                            | **File-Based**    | Candidate   | Validates scanned copies of the phonetic quiz assessment.   |
-| 8  | Emergency Phone Call Exercise            | **File-Based**    | Candidate   | Validates scanned copies of the emergency call exercise.    |
-| 9  | Progress Record                          | Questionnaire     | Course      | Tracks overall course progress via a dynamic questionnaire. |
-| 10 | Deviation Form                           | Questionnaire     | Course      | Documents any deviations from the standard course.          |
-| 11 | Practical Assessment                     | **File-Based**    | Candidate   | Validates the scanned practical assessment for one trainee. |
-| 12 | Recert Emergency Call Practical          | **File-Based**    | Candidate   | Validates the scanned recertification assessment.           |
-| 13 | Track Walk Delivery Requirements         | **File-Based**    | Candidate   | Validates scanned copies of track walk safety checks.       |
-| 14 | Assessment Review                        | Questionnaire     | Candidate   | (New) Review of assessments.                                |
-| 15 | Certificates                             | **File-Based**    | Candidate   | (New) Manages candidate certificates.                       |
-| 16 | Evidence Of Logbook                      | **File-Based**    | Candidate   | (New) Validates evidence of logbook entries.                |
-| 17 | General Track Visit Form                 | Questionnaire     | Course      | (New) Form for general track visits.                        |
-| 18 | Knowledge Assessment                     | **File-Based**    | Candidate   | (New) Validates knowledge assessment documents.             |
-| 19 | Logbook Entries                          | **File-Based**    | Candidate   | (New) Manages logbook entries.                              |
-| 20 | Photographic ID                          | **File-Based**    | Candidate   | (New) Validates photographic ID.                            |
-| 21 | Questionnaire And Feedback Form          | Questionnaire     | Candidate   | (New) For candidate feedback.                               |
-| 22 | Scenario Assessment                      | **File-Based**    | Candidate   | (New) Validates scenario assessment documents.              |
-| 23 | Swipes                                   | **File-Based**    | Candidate   | (New) Manages swipe card data.                              |
-| 24 | SWP                                      | **File-Based**    | Course      | (New) Safe Work Pack documentation.                         |
-| 25 | Workbook                                 | **File-Based**    | Candidate   | (New) Manages candidate workbooks.                          |
+- Supports a wide variety of input types including standard inputs, interactive elements, and digital signatures.
 
 ### **Advanced Form Features**
 - **Real-time Progress Tracking**: Completion percentages are calculated and displayed instantly.
 - **Persistent State**: All form data and completion statuses are saved to the database, persisting across sessions.
-- **Conditional UI**: Forms adapt based on user input (e.g., Leaving Form only appears when needed).
 - **Digital Signatures**: Integrated signature capture with a modal interface.
 
 ---
@@ -129,90 +74,50 @@ The application now supports **25 different document types**, each with a specif
 ## System Architecture
 
 ### Database Schema
+The application's flexibility comes from its comprehensive SQLite database (`database.db`).
 
-The application's flexibility comes from its comprehensive SQLite database (`database.db`). The schema supports dynamic form generation and complex training workflows.
-
-| Table                    | Description                                                                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                  | Stores user credentials and roles (`dev`, `admin`, `trainer`, `candidate`).                                                             |
-| `courses`                | Defines available training courses with linked document IDs, competencies, course length, and non-mandatory folder specifications.     |
-| `trainees`               | Manages information for all training participants including sponsor details and additional comments.                                     |
-| `datapack`               | Core table representing completed training events. Links courses, trainers, and trainees. **Contains a `status` field (`new`, `admin`, `cleared`) to manage the event lifecycle.** |
-| `incomplete_registers`   | Stores draft training event registrations with auto-save and timestamp tracking.                                                        |
-| `documents`              | Lists all document types with scope definitions and role-based visibility controls.                                                     |
-| `questionnaires`         | **The heart of the dynamic UI.** Defines sections, questions, input types, and access controls for every document.                      |
-| `questionnaire_options`  | Stores dropdown options and multiple-choice answers for questionnaire fields.                                                           |
-| `responses`              | Stores all submitted form data with trainee associations and completion tracking.                                                       |
-| `competencies`           | Professional competencies that can be assessed and tracked.                                                                             |
-| `document_progress`      | **NEW**: Persists the completion percentage of documents for each trainee, ensuring state is saved across sessions.                        |
-| `flags`                  | **NEW**: Manages the flagging system. Stores details about raised issues, including context (datapack, document, trainee), status, resolution notes, and a full audit trail. |
-| `permissions`            | Role-based permission system for fine-grained access control.                                                                           |
+| Table                    | Description                                                                 |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `users`                  | Stores user credentials and roles (`dev`, `admin`, `trainer`, `candidate`). |
+| `courses`                | Defines available training courses.                                         |
+| `trainees`               | Manages information for all training participants.                          |
+| `datapack`               | Represents a unique training event, linking courses, trainers, and trainees.|
+| `incomplete_registers`   | Stores draft training event registrations.                                  |
+| `documents`              | Lists all document types with their configurations.                         |
+| `questionnaires`         | Defines the structure of each dynamic form.                                 |
+| `questionnaire_options`  | Stores dropdown options for questionnaire fields.                           |
+| `responses`              | Stores all submitted form data.                                             |
+| `document_progress`      | Persists the completion percentage of documents for each trainee.           |
+| `flags`                  | Manages the flagging system for issue tracking.                             |
 
 ### Project Structure
-
 ```
 global-train/
-├── database.db              # SQLite database file
-├── init-db.js               # Database initialization and seeding script
-├── index.html               # Application entry point
-├── package.json             # Dependencies and scripts
-├── vite.config.js           # Vite build configuration
-├── tailwind.config.js       # Tailwind CSS configuration
-├── public/
-│   └── GlobalTrainLogo.jpg  # Application logo
+├── database.db
+├── init-db.js
+├── index.html
+├── package.json
 └── src/
-    ├── main.js              # Electron main process
-    ├── preload.js           # Electron preload script (IPC bridge)
-    └── renderer/            # React application source
-        ├── App.jsx          # Main React application component
-        ├── index.css        # Global styles and Tailwind imports
+    ├── main.js              # Electron Main Process
+    ├── preload.js           # Electron Preload Script
+    └── renderer/
+        ├── App.jsx
+        ├── index.css
         ├── context/
-        │   └── EventContext.jsx # Global state management for active events
+        │   └── EventContext.jsx
         └── components/
-            ├── LoginScreen.jsx      # Authentication interface
-            ├── Dashboard.jsx        # Main application dashboard with tabs
-            ├── CreationScreen.jsx   # Training event creation and management
-            ├── AdminScreen.jsx      # Admin approval screen
-            ├── Admin/               # Components specific to the Admin Panel
-            │   ├── CoursesManagement.jsx # Interface for course management
-            │   ├── FlagsManagement.jsx   # Main view for managing flags
-            │   └── FlagDetailView.jsx    # Detailed view for a single flag
-            ├── CourseScreen.jsx     # Course-level document management
-            ├── CandidateScreen.jsx  # Candidate-level document management
-            ├── UsersScreen.jsx      # User management (admin only)
-            ├── common/              # Shared UI components
-            │   ├── QuestionnaireForm.jsx # Dynamic form generator
-            │   ├── SignatureModal.jsx    # Digital signature capture
-            │   ├── TriToggleButton.jsx   # Three-state toggle component
-            │   ├── Dropdown.jsx          # Dropdown component
-            │   └── FileCheckDisplay.jsx  # Component for validating physical files
-            ├── General/             # General training documents (Forms, PDFs, Templates)
-            │   ├── AssessmentReview/
-            │   ├── Certificates/
-            │   ├── DeviationForm/
-            │   ├── EvidenceOfLogbook/
-            │   ├── GeneralTrackVisitForm/
-            │   ├── KnowledgeAssessment/
-            │   ├── LeavingForm/
-            │   ├── LogbookEntries/
-            │   ├── PhotographicID/
-            │   ├── PostCourse/
-            │   ├── PracticalAssessment/
-            │   ├── PreCourse/
-            │   ├── ProgressRecord/
-            │   ├── QuestionnaireAndFeedbackForm/
-            │   ├── Register/
-            │   ├── ScenarioAssessment/
-            │   ├── Swipes/
-            │   ├── SWP/
-            │   ├── TrainingCourseChecklist/
-            │   └── Workbook/
-            └── PTS/                 # PTS-specific documents
-                ├── EmergencyPhoneCallExercise/
-                ├── PhoneticQuiz/
-                ├── RecertEmergencyCallPracticalAssessment/
-                ├── TrackWalkDeliveryRequirements/
-                └── TrainingAndWeldingTrackSafetyBreifing/
+            ├── Admin/
+            │   ├── CoursesManagement.jsx
+            ├── Common/
+            ├── General/
+            ├── PTS/
+            ├── AdminScreen.jsx
+            ├── CandidateScreen.jsx
+            ├── CourseScreen.jsx
+            ├── CreationScreen.jsx
+            ├── Dashboard.jsx
+            ├── LoginScreen.jsx
+            └── UsersScreen.jsx
 ```
 
 ---
@@ -220,131 +125,30 @@ global-train/
 ## Getting Started
 
 ### Prerequisites
-
 - **Node.js** (v16 or higher recommended)
-- **npm** (comes with Node.js)
-- **Windows 10/11** (primary target, though cross-platform support via Electron)
+- **npm**
 
 ### Installation & Setup
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd global-train
-   ```
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd global-train
+    ```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-3. **Initialize the database:**
-   This script creates `database.db` and seeds it with initial data, including sample users, courses, and training events.
-   ```bash
-   npm run db:init
-   ```
+3.  **Initialize the database:**
+    This script creates `database.db` and populates it with the necessary schema and initial data.
+    ```bash
+    npm run db:init
+    ```
 
-4. **Run the application in development mode:**
-   ```bash
-   npm run dev
-   ```
-   This starts both the Vite development server and the Electron application.
-
-### Default Login Credentials
-
-After database initialization, you can log in with these test accounts:
-
-**Developer Account:**
-- Username: `aditya` | Password: `chaubey`
-
-**Admin Account:**
-- Username: `mick` | Password: `lamont`
-
-**Trainer Accounts:**
-- Username: `george` | Password: `penman`
-- Username: `stewart` | Password: `roxburgh`
-
-**Candidate Account:**
-- Username: `johndoe` | Password: `doe`
-
-### Building for Production
-
-- **Development Build:**
-  ```bash
-  npm run build
-  ```
-
-- **Package Application:**
-  ```bash
-  npm run package
-  ```
-  Creates a packaged app for your current platform without an installer.
-
-- **Create Installer:**
-  ```bash
-  npm run make
-  ```
-  Creates a native installer for your current platform.
-
-### Development Workflow
-
-- **Vite Development Server**: Runs on `http://localhost:5173`
-- **Hot Reload**: Automatic refresh during development
-- **Database Reset**: Run `npm run db:init` to reset database to initial state
-- **Debugging**: Developer tools available in dev mode (F12)
-
----
-
-## Document Management System
-
-### Document Scopes
-
-**Course Documents** apply to the entire training event:
-- Visible to all participants
-- Completed once per course
-- Examples: Register, Training Course Checklist
-
-**Candidate Documents** are specific to individual trainees:
-- Personalized for each participant
-- Completed individually
-- Examples: Pre-course Assessment, Leaving Form
-
-### Form Input Types
-
-The system supports a rich variety of input types:
-- `text`, `number`, `date`, `time` - Standard form inputs
-- `textarea` - Multi-line text areas
-- `checkbox` - Boolean checkboxes
-- `dropdown` - Select dropdowns with database-driven options
-- `tri_toggle` - Three-state toggle (Yes/No/N/A)
-- `signature_box` - Digital signature capture
-- `signature_grid` - Signature collection for multiple trainees
-- `trainee_dropdown_grid` - Dropdown grids for trainee-specific data
-- `trainee_date_grid` - Date grids for trainee-specific dates
-- `time_capture_button` - One-click time capture buttons
-
-### Competency Tracking
-
-- Dynamic competency assessment based on course requirements
-- Visual progress indicators for each competency
-- Automated competency grid generation
-- Support for multiple competency types (PTS, DCCR, COSS, OLP, PC)
-
----
-
-## Contributing
-
-This application is designed for easy extension:
-
-1. **Adding New Document Types**: Create new entries in the `documents` table
-2. **Custom Form Fields**: Add new input types to the `QuestionnaireForm` component
-3. **New Courses**: Add courses through the database with associated documents
-4. **Role Management**: Extend the permission system for new user types
-
-The database-driven architecture means most changes can be made through data rather than code modifications.
-
----
-
-## Support
-
-For technical support or feature requests, please refer to the development team or system administrator. The application includes built-in developer tools for troubleshooting and system diagnostics. 
+4.  **Run the application in development mode:**
+    This command starts the Vite dev server and launches the Electron application.
+    ```bash
+    npm run dev
+    ``` 
