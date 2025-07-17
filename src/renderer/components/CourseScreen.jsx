@@ -11,6 +11,10 @@ import GeneralTrackVisitForm from './General/GeneralTrackVisitForm/Form';
 import SWPForm from './General/SWP/Form';
 import TrackWalkDeliveryRequirementsForm from './PTS/TrackWalkDeliveryRequirements/Form';
 import DeviationForm from './General/DeviationForm/Form';
+import PhoneticQuizTemplate from './PTS/PhoneticQuiz/Form';
+import EmergencyPhoneCallExerciseTemplate from './PTS/EmergencyPhoneCallExercise/Form';
+import RecertEmergencyCallPracticalAssessmentTemplate from './PTS/RecertEmergencyCallPracticalAssessment/Form';
+import TrackWalkDeliveryRequirementsTemplate from './PTS/TrackWalkDeliveryRequirements/Form';
 
 const formatDocName = (name) => {
     if (!name) return '';

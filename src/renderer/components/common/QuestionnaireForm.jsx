@@ -284,7 +284,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     }, [datapackId, documentId, selectedTraineeId, documentDetails.scope]);
 
     const handleSaveUploads = async () => {
-        console.log('[SAVE] Initiating new save process.');
         setIsFileStaged(false); // Disable button immediately
     
         // 1. Find all files that are staged for upload
@@ -329,7 +328,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 if (!url || typeof url !== 'string') {
                     throw new Error(`Upload failed for ${fileInfo.name}: Invalid URL received.`);
                 }
-                console.log(`[SAVE] Upload successful for ${fileInfo.name}. URL: ${url}`);
                 
                 if (!uploadResults[fieldName]) {
                     uploadResults[fieldName] = { files: [], question };
@@ -361,7 +359,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                     updatedResponseData = finalValue;
                 }
     
-                console.log(`[SAVE] Updating DB for ${fieldName} with completed status.`);
                 await window.db.run(
                     'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
                     [finalValue, 1, datapackId, documentId, fieldName]
@@ -370,7 +367,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 newResponses[fieldName] = { ...newResponses[fieldName], data: updatedResponseData, completed: true };
             }
     
-            console.log('[SAVE] All DB updates successful. Refreshing form.');
             setResponses(newResponses);
             triggerRecalculation();
             setSaveStatus({ message: 'Saved successfully!', type: 'success' });
