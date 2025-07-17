@@ -404,12 +404,12 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
 
     const debouncedGridSave = useCallback(debounce(async (fieldName, gridData) => {
         // Determine completion status: at least one entry exists.
-        const isComplete = Object.values(gridData).some(value => value);
         await window.db.run(
-            'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
-            [JSON.stringify(gridData), isComplete ? 1 : 0, datapackId, documentId, fieldName]
+            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            [JSON.stringify(gridData), datapackId, documentId, fieldName]
         );
-    }, 500), [datapackId, documentId]);
+        triggerRecalculation();
+    }, 500), [datapackId, documentId, triggerRecalculation]);
 
     // Effect to flush pending saves on unmount
     useEffect(() => {

@@ -114,126 +114,184 @@ ipcMain.handle('get-css-path', async () => {
 // A debounced version of our recalculation logic.
 // This prevents the function from being called too frequently, which could cause race conditions or performance issues.
 const debouncedRecalculation = {};
-ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId }) => {
-    // A unique key for each combination of document and trainee
-    const debounceKey = `${datapackId}-${documentId}-${traineeId || 'event'}`;
+ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
+    // 1. Fetch all necessary data in parallel
+    const [datapack, questions, allResponses, document] = await Promise.all([
+        new Promise((resolve, reject) => db.get('SELECT trainee_ids, duration, course_id FROM datapack WHERE id = ?', [datapackId], (err, row) => err ? reject(err) : resolve(row))),
+        new Promise((resolve, reject) => db.all('SELECT * FROM questionnaires WHERE document_id = ?', [documentId], (err, rows) => err ? reject(err) : resolve(rows))),
+        new Promise((resolve, reject) => db.all('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, documentId], (err, rows) => err ? reject(err) : resolve(rows))),
+        new Promise((resolve, reject) => db.get('SELECT name FROM documents WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row)))
+    ]);
 
-    // Clear any pending timeout to reset the debounce timer
-    if (debouncedRecalculation[debounceKey]) {
-        clearTimeout(debouncedRecalculation[debounceKey]);
-    }
+    const traineeIds = datapack?.trainee_ids ? datapack.trainee_ids.split(',').filter(id => id) : [];
+    const responseMap = allResponses.reduce((acc, row) => {
+        acc[row.field_name] = row.response_data;
+        return acc;
+    }, {});
 
-    // Set a new timeout
-    debouncedRecalculation[debounceKey] = setTimeout(async () => {
-        try {
-            await performProgressUpdate(datapackId, documentId, traineeId);
-        } catch (error) {
-            console.error(`[Progress Update Error for ${debounceKey}]:`, error);
-        } finally {
-            // Clean up the key once the operation is complete
-            delete debouncedRecalculation[debounceKey];
-        }
-    }, 250); // Debounce delay of 250ms
-});
+    // 2. Build the list of active questions that require completion
+    let activeQuestions = [];
 
-const performProgressUpdate = async (datapackId, documentId, traineeId) => {
-    // 1. Fetch the document details to know its scope
-    const document = await queryDb('SELECT scope FROM documents WHERE id = ?', [documentId]);
-    if (!document.length) {
-        console.error(`Document with ID ${documentId} not found.`);
-        return;
-    }
-    const isCandidateScope = document[0].scope === 'candidate';
-
-    // 2. Fetch all questions for the document
-    const questions = await queryDb('SELECT field_name, input_type, required FROM questionnaires WHERE document_id = ?', [documentId]);
-    if (!questions.length) {
-        await upsertProgress(datapackId, documentId, traineeId, 100, isCandidateScope);
-        return; // No questions, so progress is 100%
-    }
-    
-    // 3. Fetch all responses for the document
-    const responses = await queryDb('SELECT field_name, response_data, completed FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, documentId]);
-    const responseMap = new Map(responses.map(r => [r.field_name, r]));
-    
-    // 4. Calculate progress
-    let completedCount = 0;
-    let totalMandatoryQuestions = 0;
-
+    // A. Add questions from the database, respecting dependencies and course duration
     for (const q of questions) {
-        if (q.required === 'yes') {
-            totalMandatoryQuestions++;
-            const response = responseMap.get(q.field_name);
-
-            // A question is considered complete if its 'completed' flag is explicitly 1.
-            // This is the most reliable check.
-            if (response && response.completed === 1) {
-                completedCount++;
-                continue; // Move to the next question
+        // Skip day-specific questions if they are outside the event's duration
+        if (q.field_name.startsWith('day_')) {
+            const dayNumber = parseInt(q.field_name.split('_')[1], 10);
+            if (!isNaN(dayNumber) && dayNumber > (datapack?.duration || 0)) {
+                continue;
             }
+        }
+        // For the Register, we handle competencies separately, so skip the DB version
+        if (document.name === 'Register' && q.section === 'COMPETENCIES') {
+            continue;
+        }
 
-            // Fallback for older data or logic errors: check response_data if 'completed' isn't 1.
-            // This is the part that needs to be robust.
-            if (response && response.response_data) {
-                let isComplete = false;
-                if (q.input_type === 'upload' && q.allow_multiple) {
-                    // An empty array '[]' is not complete.
-                    try {
-                        const parsed = JSON.parse(response.response_data);
-                        isComplete = Array.isArray(parsed) && parsed.length > 0;
-                    } catch { isComplete = false; }
-                } else if (q.input_type === 'upload' && !q.allow_multiple) {
-                    // A non-empty string path is complete.
-                    isComplete = typeof response.response_data === 'string' && response.response_data.trim() !== '';
-                } else {
-                    // For other types, any non-empty string is sufficient.
-                    isComplete = String(response.response_data).trim() !== '';
-                }
+        let isRequired = q.required === 'yes';
+        if (q.required === 'dependant' && q.dependency) {
+            const dependencyResponse = responseMap[q.dependency];
+            if (dependencyResponse && String(dependencyResponse).trim() !== '') {
+                isRequired = true;
+            }
+        }
+        if (isRequired) {
+            activeQuestions.push(q);
+        }
+    }
 
-                if (isComplete) {
-                    completedCount++;
-                }
+    // B. For the Register, manually add competency grid checks based on the course
+    if (document.name === 'Register' && datapack.course_id) {
+        const course = await new Promise((resolve, reject) => db.get('SELECT competency_ids FROM courses WHERE id = ?', [datapack.course_id], (err, row) => err ? reject(err) : resolve(row)));
+        const courseCompetencyIds = course?.competency_ids ? course.competency_ids.split(',').filter(id => id) : [];
+        
+        if (courseCompetencyIds.length > 0) {
+            const courseCompetencies = await new Promise((resolve, reject) => {
+                const sql = `SELECT id, name FROM competencies WHERE id IN (${courseCompetencyIds.map(() => '?').join(',')})`;
+                db.all(sql, courseCompetencyIds, (err, rows) => err ? reject(err) : resolve(rows));
+            });
+
+            for (const competency of courseCompetencies) {
+                const fieldName = `competency_${competency.name.toLowerCase().replace(/[\s/]+/g, '_')}`;
+                activeQuestions.push({
+                    field_name: fieldName,
+                    input_type: 'trainee_dropdown_grid', // This is a standard grid check
+                });
             }
         }
     }
     
-    const completion_percentage = totalMandatoryQuestions > 0 ? Math.round((completedCount / totalMandatoryQuestions) * 100) : 100;
+    if (activeQuestions.length === 0) return 0; // Nothing to complete
 
-    // 5. Upsert the new progress into the database
-    await upsertProgress(datapackId, documentId, traineeId, completion_percentage, isCandidateScope);
+    // 3. Count how many active questions are actually complete
+    let completedCount = 0;
+    const completionStatusMap = new Map();
+    for (const q of activeQuestions) {
+        const responseData = responseMap[q.field_name];
+        let isComplete = false;
+        
+        switch (q.input_type) {
+            case 'checkbox':
+                isComplete = responseData === 'true';
+                break;
+            case 'tri_toggle':
+                isComplete = responseData !== 'neutral' && responseData !== '';
+                break;
+            case 'competency_grid': // Our custom type
+                try {
+                    const gridData = JSON.parse(responseData || '{}');
+                    // Check that every required competency for THIS course has a non-empty value for every trainee
+                    isComplete = traineeIds.every(t_id => 
+                        q.required_ids.every(c_id => 
+                            gridData[t_id] && gridData[t_id][c_id] !== undefined && gridData[t_id][c_id] !== ''
+                        )
+                    );
+                } catch { isComplete = false; }
+                break;
+            case 'attendance_grid':
+            case 'trainee_checkbox_grid':
+            case 'trainee_date_grid':
+            case 'trainee_dropdown_grid':
+            case 'trainee_yes_no_grid':
+            case 'signature_grid':
+                try {
+                    const gridData = JSON.parse(responseData || '{}');
+                    isComplete = traineeIds.every(id => gridData[id] !== undefined && gridData[id] !== '');
+                } catch { isComplete = false; }
+                break;
+            default: // Catches text, dropdown, signature, etc.
+                isComplete = responseData && String(responseData).trim() !== '';
+                break;
+        }
+        if (isComplete) {
+            completedCount++;
+        }
+        completionStatusMap.set(q.field_name, isComplete);
+    }
+
+    // 4. Calculate percentage and update the database and UI
+    const percentage = Math.round((completedCount / activeQuestions.length) * 100);
+
+    const dbQueries = [];
     
-    // 6. Notify the renderer process of the update
-    const activeWindow = BrowserWindow.getAllWindows()[0];
-    if (activeWindow) {
-        activeWindow.webContents.send('progress-updated', {
-            datapackId,
-            documentId,
-            traineeId,
-            progress: completion_percentage
+    // Check if a progress record already exists
+    const existingProgress = await new Promise((resolve, reject) => {
+        let sql = 'SELECT id FROM document_progress WHERE datapack_id = ? AND document_id = ?';
+        const params = [datapackId, documentId];
+
+        if (traineeId) {
+            sql += ' AND trainee_id = ?';
+            params.push(traineeId);
+        } else {
+            sql += ' AND trainee_id IS NULL';
+        }
+        
+        db.get(sql, params, (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
         });
-    }
-};
+    });
 
-const upsertProgress = async (datapackId, documentId, traineeId, completion_percentage, isCandidateScope) => {
-    const scopeTraineeId = isCandidateScope ? traineeId : null;
-
-    const existing = await queryDb(
-        'SELECT id FROM document_progress WHERE datapack_id = ? AND document_id = ? AND (trainee_id = ? OR (trainee_id IS NULL AND ? IS NULL))',
-        [datapackId, documentId, scopeTraineeId, scopeTraineeId]
-    );
-
-    if (existing.length > 0) {
-        await runDb(
-            'UPDATE document_progress SET completion_percentage = ? WHERE id = ?',
-            [completion_percentage, existing[0].id]
-        );
+    // If it exists, update it. Otherwise, insert a new record.
+    if (existingProgress) {
+        dbQueries.push([
+            `UPDATE document_progress SET completion_percentage = ? WHERE id = ?`,
+            [percentage, existingProgress.id]
+        ]);
     } else {
-        await runDb(
-            'INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (?, ?, ?, ?)',
-            [datapackId, documentId, scopeTraineeId, completion_percentage]
-        );
+        dbQueries.push([
+            `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (?, ?, ?, ?)`,
+            [datapackId, documentId, traineeId, percentage]
+        ]);
     }
-};
+    
+    // Queries to update the 'completed' flag for each individual response
+    for (const [fieldName, isComplete] of completionStatusMap.entries()) {
+        dbQueries.push([
+            `UPDATE responses SET completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?`,
+            [isComplete ? 1 : 0, datapackId, documentId, fieldName]
+        ]);
+    }
+
+    // Execute all updates in a single transaction
+    await new Promise((resolve, reject) => {
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION', err => { if (err) return reject(err); });
+            for (const [sql, params] of dbQueries) {
+                db.run(sql, params, function(err) { if (err) { db.run('ROLLBACK'); return reject(err); }});
+            }
+            db.run('COMMIT', err => {
+                if (err) { db.run('ROLLBACK'); return reject(err); }
+                
+                const window = BrowserWindow.getFocusedWindow();
+                if (window) {
+                    window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
+                }
+                resolve();
+            });
+        });
+    });
+
+    return percentage;
+  });
 
 const queryDb = (sql, params = []) => {
     return new Promise((resolve, reject) => {
