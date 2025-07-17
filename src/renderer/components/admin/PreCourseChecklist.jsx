@@ -84,6 +84,27 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         fetchChecklistData();
     }, [register, setActiveEvent, selectedDocument]);
     
+    useEffect(() => {
+        const handleProgressUpdate = (event, { datapackId, documentId, progress }) => {
+            if (datapackId === register?.id) {
+                setDocuments(prevDocs =>
+                    prevDocs.map(doc =>
+                        doc.id === documentId ? { ...doc, progress } : doc
+                    )
+                );
+            }
+        };
+
+        const unsubscribe = window.electron.onProgressUpdate(handleProgressUpdate);
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        };
+    }, [register]);
+
     const handleSaveSuccess = useCallback(() => {
         const fetchProgress = async () => {
             if (!register) return;
