@@ -25,6 +25,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
     const [notification, setNotification] = useState({ show: false, message: '' });
+    const [expandedEventId, setExpandedEventId] = useState(null);
 
     // Fetch events based on user role
     useEffect(() => {
@@ -132,8 +133,15 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         setSelectedDoc(null); // Reset doc selection when event changes
     }, [activeEvent, user.role]);
 
-    const handleEventClick = (event) => {
-        setActiveEvent(event);
+    const handleEventToggle = (event) => {
+        const newExpandedId = expandedEventId === event.id ? null : event.id;
+        setExpandedEventId(newExpandedId);
+        setActiveEvent(newExpandedId ? event : null);
+        
+        if (selectedDoc) {
+            setSelectedDoc(null);
+            setActiveDocument(null);
+        }
     };
 
     const handleDocClick = async (doc) => {
@@ -181,48 +189,6 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     };
 
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
-
-    // Helper to render a list of items (for events)
-    const renderEventList = (items, selectedItem, handler) => (
-        <div className="flex flex-col">
-            {items.map((item) => (
-                <button
-                    key={item.id}
-                    onClick={() => handler(item)}
-                    className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none ${
-                        selectedItem?.id === item.id ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
-                    }`}
-                >
-                    <p className="font-semibold">{item.courseName}</p>
-                    <p className="text-sm text-gray-600">{formatDate(item.start_date)}</p>
-                </button>
-            ))}
-        </div>
-    );
-
-    // Helper to render the document list with progress
-    const renderDocList = (items, selectedItem, handler) => {
-        return (
-            <div className="flex flex-col">
-                {items.map((item) => {
-                    const isSelected = selectedItem?.id === item.id;
-                    const progress = docProgress[item.id];
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => handler(item)}
-                            className={`p-4 text-left border-b hover:bg-gray-100 focus:outline-none flex justify-between items-center ${
-                                isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : 'bg-white'
-                            }`}
-                        >
-                            <p className="font-semibold">{formatDocName(item.name)}</p>
-                            <ProgressIndicator progress={progress} />
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
 
     const renderSelectedForm = () => {
         if (!selectedDoc) {
@@ -293,38 +259,68 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     };
 
     return (
-        <div className="flex h-full bg-gray-50">
+        <div className="flex h-screen bg-gray-50">
             {notification.show && (
-                <div className="absolute top-5 right-5 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50">
+                <div className="fixed top-5 right-5 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
                     {notification.message}
                 </div>
             )}
-            {/* Left Panel (15%) - Events */}
-            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
-                <div className="p-4 font-bold border-b sticky top-0 bg-white">Available Events</div>
-                <div className="overflow-y-auto">
-                    {renderEventList(events, activeEvent, handleEventClick)}
+            {/* Sidebar */}
+            <div className="w-80 flex-shrink-0 border-r bg-white overflow-y-auto p-4 shadow-md">
+                <h2 className="text-xl font-bold mb-4 px-2">Available Events</h2>
+                <div className="flex flex-col space-y-2">
+                    {events.map((event) => (
+                        <div key={event.id}>
+                            <button
+                                onClick={() => handleEventToggle(event)}
+                                className={`w-full p-4 text-left border rounded-lg focus:outline-none flex justify-between items-center transition-all duration-200 ${
+                                    expandedEventId === event.id ? 'bg-blue-100' : 'hover:bg-gray-100'
+                                }`}
+                            >
+                                <div>
+                                    <p className="font-semibold">{event.courseName}</p>
+                                    <p className="text-sm text-gray-600">{formatDate(event.start_date)}</p>
+                                </div>
+                                <svg
+                                    className={`w-5 h-5 transform transition-transform ${
+                                        expandedEventId === event.id ? 'rotate-180' : ''
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            {expandedEventId === event.id && (
+                                <div className="pl-4 mt-2 space-y-1 border-l-2 ml-4">
+                                    <h3 className="font-semibold text-gray-700 mt-2 mb-2 pl-2">Required Docs</h3>
+                                    {documents.map((doc) => {
+                                        const isSelected = selectedDoc?.id === doc.id;
+                                        const progress = docProgress[doc.id] || 0;
+                                        return (
+                                            <button
+                                                key={doc.id}
+                                                onClick={() => handleDocClick(doc)}
+                                                className={`w-full p-3 text-left rounded-md flex justify-between items-center transition-colors duration-150 ${
+                                                    isSelected ? 'bg-blue-100 border-l-4 border-blue-500 font-semibold' : 'bg-white hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <p className="flex-grow">{formatDocName(doc.name)}</p>
+                                                <ProgressIndicator progress={progress} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Middle Panel (15%) - Documents */}
-            <div className="w-[15%] border-r bg-white flex flex-col flex-shrink-0">
-                <div className="p-4 font-bold border-b sticky top-0 bg-white">Required Docs</div>
-                <div className="overflow-y-auto">
-                    {activeEvent ? (
-                        documents.length > 0 ? (
-                            renderDocList(documents, selectedDoc, handleDocClick)
-                        ) : (
-                            <p className="p-4 text-gray-500">No documents required.</p>
-                        )
-                    ) : (
-                        <p className="p-4 text-gray-500">Select an event first.</p>
-                    )}
-                </div>
-            </div>
-
-            {/* Right Panel (70%) - Canvas */}
-            <div className="w-[70%] p-6 overflow-y-auto">
+            {/* Content Area */}
+            <div className="flex-grow p-6 bg-white overflow-y-auto">
                 {renderSelectedForm()}
             </div>
         </div>

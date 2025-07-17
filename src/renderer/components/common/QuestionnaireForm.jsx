@@ -308,7 +308,7 @@ const QuestionnaireForm = ({
                                                          eventDetails={eventDetails}
                                                          selectedTrainee={selectedTrainee}
                                                      />
-                                                 </div>
+                                             </div>
                                              </div>
                                          </div>
                                      );
@@ -356,10 +356,10 @@ const QuestionnaireForm = ({
                                 </div>
                             );
                         })}
-                    </div>
-                </div>
+                     </div>
+                 </div>
             ))}
-            
+
             <div className="pt-4 flex justify-end items-center space-x-4">
                 {saveStatus.message && (
                     <span className={`text-sm font-medium ${saveStatus.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>

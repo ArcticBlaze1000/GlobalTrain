@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PreCourseChecklist from './PreCourseChecklist';
 
-const PRE_COURSE_DOC_IDS = [27, 28, 29, 33, 30];
+const PRE_COURSE_DOC_IDS = [27, 28, 29, 30];
 
 const RegisterTable = ({ title, registers, onRegisterSelect }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);

@@ -115,7 +115,7 @@ const documentsToSeed = [
     { name: 'SubSponsorPaperwork', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'Admin/Sub Sponsor Request/' },
     { name: 'SponsorsNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'Admin/' },
     { name: 'SentinelNotificationOfResults', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'Admin/' },
-    { name: 'SentinelPreChecks', scope: 'admin', visible: 'dev,admin', location: 'Admin', type: 'scanned pdf', save: 'Candidates/' },
+    { name: 'SentinelPreChecks', scope: 'candidate', visible: 'dev,admin,trainer', location: 'General', type: 'scanned pdf', save: 'Candidates/' },
 ];
 const questionnairesToSeed = [
     // Register Questions (document_id = 1)

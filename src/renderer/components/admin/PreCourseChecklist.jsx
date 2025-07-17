@@ -3,7 +3,7 @@ import QuestionnaireForm from '../Common/QuestionnaireForm';
 import AlertModal from '../Common/AlertModal'; // Import the new modal
 import { useEvent } from '../../context/EventContext';
 
-const PRE_COURSE_DOC_IDS = [27, 28, 29, 33, 30]; // Booking Form, Joining Instructions, Email Confirmation, Sentinel Pre-Checks, Sub-Sponsor Paperwork
+const PRE_COURSE_DOC_IDS = [27, 28, 29, 30]; // Booking Form, Joining Instructions, Email Confirmation, Sentinel Pre-Checks, Sub-Sponsor Paperwork
 
 const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }) => {
     const { setActiveEvent } = useEvent();
