@@ -111,43 +111,6 @@ ipcMain.handle('get-css-path', async () => {
     }
 });
 
-ipcMain.handle('save-pdf', async (event, { htmlContent, eventDetails, documentDetails, options = {} }) => {
-    const defaultOptions = {
-        format: 'A4',
-        landscape: false,
-        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-    };
-    const pdfOptions = { ...defaultOptions, ...options };
-
-    const documentsPath = app.getPath('documents');
-    const safeCourseName = eventDetails.courseName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const safeDocName = documentDetails.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const date = new Date(eventDetails.start_date).toISOString().split('T')[0];
-    const fileName = `${safeCourseName}_${date}_${safeDocName}.pdf`;
-    
-    // Ensure the directory exists
-    const dirPath = path.join(documentsPath, 'GlobalTrain', 'Course-Documentation', safeCourseName);
-    fs.mkdirSync(dirPath, { recursive: true });
-    
-    const filePath = path.join(dirPath, fileName);
-
-    try {
-        const browser = await puppeteer.launch({ headless: true });
-        const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        await page.pdf({ ...pdfOptions, path: filePath });
-        await browser.close();
-        
-        // Open the file automatically
-        shell.openPath(filePath);
-
-        return { success: true, path: filePath };
-    } catch (error) {
-        console.error('Failed to save PDF:', error);
-        return { success: false, error: error.message };
-    }
-});
-
 // A debounced version of our recalculation logic.
 // This prevents the function from being called too frequently, which could cause race conditions or performance issues.
 const debouncedRecalculation = {};
@@ -392,6 +355,76 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, 
     return 'PDF generated and opened successfully.';
 });
 
+ipcMain.handle('generatePdfInBackground', async (event, { htmlContent, options = {} }) => {
+    let browser;
+    try {
+        browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            landscape: options.landscape || false,
+        });
+        return pdfBuffer;
+    } catch (error) {
+        console.error('Failed to generate PDF in background:', error);
+        throw new Error('Failed to generate PDF.');
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+});
+
+ipcMain.handle('generateAndUploadPdf', async (event, { htmlContent, fileName, contentType, eventDetails, documentDetails, traineeDetails, options = {} }) => {
+    // 1. Generate PDF Buffer
+    let pdfBuffer;
+    let browser;
+    try {
+        browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            landscape: options.landscape || false,
+        });
+    } catch (error) {
+        console.error('Failed to generate PDF for upload:', error);
+        throw new Error('Failed to generate PDF.');
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+
+    // 2. Upload the buffer to Azure
+    if (!AZURE_STORAGE_CONNECTION_STRING) {
+        throw new Error('Azure Storage connection string is not configured.');
+    }
+    try {
+        const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+        const containerName = 'documents';
+        const containerClient = blobServiceClient.getContainerClient(containerName);
+        await containerClient.createIfNotExists();
+
+        const basePath = await buildBlobPath(eventDetails, documentDetails, traineeDetails, fileName);
+        const blobPath = `${basePath}${fileName}`;
+
+        const blockBlobClient = containerClient.getBlockBlobClient(blobPath);
+        
+        await blockBlobClient.uploadData(pdfBuffer, {
+            blobHTTPHeaders: { blobContentType: contentType }
+        });
+
+        return blockBlobClient.url;
+    } catch (error) {
+        console.error('Error uploading PDF to Azure Blob Storage:', error.message);
+        throw new Error(`Failed to upload ${fileName} to Azure.`);
+    }
+});
+
 ipcMain.handle('get-logo-base64', async () => {
     try {
         const logoFileName = 'GlobalTrainLogo.jpg'; // Correct filename
@@ -462,7 +495,7 @@ const buildBlobPath = async (eventDetails, documentDetails, traineeDetails, file
     return `Training/${monthFolderName}/${eventFolderName}/${finalSubPath}`;
 };
 
-ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, eventDetails, documentDetails, traineeDetails }) => {
+ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, contentType, eventDetails, documentDetails, traineeDetails }) => {
     if (!AZURE_STORAGE_CONNECTION_STRING) {
         throw new Error('Azure Storage connection string is not configured.');
     }
@@ -481,7 +514,9 @@ ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, eventD
         
         const buffer = Buffer.from(fileData, 'base64');
         
-        await blockBlobClient.uploadData(buffer);
+        await blockBlobClient.uploadData(buffer, {
+            blobHTTPHeaders: { blobContentType: contentType }
+        });
 
         // Return the URL of the uploaded blob
         return blockBlobClient.url;

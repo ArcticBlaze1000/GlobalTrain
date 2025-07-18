@@ -320,6 +320,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 const url = await window.electron.uploadFileToBlob({
                     fileData: fileInfo.data,
                     fileName: fileInfo.name,
+                    contentType: fileInfo.type, // Pass the content type
                     eventDetails,
                     documentDetails,
                     traineeDetails: selectedTrainee
@@ -561,7 +562,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB');
 
-    const handleGenerateAndCache = () => {
+    const handleGenerateAndCache = async () => {
         // Validation for paired comment/signature fields
         const trainerComment = responses.trainer_comments?.data?.trim();
         const trainerSig = responses.trainer_signature?.data?.trim();
@@ -577,11 +578,17 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             return;
         }
 
-        // The 'Form' component to be rendered as a PDF is the root element of this component.
-        // We'll pass a reference to it to the PDF generation logic.
-        // NOTE: The 'current' property of a ref should be accessed inside the callback.
         if (onPdfButtonClick) {
-            onPdfButtonClick(); // The parent component now handles the PDF logic
+            setSaveStatus({ message: 'Saving...', type: 'info' });
+            try {
+                await onPdfButtonClick();
+                setSaveStatus({ message: 'Saved successfully!', type: 'success' });
+            } catch (error) {
+                console.error('Save failed:', error);
+                setSaveStatus({ message: `Error: ${error.message}`, type: 'error' });
+            } finally {
+                setTimeout(() => setSaveStatus({ message: '', type: '' }), 4000);
+            }
         }
     };
 

@@ -3,77 +3,76 @@ import Template from './Template';
 
 export const generateRegisterPdf = async (datapackId) => {
     if (!datapackId) {
-        alert("Cannot generate PDF: No event selected.");
-        return;
+        throw new Error("Cannot generate PDF: No event selected.");
     }
 
-    try {
-        // 1. Fetch all necessary data from the database
-        const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
-        if (!datapack) throw new Error("Datapack not found.");
+    // 1. Fetch all necessary data from the database
+    const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+    if (!datapack) throw new Error("Datapack not found.");
 
-        const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [datapack.course_id]))[0];
-        const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
-        
-        const traineeIds = datapack.trainee_ids.split(',');
-        const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+    const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [datapack.course_id]))[0];
+    const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
 
-        const competencies = await window.db.query('SELECT * FROM competencies');
+    const traineeIds = datapack.trainee_ids.split(',');
+    const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
 
-        const registerDoc = (await window.db.query('SELECT id FROM documents WHERE name = ?', ['Register']))[0];
-        const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, registerDoc.id]);
-        
-        const responsesMap = responses.reduce((acc, res) => {
-            acc[res.field_name] = res.response_data;
-            return acc;
-        }, {});
+    const competencies = await window.db.query('SELECT * FROM competencies');
 
-        // Calculate successful trainees
-        let successfulTraineesCount = 0;
-        const passOrFailResponse = responsesMap['final_result'];
-        if (passOrFailResponse) {
-            try {
-                const passOrFailData = JSON.parse(passOrFailResponse);
-                successfulTraineesCount = Object.values(passOrFailData).filter(status => status === 'Competent').length;
-            } catch (e) {
-                console.error('Failed to parse final_result data in PDFGenerator:', e);
-            }
+    const registerDoc = (await window.db.query('SELECT id, name, save FROM documents WHERE name = ?', ['Register']))[0];
+    const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, registerDoc.id]);
+
+    const responsesMap = responses.reduce((acc, res) => {
+        acc[res.field_name] = res.response_data;
+        return acc;
+    }, {});
+
+    // Calculate successful trainees
+    let successfulTraineesCount = 0;
+    const passOrFailResponse = responsesMap['final_result'];
+    if (passOrFailResponse) {
+        try {
+            const passOrFailData = JSON.parse(passOrFailResponse);
+            successfulTraineesCount = Object.values(passOrFailData).filter(status => status === 'Competent').length;
+        } catch (e) {
+            console.error('Failed to parse final_result data in PDFGenerator:', e);
         }
-
-        // 2. Get the correct CSS path and logo for styling
-        const cssPath = await window.electron.getCssPath();
-        const logoBase64 = await window.electron.getLogoBase64();
-
-        // 3. Prepare props for the template
-        const templateProps = {
-            course: course,
-            trainer: trainer,
-            datapack: datapack,
-            trainees: trainees,
-            competencies: competencies,
-            cssPath: cssPath,
-            logoBase64: logoBase64,
-            responses: responsesMap,
-            successfulTraineesCount: successfulTraineesCount,
-        };
-
-        // 4. Render the React component to an HTML string
-        const htmlContent = ReactDOMServer.renderToStaticMarkup(
-            <Template {...templateProps} />
-        );
-
-        // 5. Construct payload and send to the main process for PDF generation and saving
-        const payload = {
-            htmlContent,
-            eventDetails: { ...datapack, courseName: course.name, forename: trainer.forename, surname: trainer.surname },
-            documentDetails: { id: registerDoc.id, name: 'Register', scope: 'course' },
-            options: { landscape: true }
-        };
-
-        window.electron.savePdf(payload);
-
-    } catch (error) {
-        console.error('Failed to generate Register PDF:', error);
-        alert(`An error occurred while generating the PDF: ${error.message}`);
     }
+
+    // 2. Get the correct CSS path and logo for styling
+    const cssPath = await window.electron.getCssPath();
+    const logoBase64 = await window.electron.getLogoBase64();
+
+    // 3. Prepare props for the template
+    const templateProps = {
+        course: course,
+        trainer: trainer,
+        datapack: datapack,
+        trainees: trainees,
+        competencies: competencies,
+        cssPath: cssPath,
+        logoBase64: logoBase64,
+        responses: responsesMap,
+        successfulTraineesCount: successfulTraineesCount,
+    };
+
+    // 4. Render the React component to an HTML string
+    const htmlContent = ReactDOMServer.renderToStaticMarkup(
+        <Template {...templateProps} />
+    );
+    
+    // 5. Call the combined generate and upload function
+    const fileName = `${course.name.replace(/\s+/g, '_')}_Register.pdf`;
+    const eventDetails = { ...datapack, courseName: course.name, trainer_id: trainer.id };
+    
+    const url = await window.electron.generateAndUploadPdf({
+        htmlContent,
+        fileName,
+        contentType: 'application/pdf',
+        eventDetails,
+        documentDetails: registerDoc,
+        traineeDetails: null,
+        options: { landscape: true }
+    });
+    
+    return url;
 }; 
