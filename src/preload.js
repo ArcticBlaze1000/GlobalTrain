@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electron', {
   getDocumentsPath: () => ipcRenderer.invoke('get-documents-path'),
   getLogoBase64: () => ipcRenderer.invoke('get-logo-base64'),
   getCssPath: () => ipcRenderer.invoke('get-css-path'),
+  savePdf: (payload) => ipcRenderer.invoke('save-pdf', payload),
   quitApp: () => ipcRenderer.invoke('app-quit'),
   uploadFileToBlob: (payload) => ipcRenderer.invoke('upload-file-to-blob', payload),
   // Course Management

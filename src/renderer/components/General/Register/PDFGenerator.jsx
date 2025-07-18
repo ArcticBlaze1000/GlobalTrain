@@ -70,7 +70,7 @@ export const generateRegisterPdf = async (datapackId) => {
             options: { landscape: true }
         };
 
-        await window.electron.savePdf(payload);
+        window.electron.savePdf(payload);
 
     } catch (error) {
         console.error('Failed to generate Register PDF:', error);

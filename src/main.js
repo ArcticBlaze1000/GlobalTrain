@@ -111,6 +111,43 @@ ipcMain.handle('get-css-path', async () => {
     }
 });
 
+ipcMain.handle('save-pdf', async (event, { htmlContent, eventDetails, documentDetails, options = {} }) => {
+    const defaultOptions = {
+        format: 'A4',
+        landscape: false,
+        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    };
+    const pdfOptions = { ...defaultOptions, ...options };
+
+    const documentsPath = app.getPath('documents');
+    const safeCourseName = eventDetails.courseName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const safeDocName = documentDetails.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const date = new Date(eventDetails.start_date).toISOString().split('T')[0];
+    const fileName = `${safeCourseName}_${date}_${safeDocName}.pdf`;
+    
+    // Ensure the directory exists
+    const dirPath = path.join(documentsPath, 'GlobalTrain', 'Course-Documentation', safeCourseName);
+    fs.mkdirSync(dirPath, { recursive: true });
+    
+    const filePath = path.join(dirPath, fileName);
+
+    try {
+        const browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        await page.pdf({ ...pdfOptions, path: filePath });
+        await browser.close();
+        
+        // Open the file automatically
+        shell.openPath(filePath);
+
+        return { success: true, path: filePath };
+    } catch (error) {
+        console.error('Failed to save PDF:', error);
+        return { success: false, error: error.message };
+    }
+});
+
 // A debounced version of our recalculation logic.
 // This prevents the function from being called too frequently, which could cause race conditions or performance issues.
 const debouncedRecalculation = {};

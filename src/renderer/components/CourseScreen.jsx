@@ -300,22 +300,26 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                             {expandedEventId === event.id && (
                                 <div className="pl-4 mt-2 space-y-1 border-l-2 ml-4">
                                     <h3 className="font-semibold text-gray-700 mt-2 mb-2 pl-2">Required Docs</h3>
-                                    {documents.map((doc) => {
-                                        const isSelected = selectedDoc?.id === doc.id;
-                                        const progress = docProgress[doc.id] || 0;
-                                        return (
-                                            <button
-                                                key={doc.id}
+                                    <ul className="space-y-1">
+                                        {documents.map((doc) => (
+                                            <li key={doc.id}
                                                 onClick={() => handleDocClick(doc)}
-                                                className={`w-full p-3 text-left rounded-md flex justify-between items-center transition-colors duration-150 ${
-                                                    isSelected ? 'bg-blue-100 border-l-4 border-blue-500 font-semibold' : 'bg-white hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <p className="flex-grow">{formatDocName(doc.name)}</p>
-                                                <ProgressIndicator progress={progress} />
-                                            </button>
-                                        );
-                                    })}
+                                                className={`p-3 rounded-md cursor-pointer mb-2 transition-colors duration-200 ${selectedDoc?.id === doc.id ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-gray-200 text-gray-800'}`}>
+                                                <div className="flex justify-between items-center">
+                                                    <span>{formatDocName(doc.name)}</span>
+                                                    {docProgress[doc.id] === 100 ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    ) : (
+                                                        <span className={`text-sm font-semibold ${selectedDoc?.id === doc.id ? 'text-white' : 'text-red-500'}`}>
+                                                            {docProgress[doc.id] || 0}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </div>
