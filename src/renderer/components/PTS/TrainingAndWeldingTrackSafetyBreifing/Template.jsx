@@ -142,9 +142,7 @@ const Template = ({
                             <tr key={q.field_name}>
                                 <td>{q.question_text}</td>
                                 <td style={{ textAlign: 'center', fontSize: '16px', fontWeight: 'bold' }}>
-                                    {responses[q.field_name]?.data === true && (
-                                        <span>&#10003;</span>
-                                    )}
+                                    <span>&#10003;</span>
                                 </td>
                             </tr>
                         ))}
