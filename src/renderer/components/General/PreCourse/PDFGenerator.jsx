@@ -14,7 +14,7 @@ export const generatePreCoursePdf = async (payload) => {
         const logoBase64 = await window.electron.getLogoBase64();
 
         // 2. Fetch all responses for this document/event
-        const allResponses = await window.db.query('SELECT * FROM responses WHERE datapack_id = ? AND document_id = ?', [eventDetails.id, documentDetails.id]);
+        const allResponses = await window.db.query('SELECT * FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [eventDetails.id, documentDetails.id]);
 
         // 3. Convert responses array to a map for easier lookup in the template
         const responsesMap = allResponses.reduce((acc, res) => {

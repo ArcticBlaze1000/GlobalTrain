@@ -72,7 +72,7 @@ const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, 
             if (!datapackId || !documentId || !selectedTraineeId) return;
 
             const fetchedResponses = await window.db.query(
-                'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ?',
+                'SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2 AND trainee_ids = @param3',
                 [datapackId, documentId, String(selectedTraineeId)]
             );
 
@@ -86,7 +86,7 @@ const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, 
                 // If no responses exist, create them
                 Object.keys(responses).forEach(async (fieldName) => {
                     await window.db.run(
-                        'INSERT OR IGNORE INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data) VALUES (?, ?, ?, ?, ?)',
+                        'INSERT INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data) SELECT @param1, @param2, @param3, @param4, @param5 WHERE NOT EXISTS (SELECT 1 FROM responses WHERE datapack_id = @param1 AND document_id = @param2 AND trainee_ids = @param3 AND field_name = @param4)',
                         [datapackId, documentId, String(selectedTraineeId), fieldName, '']
                     );
                 });
@@ -100,7 +100,7 @@ const LeavingForm = ({ user, eventDetails, documentDetails, openSignatureModal, 
     const debouncedSave = useCallback(debounce(async (fieldName, value) => {
         if (!datapackId || !documentId || !selectedTraineeId) return;
         await window.db.run(
-            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ? AND field_name = ?',
+            'UPDATE responses SET response_data = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND trainee_ids = @param4 AND field_name = @param5',
             [value, datapackId, documentId, String(selectedTraineeId), fieldName]
         );
     }, 500), [datapackId, documentId, selectedTraineeId]);

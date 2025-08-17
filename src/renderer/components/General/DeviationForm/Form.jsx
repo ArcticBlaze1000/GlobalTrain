@@ -23,7 +23,7 @@ const Form = (props) => {
         const calculateTotalDeviation = async () => {
             // Progress Record has document_id = 9
             const progressRecordResponses = await window.db.query(
-                'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = 9',
+                'SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = 9',
                 [props.eventDetails.id]
             );
 
@@ -59,7 +59,7 @@ const Form = (props) => {
     const handleGeneratePdf = async () => {
         // Fetch the latest responses for the deviation form (document_id = 10)
         const currentResponses = await window.db.query(
-            'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = 10',
+            'SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = 10',
             [props.eventDetails.id]
         );
         

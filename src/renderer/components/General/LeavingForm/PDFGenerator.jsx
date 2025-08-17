@@ -13,7 +13,7 @@ export const generateLeavingPdf = async (payload) => {
 
     try {
         const responses = await window.db.query(
-            'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ? AND trainee_ids = ?',
+            'SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2 AND trainee_ids = @param3',
             [eventDetails.id, documentDetails.id, String(traineeDetails.id)]
         );
 

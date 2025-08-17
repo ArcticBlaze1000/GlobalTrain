@@ -8,10 +8,10 @@ const Form = (props) => {
 
         // 1. Fetch all trainees for this event
         const traineeIds = eventDetails.trainee_ids.split(',');
-        const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+        const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map((_, i) => `@param${i+1}`).join(',')})`, traineeIds);
 
         // 2. Fetch all responses for this document/event
-        const allResponses = await window.db.query('SELECT * FROM responses WHERE datapack_id = ? AND document_id = ?', [eventDetails.id, documentDetails.id]);
+        const allResponses = await window.db.query('SELECT * FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [eventDetails.id, documentDetails.id]);
         
         const responsesMap = allResponses.reduce((acc, res) => {
             let data = res.response_data;

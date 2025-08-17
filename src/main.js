@@ -385,6 +385,26 @@ ipcMain.handle('generateAndUploadPdf', async (event, { htmlContent, fileName, co
             blobHTTPHeaders: { blobContentType: contentType }
         });
 
+        // After successful upload, update the database
+        const fieldName = documentDetails.name.replace(/\s+/g, '_') + '_pdf';
+        const updateQuery = `
+            MERGE responses AS target
+            USING (SELECT @param1 AS datapack_id, @param2 AS document_id, @param3 AS field_name) AS source
+            ON (target.datapack_id = source.datapack_id AND target.document_id = source.document_id AND target.field_name = source.field_name)
+            WHEN MATCHED THEN
+                UPDATE SET response_data = @param4, completed = 1
+            WHEN NOT MATCHED THEN
+                INSERT (datapack_id, document_id, field_name, response_data, completed)
+                VALUES (source.datapack_id, source.document_id, source.field_name, @param4, 1);
+        `;
+
+        await executeQuery(updateQuery, [
+            eventDetails.id,
+            documentDetails.id,
+            fieldName,
+            blockBlobClient.url
+        ]);
+
         return blockBlobClient.url;
     } catch (error) {
         console.error('Error uploading PDF to Azure Blob Storage:', error.message);

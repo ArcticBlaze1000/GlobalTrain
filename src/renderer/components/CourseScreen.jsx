@@ -117,7 +117,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                 
                 // 3. Fetch all progress for this event's documents directly from the `document_progress` table.
                 const progressResults = await window.db.query(
-                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1`,
+                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND trainee_id IS NULL`,
                     [activeEvent.id]
                 );
 
@@ -264,7 +264,7 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-full bg-gray-50">
             {notification.show && (
                 <div className="fixed top-5 right-5 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
                     {notification.message}

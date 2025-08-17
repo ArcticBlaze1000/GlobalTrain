@@ -1,31 +1,24 @@
+import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import Template from './Template';
 
 export const generateProgressRecordPdf = async (payload) => {
     const { eventDetails, documentDetails } = payload;
     if (!eventDetails) {
-        alert("Cannot generate PDF: No event selected.");
-        return;
+        throw new Error("Cannot generate PDF: No event selected.");
     }
 
     try {
         // 1. Fetch all necessary data from the database
-        const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [eventDetails.course_id]))[0];
-        const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [eventDetails.trainer_id]))[0];
+        const course = (await window.db.query('SELECT * FROM courses WHERE id = @param1', [eventDetails.course_id]))[0];
+        const trainer = (await window.db.query('SELECT * FROM users WHERE id = @param1', [eventDetails.trainer_id]))[0];
         
-        // Helper function to get all dates for the event duration
-        const getDates = (startDate, endDate) => {
-            const dates = [];
-            let currentDate = new Date(startDate);
-            const stopDate = new Date(endDate);
-            while (currentDate <= stopDate) {
-                dates.push(new Date(currentDate));
-                currentDate.setDate(currentDate.getDate() + 1);
-            }
-            return dates;
-        };
-
-        const eventDays = getDates(eventDetails.start_date, eventDetails.end_date);
+        const allResponses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [eventDetails.id, documentDetails.id]);
+        
+        const responsesMap = allResponses.reduce((acc, res) => {
+            acc[res.field_name] = res.response_data;
+            return acc;
+        }, {});
 
         // 2. Get the logo for styling
         const logoBase64 = await window.electron.getLogoBase64();
@@ -34,8 +27,9 @@ export const generateProgressRecordPdf = async (payload) => {
         const templateProps = {
             courseName: course.name,
             trainerName: `${trainer.forename} ${trainer.surname}`,
-            eventDays,
+            eventDetails,
             logoBase64,
+            responses: responsesMap,
         };
 
         // 4. Render the React component to an HTML string
@@ -43,19 +37,22 @@ export const generateProgressRecordPdf = async (payload) => {
             <Template {...templateProps} />
         );
 
+        const fileName = `${course.name.replace(/\s+/g, '_')}_ProgressRecord.pdf`;
+
         // 5. Construct payload and send to the main process for PDF generation and saving
         const pdfPayload = {
             htmlContent,
+            fileName,
             eventDetails: { ...eventDetails, courseName: course.name, forename: trainer.forename, surname: trainer.surname },
             documentDetails: { ...documentDetails, name: 'Progress Record', scope: 'course' },
             options: { landscape: true }
         };
 
-        await window.electron.savePdf(pdfPayload);
+        await window.electron.generateAndUploadPdf(pdfPayload);
 
     } catch (error) {
         console.error('Failed to generate Progress Record PDF:', error);
-        alert(`An error occurred while generating the PDF: ${error.message}`);
+        throw new Error(`An error occurred while generating the PDF: ${error.message}`);
     }
 };
 

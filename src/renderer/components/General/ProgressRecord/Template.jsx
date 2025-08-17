@@ -1,44 +1,64 @@
 import React from 'react';
 
-const Template = ({
-    courseName,
-    trainerName,
-    eventDays,
-    logoBase64
-}) => {
+const Template = ({ courseName, trainerName, eventDetails, logoBase64, responses }) => {
+    // Correctly parse the JSON string from responsesMap
+    const commentsDataString = responses.progress_record_summaries || '{}';
+    let commentsData = {};
+    try {
+        commentsData = JSON.parse(commentsDataString);
+    } catch (e) {
+        console.error("Failed to parse comments data:", e);
+    }
+
+    const summaries = commentsData.comments || [];
+    const signature = responses.progress_record_signature || '';
+
     return (
-        <div style={{ fontFamily: 'sans-serif', margin: '20px' }}>
-            <header style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #eee', paddingBottom: '20px' }}>
-                {logoBase64 && <img src={`data:image/jpeg;base64,${logoBase64}`} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />}
-                <h1 style={{ margin: '0' }}>Daily Progress Record</h1>
-                <h2 style={{ margin: '5px 0 0 0', color: '#555' }}>{courseName}</h2>
-            </header>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                <thead>
-                    <tr>
-                        <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left', backgroundColor: '#f2f2f2' }}>Day</th>
-                        <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left', backgroundColor: '#f2f2f2' }}>Date</th>
-                        <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left', backgroundColor: '#f2f2f2' }}>Start Time</th>
-                        <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left', backgroundColor: '#f2f2f2' }}>End Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {eventDays.map((date, index) => (
-                        <tr key={index}>
-                            <td style={{ border: '1px solid #ddd', padding: '10px', height: '50px' }}>{index + 1}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '10px' }}>{date.toLocaleDateString('en-GB')}</td>
-                            <td style={{ border: '1px solid #ddd', padding: '10px' }}></td>
-                            <td style={{ border: '1px solid #ddd', padding: '10px' }}></td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-            <footer style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #eee', fontSize: '12px' }}>
-                <p><strong>Lead Trainer:</strong> {trainerName}</p>
-            </footer>
-        </div>
+        <html>
+            <head>
+                <style>{`
+                    body { font-family: sans-serif; }
+                    .container { padding: 20px; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+                    .logo { height: 50px; }
+                    .title { font-size: 24px; font-weight: bold; }
+                    .details { margin-top: 20px; }
+                    .section { margin-top: 30px; }
+                    .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
+                    ol { list-style-position: inside; padding-left: 0; }
+                    li { margin-bottom: 10px; }
+                    .signature-box { border: 1px solid #ccc; height: 150px; width: 300px; margin-top: 10px; }
+                    .signature-img { max-height: 100%; max-width: 100%; }
+                `}</style>
+            </head>
+            <body>
+                <div className="container">
+                    <div className="header">
+                        <span className="title">Progress Record</span>
+                        {logoBase64 && <img src={logoBase64} className="logo" alt="Logo" />}
+                    </div>
+                    <div className="details">
+                        <p><strong>Course:</strong> {courseName}</p>
+                        <p><strong>Date:</strong> {new Date(eventDetails.start_date).toLocaleDateString('en-GB')}</p>
+                        <p><strong>Trainer:</strong> {trainerName}</p>
+                    </div>
+                    <div className="section">
+                        <div className="section-title">Session Summaries</div>
+                        <ol>
+                            {summaries.map((summary, index) => (
+                                <li key={index}>{summary}</li>
+                            ))}
+                        </ol>
+                    </div>
+                    <div className="section">
+                        <div className="section-title">Trainer Signature</div>
+                        <div className="signature-box">
+                            {signature && <img src={signature} className="signature-img" alt="Signature" />}
+                        </div>
+                    </div>
+                </div>
+            </body>
+        </html>
     );
 };
 

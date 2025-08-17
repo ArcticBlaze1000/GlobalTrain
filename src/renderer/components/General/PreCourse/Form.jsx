@@ -10,7 +10,7 @@ const Form = (props) => {
         const fetchResponses = async () => {
             if (props.eventDetails?.id && props.documentDetails?.id) {
                 const fetchedResponses = await window.db.query(
-                    'SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?',
+                    'SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2',
                     [props.eventDetails.id, props.documentDetails.id]
                 );
                 const responsesMap = fetchedResponses.reduce((acc, res) => {

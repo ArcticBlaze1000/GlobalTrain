@@ -406,11 +406,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         );
     }, 500), [datapackId, documentId]);
 
-    const debouncedGridSave = useCallback(debounce(async (fieldName, gridData) => {
-        // Determine completion status: at least one entry exists.
+    const debouncedGridSave = useCallback(debounce(async (fieldName, gridData, isComplete) => {
         await window.db.run(
-            'UPDATE responses SET response_data = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND field_name = @param4',
-            [JSON.stringify(gridData), datapackId, documentId, fieldName]
+            'UPDATE responses SET response_data = @param1, completed = @param2 WHERE datapack_id = @param3 AND document_id = @param4 AND field_name = @param5',
+            [JSON.stringify(gridData), isComplete ? 1 : 0, datapackId, documentId, fieldName]
         );
         triggerRecalculation();
     }, 500), [datapackId, documentId, triggerRecalculation]);
@@ -585,10 +584,18 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             return;
         }
 
+        // Flush all pending changes to ensure the database is up-to-date before PDF generation.
+        debouncedSave.flush();
+        debouncedCommentSave.flush();
+        debouncedGridSave.flush();
+
+        // A short delay to allow the database to process the flushed updates.
+        await new Promise(resolve => setTimeout(resolve, 200));
+
         if (onPdfButtonClick) {
             setSaveStatus({ message: 'Saving...', type: 'info' });
             try {
-                await onPdfButtonClick();
+                await onPdfButtonClick(responses);
                 setSaveStatus({ message: 'Saved successfully!', type: 'success' });
             } catch (error) {
                 console.error('Save failed:', error);
@@ -659,7 +666,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         }));
     
         // Debounce the save to the database
-        debouncedGridSave(fieldName, updatedGridData);
+        debouncedGridSave(fieldName, updatedGridData, false); // Pass false for not completed
     };
 
     const renderCompetencyGrid = () => {
@@ -687,8 +694,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                 {trainee.forename} {trainee.surname}
                             </label>
                             <select
-                                value={gridData[trainee.id] || ''}
-                                onChange={(e) => handleCompetencyInputChange(trainee.id, e.target.value, e.target.value)}
+                                value={(gridData[trainee.id] && gridData[trainee.id][competencies[0]?.id]) || ''}
+                                onChange={(e) => handleCompetencyInputChange(trainee.id, competencies[0]?.id, e.target.value)}
                                 className="p-1 border rounded-md disabled:bg-gray-200 disabled:cursor-not-allowed text-sm"
                                 disabled={!isEditable}
                             >
@@ -773,7 +780,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                     if (dayNumber > 0 && eventDetails.start_date) {
                                         const now = new Date();
                                         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                        const [year, month, day] = eventDetails.start_date.split('-').map(Number);
+                                        
+                                        const startDateString = typeof eventDetails.start_date === 'string' ? eventDetails.start_date : eventDetails.start_date.toISOString().split('T')[0];
+                                        const [year, month, day] = startDateString.split('-').map(Number);
+
                                         const courseStartDate = new Date(year, month - 1, day);
                                         const targetDate = new Date(courseStartDate);
                                         targetDate.setDate(courseStartDate.getDate() + dayNumber - 1);
@@ -1000,7 +1010,8 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                     const now = new Date();
                                                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-                                                    const [year, month, day] = eventDetails.start_date.split('-').map(Number);
+                                                    const startDateString = typeof eventDetails.start_date === 'string' ? eventDetails.start_date : eventDetails.start_date.toISOString().split('T')[0];
+                                                    const [year, month, day] = startDateString.split('-').map(Number);
                                                     const courseStartDate = new Date(year, month - 1, day);
 
                                                     const targetDate = new Date(courseStartDate);
@@ -1106,7 +1117,10 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                             if (eventDetails.start_date) {
                                                 const now = new Date();
                                                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                                const [year, month, day] = eventDetails.start_date.split('-').map(Number);
+
+                                                const startDateString = typeof eventDetails.start_date === 'string' ? eventDetails.start_date : eventDetails.start_date.toISOString().split('T')[0];
+                                                const [year, month, day] = startDateString.split('-').map(Number);
+                                                
                                                 const courseStartDate = new Date(year, month - 1, day);
                                                 const targetDate = new Date(courseStartDate);
                                                 targetDate.setDate(courseStartDate.getDate() + dayNumber - 1);
@@ -1217,6 +1231,17 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                             setNewComment('');
                                         }
                                     };
+
+                                    const handleEditComment = (index, text) => {
+                                        const updatedComments = [...comments];
+                                        updatedComments[index] = text;
+                                        handleDynamicCommentChange(q.field_name, 'comments', updatedComments);
+                                    };
+
+                                    const handleDeleteComment = (index) => {
+                                        const updatedComments = comments.filter((_, i) => i !== index);
+                                        handleDynamicCommentChange(q.field_name, 'comments', updatedComments);
+                                    };
                                     
                                     const onSaveSignature = (dataUrl) => {
                                         handleDynamicCommentChange(q.field_name, 'signature', dataUrl);
@@ -1228,10 +1253,19 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                 {/* Display existing comments */}
                                                 {comments.length > 0 && (
                                                     <div className="space-y-2">
-                                                        <h4 className="font-medium text-gray-700">Logged Comments</h4>
+                                                        <h4 className="font-medium text-gray-700">Session Summaries</h4>
                                                         <ol className="list-decimal list-inside pl-4 border p-2 rounded-md bg-gray-50">
                                                             {comments.map((comment, index) => (
-                                                                <li key={index} className="text-gray-800">{comment}</li>
+                                                                <li key={index} className="text-gray-800 flex justify-between items-center">
+                                                                    <input 
+                                                                        type="text"
+                                                                        value={comment}
+                                                                        onChange={(e) => handleEditComment(index, e.target.value)}
+                                                                        className="w-full mr-2 p-1 border-b"
+                                                                        disabled={!isEditable}
+                                                                    />
+                                                                    <button onClick={() => handleDeleteComment(index)} className="text-red-500 hover:text-red-700" disabled={!isEditable}>Delete</button>
+                                                                </li>
                                                             ))}
                                                         </ol>
                                                     </div>
@@ -1242,7 +1276,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                     <textarea
                                                         value={newComment}
                                                         onChange={(e) => setNewComment(e.target.value)}
-                                                        placeholder="Enter a new comment..."
+                                                        placeholder="Enter a new session summary..."
                                                         className="w-full p-2 border rounded-md disabled:bg-gray-200"
                                                         rows="2"
                                                         disabled={!isEditable}
@@ -1254,25 +1288,6 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                                                     >
                                                         Add
                                                     </button>
-                                                </div>
-
-                                                {/* Signature area */}
-                                                <div>
-                                                    <h4 className="font-medium text-gray-700 mt-4">Trainer Signature</h4>
-                                                     <div 
-                                                        className={`w-full md:w-1/2 lg:w-1/3 h-32 border rounded-md flex justify-center items-center mt-2 ${isEditable ? 'cursor-pointer hover:bg-gray-100' : 'bg-gray-200 cursor-not-allowed'}`}
-                                                        onClick={() => {
-                                                            if (isEditable) {
-                                                                openSignatureModal(onSaveSignature, signature);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {signature ? (
-                                                            <img src={signature} alt="Signature" className="h-full w-full object-contain" />
-                                                        ) : (
-                                                            <span className="text-gray-500 text-sm">Click to Sign</span>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

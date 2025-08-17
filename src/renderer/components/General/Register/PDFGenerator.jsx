@@ -7,19 +7,19 @@ export const generateRegisterPdf = async (datapackId) => {
     }
 
     // 1. Fetch all necessary data from the database
-    const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+    const datapack = (await window.db.query('SELECT * FROM datapack WHERE id = @param1', [datapackId]))[0];
     if (!datapack) throw new Error("Datapack not found.");
 
-    const course = (await window.db.query('SELECT * FROM courses WHERE id = ?', [datapack.course_id]))[0];
-    const trainer = (await window.db.query('SELECT * FROM users WHERE id = ?', [datapack.trainer_id]))[0];
+    const course = (await window.db.query('SELECT * FROM courses WHERE id = @param1', [datapack.course_id]))[0];
+    const trainer = (await window.db.query('SELECT * FROM users WHERE id = @param1', [datapack.trainer_id]))[0];
 
     const traineeIds = datapack.trainee_ids.split(',');
-    const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+    const trainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map((_, i) => `@param${i+1}`).join(',')})`, traineeIds);
 
     const competencies = await window.db.query('SELECT * FROM competencies');
 
-    const registerDoc = (await window.db.query('SELECT id, name, save FROM documents WHERE name = ?', ['Register']))[0];
-    const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, registerDoc.id]);
+    const registerDoc = (await window.db.query('SELECT id, name, [save] FROM documents WHERE name = @param1', ['Register']))[0];
+    const responses = await window.db.query('SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [datapackId, registerDoc.id]);
 
     const responsesMap = responses.reduce((acc, res) => {
         acc[res.field_name] = res.response_data;
