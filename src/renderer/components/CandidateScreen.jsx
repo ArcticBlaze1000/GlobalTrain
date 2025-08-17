@@ -19,6 +19,7 @@ import QuestionnaireAndFeedbackForm from './General/QuestionnaireAndFeedbackForm
 import ScenarioAssessmentForm from './General/ScenarioAssessment/Form';
 import WorkbookForm from './General/Workbook/Form';
 import PhotographicIDForm from './General/PhotographicID/Form';
+import AlertModal from './Common/AlertModal';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -41,6 +42,8 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
     const [isLeaving, setIsLeaving] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [notification, setNotification] = useState({ show: false, message: '' });
+    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const [alertContent, setAlertContent] = useState({ title: '', message: '', confirmText: '', onConfirm: null });
 
     const filteredDocuments = documents.filter(doc => {
         if (doc.name === 'LeavingForm') {
@@ -48,6 +51,47 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         }
         return true;
     });
+
+    const handleRevertToAdmin = async () => {
+        if (!activeEvent) return;
+
+        try {
+            await window.db.run('UPDATE datapack SET status = @param1 WHERE id = @param2', ['pre course', activeEvent.id]);
+            setNotification({ show: true, message: 'Event reverted to admin.' });
+            // Potentially refresh or navigate away
+        } catch (error) {
+            console.error('Failed to revert event:', error);
+            setNotification({ show: true, message: `Error: ${error.message}` });
+        }
+    };
+
+    const handleCompleteCourse = async () => {
+        const incompleteDocs = documents.filter(doc => (docProgress[doc.id] || 0) < 100);
+
+        const performCompletion = async () => {
+            try {
+                await window.db.run('UPDATE datapack SET status = @param1 WHERE id = @param2', ['post course', activeEvent.id]);
+                setNotification({ show: true, message: 'Course marked as complete.' });
+                // Potentially refresh or navigate away
+            } catch (error) {
+                console.error('Failed to complete course:', error);
+                setNotification({ show: true, message: `Error: ${error.message}` });
+            }
+            setIsAlertOpen(false);
+        };
+
+        if (incompleteDocs.length > 0) {
+            setAlertContent({
+                title: 'Incomplete Documents',
+                message: `The following documents for ${selectedCandidateDetails.forename} ${selectedCandidateDetails.surname} are not 100% complete:\n\n${incompleteDocs.map(d => `- ${formatDocName(d.name)}`).join('\n')}\n\nAre you sure you want to mark this course as complete for all candidates?`,
+                confirmText: 'Complete Anyway',
+                onConfirm: performCompletion,
+            });
+            setIsAlertOpen(true);
+        } else {
+            performCompletion();
+        }
+    };
 
     // Effect to fetch candidates when the active event changes
     useEffect(() => {
@@ -401,14 +445,39 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                             <span>Leaving Form</span>
                         </label>
                     </div>
-                </div>
-            </div>
-
-            {/* Right Panel (70%) - Canvas */}
-            <div className="flex-grow p-6 overflow-y-auto">
-                {renderSelectedForm()}
+                {selectedCandidateId && (user.role === 'admin' || user.role === 'dev') && (
+                    <div className="p-4 border-t space-y-2">
+                         <button
+                            onClick={handleCompleteCourse}
+                            className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                            Complete Course
+                        </button>
+                        <button
+                            onClick={handleRevertToAdmin}
+                            className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            Revert to Admin
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
+
+        {/* Right Panel (70%) - Canvas */}
+        <div className="flex-grow p-6 overflow-y-auto">
+            {renderSelectedForm()}
+        </div>
+
+        <AlertModal
+            isOpen={isAlertOpen}
+            onClose={() => setIsAlertOpen(false)}
+            title={alertContent.title}
+            message={alertContent.message}
+            confirmText={alertContent.confirmText}
+            onConfirm={alertContent.onConfirm}
+        />
+    </div>
     );
 };
 

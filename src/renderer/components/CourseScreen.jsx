@@ -15,6 +15,7 @@ import PhoneticQuizTemplate from './PTS/PhoneticQuiz/Form';
 import EmergencyPhoneCallExerciseTemplate from './PTS/EmergencyPhoneCallExercise/Form';
 import RecertEmergencyCallPracticalAssessmentTemplate from './PTS/RecertEmergencyCallPracticalAssessment/Form';
 import TrackWalkDeliveryRequirementsTemplate from './PTS/TrackWalkDeliveryRequirements/Form';
+import AlertModal from './Common/AlertModal';
 
 const formatDocName = (name) => {
     if (!name) return '';
@@ -30,6 +31,9 @@ const CourseScreen = ({ user, openSignatureModal }) => {
     const [docProgress, setDocProgress] = useState({}); // Tracks completion percentage for each doc
     const [notification, setNotification] = useState({ show: false, message: '' });
     const [expandedEventId, setExpandedEventId] = useState(null);
+    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const [alertContent, setAlertContent] = useState({ title: '', message: '', confirmText: '', onConfirm: null });
+
 
     // Fetch events based on user role
     useEffect(() => {
@@ -74,6 +78,196 @@ const CourseScreen = ({ user, openSignatureModal }) => {
         };
         fetchEvents();
     }, [user]);
+
+    const handleRevertToAdmin = async () => {
+        if (!activeEvent) return;
+
+        try {
+            await window.db.run('UPDATE datapack SET status = @param1 WHERE id = @param2', ['pre course', activeEvent.id]);
+            setNotification({ show: true, message: 'Event reverted to admin.' });
+            // Refresh the event list
+            const fetchEvents = async () => {
+                if (!user?.id) return;
+    
+                let query = `
+                    SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids, c.competency_ids
+                    FROM datapack d
+                    JOIN courses c ON d.course_id = c.id
+                `;
+                const params = [];
+    
+                // If user is a trainer, only fetch their events. Admins/devs see all.
+                if (user.role === 'trainer') {
+                    query += ' WHERE d.trainer_id = @param1 AND d.status = @param2';
+                    params.push(user.id, 'live');
+                } else {
+                    query += ' WHERE d.status = @param1';
+                    params.push('live');
+                }
+    
+                query += ' ORDER BY d.start_date ASC';
+    
+                const [datapacks, trainerDetails] = await Promise.all([
+                    window.db.query(query, params),
+                    window.db.query('SELECT id, forename, surname FROM users WHERE role = @param1', ['trainer'])
+                ]);
+                
+                const trainersMap = trainerDetails.reduce((acc, trainer) => {
+                    acc[trainer.id] = { forename: trainer.forename, surname: trainer.surname };
+                    return acc;
+                }, {});
+    
+                const eventsWithTrainerNames = datapacks.map(dp => ({
+                    ...dp,
+                    forename: trainersMap[dp.trainer_id]?.forename || 'N/A',
+                    surname: trainersMap[dp.trainer_id]?.surname || 'N/A'
+                }));
+    
+                setEvents(eventsWithTrainerNames);
+            };
+            fetchEvents();
+            setExpandedEventId(null);
+            setActiveEvent(null);
+        } catch (error) {
+            console.error('Failed to revert event:', error);
+            setNotification({ show: true, message: `Error: ${error.message}` });
+        }
+    };
+
+    const handleCompleteCourse = async () => {
+        // 1. Get incomplete course-level documents
+        const incompleteCourseDocs = documents.filter(doc => (docProgress[doc.id] || 0) < 100);
+
+        // 2. Get incomplete candidate-level documents
+        const traineeIds = activeEvent.trainee_ids ? activeEvent.trainee_ids.split(',').map(Number) : [];
+        const incompleteByTrainee = {};
+
+        if (traineeIds.length > 0) {
+            const traineePlaceholders = traineeIds.map((_, i) => `@param${i + 1}`).join(',');
+            const trainees = await window.db.query(`SELECT id, forename, surname FROM trainees WHERE id IN (${traineePlaceholders})`, traineeIds);
+            const traineeMap = trainees.reduce((acc, t) => {
+                acc[t.id] = `${t.forename} ${t.surname}`;
+                return acc;
+            }, {});
+
+            const courseResult = await window.db.query('SELECT doc_ids FROM courses WHERE id = @param1', [activeEvent.course_id]);
+            const allDocIds = courseResult[0]?.doc_ids?.split(',').map(Number).filter(id => id);
+
+            if (allDocIds && allDocIds.length > 0) {
+                const docPlaceholders = allDocIds.map((_, i) => `@param${i + 1}`).join(',');
+                const candidateDocs = await window.db.query(
+                    `SELECT id, name FROM documents WHERE id IN (${docPlaceholders}) AND scope = 'candidate'`,
+                    allDocIds
+                );
+
+                const candidateProgress = await window.db.query(
+                    'SELECT trainee_id, document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND trainee_id IS NOT NULL',
+                    [activeEvent.id]
+                );
+
+                const progressMap = candidateProgress.reduce((acc, p) => {
+                    if (!acc[p.trainee_id]) acc[p.trainee_id] = {};
+                    acc[p.trainee_id][p.document_id] = p.completion_percentage;
+                    return acc;
+                }, {});
+
+                for (const trainee of trainees) {
+                    const incompleteDocsForTrainee = [];
+                    for (const doc of candidateDocs) {
+                        const progress = progressMap[trainee.id]?.[doc.id] || 0;
+                        if (progress < 100) {
+                            incompleteDocsForTrainee.push(doc.name);
+                        }
+                    }
+                    if (incompleteDocsForTrainee.length > 0) {
+                        incompleteByTrainee[traineeMap[trainee.id]] = incompleteDocsForTrainee;
+                    }
+                }
+            }
+        }
+
+        const performCompletion = async () => {
+            try {
+                await window.db.run('UPDATE datapack SET status = @param1 WHERE id = @param2', ['post course', activeEvent.id]);
+                setNotification({ show: true, message: 'Course marked as complete.' });
+                
+                // Refresh event list after completion
+                const fetchEvents = async () => {
+                    if (!user?.id) return;
+        
+                    let query = `
+                        SELECT d.id, d.course_id, d.trainer_id, c.name AS courseName, d.start_date, d.duration, d.trainee_ids, c.competency_ids
+                        FROM datapack d
+                        JOIN courses c ON d.course_id = c.id
+                    `;
+                    const params = [];
+        
+                    if (user.role === 'trainer') {
+                        query += ' WHERE d.trainer_id = @param1 AND d.status = @param2';
+                        params.push(user.id, 'live');
+                    } else {
+                        query += ' WHERE d.status = @param1';
+                        params.push('live');
+                    }
+        
+                    query += ' ORDER BY d.start_date ASC';
+        
+                    const [datapacks, trainerDetails] = await Promise.all([
+                        window.db.query(query, params),
+                        window.db.query('SELECT id, forename, surname FROM users WHERE role = @param1', ['trainer'])
+                    ]);
+                    
+                    const trainersMap = trainerDetails.reduce((acc, trainer) => {
+                        acc[trainer.id] = { forename: trainer.forename, surname: trainer.surname };
+                        return acc;
+                    }, {});
+        
+                    const eventsWithTrainerNames = datapacks.map(dp => ({
+                        ...dp,
+                        forename: trainersMap[dp.trainer_id]?.forename || 'N/A',
+                        surname: trainersMap[dp.trainer_id]?.surname || 'N/A'
+                    }));
+        
+                    setEvents(eventsWithTrainerNames);
+                };
+                fetchEvents();
+                setExpandedEventId(null);
+                setActiveEvent(null);
+            } catch (error) {
+                console.error('Failed to complete course:', error);
+                setNotification({ show: true, message: `Error: ${error.message}` });
+            }
+            setIsAlertOpen(false);
+        };
+
+        let message = 'The following are not 100% complete:\n\n';
+        let hasIncomplete = false;
+
+        if (incompleteCourseDocs.length > 0) {
+            hasIncomplete = true;
+            message += 'Course Documents:\n' + incompleteCourseDocs.map(d => `- ${formatDocName(d.name)}`).join('\n') + '\n\n';
+        }
+
+        if (Object.keys(incompleteByTrainee).length > 0) {
+            hasIncomplete = true;
+            message += 'Candidate Documents:\n';
+            for (const traineeName in incompleteByTrainee) {
+                message += `${traineeName}:\n` + incompleteByTrainee[traineeName].map(docName => `  - ${formatDocName(docName)}`).join('\n') + '\n';
+            }
+        }
+
+        if (hasIncomplete) {
+            setAlertContent({
+                title: 'Incomplete Documents',
+                message: `${message}\nAre you sure you want to mark this course as complete?`,
+                confirmText: 'Complete Anyway',
+                onConfirm: performCompletion,
+            });
+            setIsAlertOpen(true);
+        } else {
+            performCompletion();
+        }
+    };
 
     useEffect(() => {
         const handleProgressUpdate = (event, { datapackId, documentId, traineeId, progress }) => {
@@ -321,6 +515,22 @@ const CourseScreen = ({ user, openSignatureModal }) => {
                                             </li>
                                         ))}
                                     </ul>
+                                    {user.role === 'admin' || user.role === 'dev' && (
+                                        <div className="mt-4 pt-4 border-t-2 border-gray-200 flex flex-col space-y-2">
+                                            <button
+                                                onClick={handleCompleteCourse}
+                                                className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            >
+                                                Complete Course
+                                            </button>
+                                            <button
+                                                onClick={handleRevertToAdmin}
+                                                className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                            >
+                                                Revert to Admin
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -332,6 +542,15 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             <div className="flex-grow p-6 bg-white overflow-y-auto">
                 {renderSelectedForm()}
             </div>
+
+            <AlertModal
+                isOpen={isAlertOpen}
+                onClose={() => setIsAlertOpen(false)}
+                title={alertContent.title}
+                message={alertContent.message}
+                confirmText={alertContent.confirmText}
+                onConfirm={alertContent.onConfirm}
+            />
         </div>
     );
 };

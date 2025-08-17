@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PreCourseChecklist from './PreCourseChecklist';
+import PostCourseChecklist from './PostCourseChecklist';
 
 const PRE_COURSE_DOC_IDS = [27, 28, 29, 30];
 
@@ -107,11 +108,7 @@ const RegistersManagement = ({ user, openSignatureModal }) => {
     }, []);
 
     const handleSelectRegister = (register) => {
-        if (register.status === 'pre course') {
-            setSelectedRegister(register);
-        } else {
-            alert("This functionality is only for 'Pre Course' registers at the moment.");
-        }
+        setSelectedRegister(register);
     };
     
     const handleBackToList = () => {
@@ -132,13 +129,25 @@ const RegistersManagement = ({ user, openSignatureModal }) => {
     }
 
     if (selectedRegister) {
-        return (
-            <PreCourseChecklist 
-                register={selectedRegister} 
-                user={user}
-                onBackToList={handleBackToList}
-            />
-        );
+        if (selectedRegister.status === 'pre course') {
+            return (
+                <PreCourseChecklist 
+                    register={selectedRegister} 
+                    user={user}
+                    onBackToList={handleBackToList}
+                    openSignatureModal={openSignatureModal}
+                />
+            );
+        } else if (selectedRegister.status === 'post course') {
+            return (
+                <PostCourseChecklist
+                    register={selectedRegister}
+                    user={user}
+                    onBackToList={handleBackToList}
+                    openSignatureModal={openSignatureModal}
+                />
+            );
+        }
     }
     
     return (
