@@ -7,6 +7,15 @@ const capitalize = (str) => {
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
+const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const CreationScreen = () => {
     // --- STATE MANAGEMENT ---
     const [courses, setCourses] = useState([]);
@@ -126,7 +135,7 @@ const CreationScreen = () => {
             setFormState({
                 courseId: dp.course_id,
                 trainerId: dp.trainer_id,
-                startDate: dp.start_date,
+                startDate: formatDateForInput(dp.start_date),
                 duration: dp.duration,
                 trainees: fetchedTrainees.map(t => ({ ...t, has_comments: !!t.additional_comments, sub_sponsor: !!t.sub_sponsor }))
             });

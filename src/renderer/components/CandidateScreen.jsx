@@ -57,13 +57,13 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
             if (!activeEvent || !activeEvent.id) return;
 
             try {
-                const datapack = await window.db.query('SELECT trainee_ids FROM datapack WHERE id = ?', [activeEvent.id]);
+                const datapack = await window.db.query('SELECT trainee_ids FROM datapack WHERE id = @param1', [activeEvent.id]);
                 if (!datapack.length || !datapack[0].trainee_ids) return;
 
                 const traineeIds = datapack[0].trainee_ids.split(',').map(Number);
                 if (traineeIds.length === 0) return;
 
-                const placeholders = traineeIds.map(() => '?').join(',');
+                const placeholders = traineeIds.map((_, i) => `@param${i+1}`).join(',');
                 const query = `SELECT id, forename, surname FROM trainees WHERE id IN (${placeholders})`;
                 const traineeDetails = await window.db.query(query, traineeIds);
 
@@ -92,27 +92,38 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
 
     useEffect(() => {
         const fetchDocumentsAndProgress = async () => {
-            if (!activeEvent || !selectedCandidateId) {
-                setDocuments([]);
-                setDocProgress({});
+            if (!activeEvent || !selectedCandidateId || documents.length > 0) {
+                // If documents are already loaded, don't refetch everything.
+                // Just ensure progress is up-to-date.
+                if (activeEvent && selectedCandidateId) {
+                    const persistedProgress = await window.db.query(
+                        'SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND trainee_id = @param2',
+                        [activeEvent.id, selectedCandidateId]
+                    );
+                    const progressMapFromDb = persistedProgress.reduce((acc, row) => {
+                        acc[row.document_id] = row.completion_percentage;
+                        return acc;
+                    }, {});
+                    setDocProgress(progressMapFromDb);
+                }
                 return;
             }
 
             // 1. Fetch the course to get the list of document IDs.
-            const docIdsResult = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
+            const docIdsResult = await window.db.query('SELECT doc_ids FROM courses WHERE id = @param1', [activeEvent.course_id]);
             if (!docIdsResult.length) return;
             const ids = docIdsResult[0].doc_ids.split(',');
 
             // 2. Fetch the actual document details, filtered by scope and user role visibility.
             const docs = await window.db.query(
-                `SELECT * FROM documents WHERE id IN (${ids.map(() => '?').join(',')}) AND scope = 'candidate' AND visible LIKE ?`,
+                `SELECT * FROM documents WHERE id IN (${ids.map((_, i) => `@param${i+1}`).join(',')}) AND scope = 'candidate' AND visible LIKE @param${ids.length + 1}`,
                 [...ids, `%${user.role}%`]
             );
             setDocuments(docs);
 
             // 3. Fetch all progress for this candidate's documents directly from the `document_progress` table.
             const persistedProgress = await window.db.query(
-                'SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND trainee_id = ?',
+                'SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND trainee_id = @param2',
                 [activeEvent.id, selectedCandidateId]
             );
 
@@ -125,7 +136,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
         };
 
         fetchDocumentsAndProgress();
-    }, [activeEvent, selectedCandidateId, user.role]);
+    }, [activeEvent, selectedCandidateId, user.role, documents.length]);
 
     useEffect(() => {
         if (!isLeaving && selectedDocument?.name === 'Leaving Form') {
@@ -142,7 +153,7 @@ const CandidateScreen = ({ user, openSignatureModal }) => {
                 return;
             }
             try {
-                const details = await window.db.query('SELECT * FROM trainees WHERE id = ?', [selectedCandidateId]);
+                const details = await window.db.query('SELECT * FROM trainees WHERE id = @param1', [selectedCandidateId]);
                 const trainee = details.length > 0 ? details[0] : null;
                 setSelectedCandidateDetails(trainee);
                 setActiveTrainee(trainee);

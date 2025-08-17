@@ -57,6 +57,28 @@ async function executeQuery(sqlQuery, params = []) {
     return result.recordset;
 }
 
+async function executeTransaction(queries) {
+    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
+    const transaction = new sql.Transaction(pool);
+    try {
+        await transaction.begin();
+        const results = [];
+        for (const [sqlQuery, params] of queries) {
+            const request = new sql.Request(transaction);
+            params.forEach((param, i) => {
+                request.input(`param${i + 1}`, param);
+            });
+            const result = await request.query(sqlQuery);
+            results.push(result);
+        }
+        await transaction.commit();
+        return results.map(r => r.recordset);
+    } catch (err) {
+        await transaction.rollback();
+        throw err;
+    }
+}
+
 ipcMain.handle('db-query', (event, sqlQuery, params) => executeQuery(sqlQuery, params));
 
 ipcMain.handle('db-get', async (event, sqlQuery, params = []) => {
@@ -75,26 +97,7 @@ ipcMain.handle('db-run', async (event, sqlQuery, params = []) => {
     return { lastID: null, changes: 1 };
 });
 
-ipcMain.handle('db-transaction', async (event, queries) => {
-    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
-    const transaction = new sql.Transaction(pool);
-    try {
-        await transaction.begin();
-        const requests = queries.map(([sqlQuery, params]) => {
-            const request = new sql.Request(transaction);
-            params.forEach((param, i) => {
-                request.input(`param${i+1}`, param);
-            });
-            return request.query(sqlQuery);
-        });
-        const results = await Promise.all(requests);
-        await transaction.commit();
-        return results.map(r => r.recordset);
-    } catch (err) {
-        await transaction.rollback();
-        throw err;
-    }
-});
+ipcMain.handle('db-transaction', (event, queries) => executeTransaction(queries));
 
 ipcMain.handle('get-css-path', async () => {
     if (process.env.NODE_ENV !== 'production') {
@@ -112,12 +115,22 @@ ipcMain.handle('get-css-path', async () => {
 // This prevents the function from being called too frequently, which could cause race conditions or performance issues.
 const debouncedRecalculation = {};
 ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
+    const document = await executeQuery('SELECT name, scope FROM documents WHERE id = @param1', [documentId]).then(rows => rows[0] || null);
+    if (!document) {
+        console.error(`Recalculate progress: Document with ID ${documentId} not found.`);
+        return;
+    }
+
+    // If a document is not candidate-specific, we should only ever manage a single progress
+    // record for it, where trainee_id is NULL.
+    const isCandidateScoped = document.scope === 'candidate';
+    const finalTraineeId = isCandidateScoped ? traineeId : null;
+
     // 1. Fetch all necessary data in parallel
-    const [datapack, questions, allResponses, document] = await Promise.all([
+    const [datapack, questions, allResponses] = await Promise.all([
         executeQuery('SELECT trainee_ids, duration, course_id FROM datapack WHERE id = @param1', [datapackId]).then(rows => rows[0] || null),
         executeQuery('SELECT * FROM questionnaires WHERE document_id = @param1', [documentId]),
         executeQuery('SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [datapackId, documentId]),
-        executeQuery('SELECT name FROM documents WHERE id = @param1', [documentId]).then(rows => rows[0] || null)
     ]);
 
     const traineeIds = datapack?.trainee_ids ? datapack.trainee_ids.split(',').filter(id => id) : [];
@@ -227,7 +240,15 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     const dbQueries = [];
 
     // Check if a progress record already exists
-    const existingProgress = await executeQuery('SELECT id FROM document_progress WHERE datapack_id = @param1 AND document_id = @param2', [datapackId, documentId]).then(rows => rows[0] || null);
+    let sqlSelect;
+    const params = [datapackId, documentId];
+    if (finalTraineeId) {
+        sqlSelect = 'SELECT id FROM document_progress WHERE datapack_id = @param1 AND document_id = @param2 AND trainee_id = @param3';
+        params.push(finalTraineeId);
+    } else {
+        sqlSelect = 'SELECT id FROM document_progress WHERE datapack_id = @param1 AND document_id = @param2 AND trainee_id IS NULL';
+    }
+    const existingProgress = await executeQuery(sqlSelect, params).then(rows => rows[0] || null);
 
     // If it exists, update it. Otherwise, insert a new record.
     if (existingProgress) {
@@ -238,7 +259,7 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     } else {
         dbQueries.push([
             `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (@param1, @param2, @param3, @param4)`,
-            [datapackId, documentId, traineeId, percentage]
+            [datapackId, documentId, finalTraineeId, percentage]
         ]);
     }
     
@@ -251,21 +272,12 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     }
 
     // Execute all updates in a single transaction
-    await new Promise((resolve, reject) => {
-        ipcMain.handle('db-query', event, 'BEGIN TRANSACTION', (err) => { if (err) return reject(err); });
-        for (const [sql, params] of dbQueries) {
-            ipcMain.handle('db-query', event, sql, params, (err) => { if (err) { ipcMain.handle('db-query', event, 'ROLLBACK'); return reject(err); }});
-        }
-        ipcMain.handle('db-query', event, 'COMMIT', (err) => {
-            if (err) { ipcMain.handle('db-query', event, 'ROLLBACK'); return reject(err); }
+    await executeTransaction(dbQueries);
 
-            const window = BrowserWindow.getFocusedWindow();
-            if (window) {
-                window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
-            }
-            resolve();
-        });
-    });
+    const window = BrowserWindow.getFocusedWindow();
+    if (window) {
+        window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
+    }
 
     return percentage;
   });

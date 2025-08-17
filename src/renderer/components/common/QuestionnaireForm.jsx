@@ -129,6 +129,13 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         documentId: documentDetails?.id
     }), [eventDetails, documentDetails]);
 
+    const debouncedRecalculate = useCallback(
+        debounce((args) => {
+            window.electron.recalculateAndUpdateProgress(args);
+        }, 300), // 300ms delay
+        [] // Empty dependency array means this debounced function is created once
+    );
+
     const hasUploadQuestion = useMemo(() => {
         return questions.some(q => q.input_type === 'upload');
     }, [questions]);
@@ -148,7 +155,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             if (eventDetails?.competency_ids) {
                 const competencyIds = eventDetails.competency_ids.split(',');
                 if (competencyIds.length > 0 && competencyIds[0] !== '') {
-                    const fetchedCompetencies = await window.db.query(`SELECT * FROM competencies WHERE id IN (${competencyIds.map(() => '?').join(',')})`, competencyIds);
+                    const fetchedCompetencies = await window.db.query(`SELECT * FROM competencies WHERE id IN (${competencyIds.map((_, i) => `@param${i+1}`).join(',')})`, competencyIds);
                     setCompetencies(fetchedCompetencies);
                     courseCompetencies = fetchedCompetencies;
                 } else {
@@ -160,13 +167,13 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             if (eventDetails?.trainee_ids) {
                 const traineeIds = eventDetails.trainee_ids.split(',');
                 if (traineeIds.length > 0) {
-                    const fetchedTrainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+                    const fetchedTrainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map((_, i) => `@param${i+1}`).join(',')})`, traineeIds);
                     setTrainees(fetchedTrainees);
                 }
             }
 
             const fetchedQuestions = await window.db.query(
-                'SELECT * FROM questionnaires WHERE document_id = ?',
+                'SELECT * FROM questionnaires WHERE document_id = @param1',
                 [documentId]
             );
             
@@ -191,7 +198,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 .map(q => q.field_name);
 
             if (dropdownQuestionFieldNames.length > 0) {
-                const placeholders = dropdownQuestionFieldNames.map(() => '?').join(',');
+                const placeholders = dropdownQuestionFieldNames.map((_, i) => `@param${i+1}`).join(',');
                 const allOptions = await window.db.query(
                     `SELECT question_field_name, option_value FROM questionnaire_options WHERE question_field_name IN (${placeholders})`,
                     dropdownQuestionFieldNames
@@ -210,7 +217,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
             const initialResponses = {};
             for (const q of questions) {
                 let response = await window.db.query(
-                    'SELECT * FROM responses WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                    'SELECT * FROM responses WHERE datapack_id = @param1 AND document_id = @param2 AND field_name = @param3',
                     [datapackId, documentId, q.field_name]
                 );
 
@@ -218,11 +225,11 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                     const traineeIdsForResponse = documentDetails.scope === 'candidate' ? String(selectedTraineeId) : eventDetails.trainee_ids;
                     const initialData = q.input_type === 'tri_toggle' ? 'neutral' : '';
                     await window.db.run(
-                        'INSERT OR IGNORE INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO responses (datapack_id, document_id, trainee_ids, field_name, response_data, completed, additional_comments) VALUES (@param1, @param2, @param3, @param4, @param5, @param6, @param7)',
                         [datapackId, documentId, traineeIdsForResponse, q.field_name, initialData, 0, '']
                     );
                     response = await window.db.query(
-                        'SELECT * FROM responses WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                        'SELECT * FROM responses WHERE datapack_id = @param1 AND document_id = @param2 AND field_name = @param3',
                         [datapackId, documentId, q.field_name]
                     );
                 }
@@ -264,7 +271,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         // This effect will run whenever responses change to recalculate progress.
         const calculateProgress = () => {
              if (Object.keys(responses).length > 0 && questions.length > 0) {
-                window.electron.recalculateAndUpdateProgress({
+                debouncedRecalculate({
                     datapackId,
                     documentId,
                     traineeId: documentDetails.scope === 'candidate' ? selectedTraineeId : null,
@@ -273,15 +280,15 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
         };
     
         calculateProgress();
-    }, [responses, questions, eventDetails, datapackId, documentId, selectedTraineeId, documentDetails.scope]);
+    }, [responses, questions, eventDetails, datapackId, documentId, selectedTraineeId, documentDetails.scope, debouncedRecalculate]);
     
     const triggerRecalculation = useCallback(() => {
-        window.electron.recalculateAndUpdateProgress({
+        debouncedRecalculate({
             datapackId,
             documentId,
             traineeId: documentDetails.scope === 'candidate' ? selectedTraineeId : null,
         });
-    }, [datapackId, documentId, selectedTraineeId, documentDetails.scope]);
+    }, [datapackId, documentId, selectedTraineeId, documentDetails.scope, debouncedRecalculate]);
 
     const handleSaveUploads = async () => {
         setIsFileStaged(false); // Disable button immediately
@@ -361,7 +368,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
                 }
     
                 await window.db.run(
-                    'UPDATE responses SET response_data = ?, completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                    'UPDATE responses SET response_data = @param1, completed = @param2 WHERE datapack_id = @param3 AND document_id = @param4 AND field_name = @param5',
                     [finalValue, 1, datapackId, documentId, fieldName]
                 );
     
@@ -386,7 +393,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     // Debounced save function for text inputs etc.
     const debouncedSave = useCallback(debounce(async (fieldName, value, completed, comments) => {
         await window.db.run(
-            'UPDATE responses SET response_data = ?, completed = ?, additional_comments = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            'UPDATE responses SET response_data = @param1, completed = @param2, additional_comments = @param3 WHERE datapack_id = @param4 AND document_id = @param5 AND field_name = @param6',
             [value, completed ? 1 : 0, comments, datapackId, documentId, fieldName]
         );
         triggerRecalculation();
@@ -394,7 +401,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
 
     const debouncedCommentSave = useCallback(debounce(async (fieldName, comments) => {
         await window.db.run(
-            'UPDATE responses SET additional_comments = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            'UPDATE responses SET additional_comments = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND field_name = @param4',
             [comments, datapackId, documentId, fieldName]
         );
     }, 500), [datapackId, documentId]);
@@ -402,7 +409,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
     const debouncedGridSave = useCallback(debounce(async (fieldName, gridData) => {
         // Determine completion status: at least one entry exists.
         await window.db.run(
-            'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+            'UPDATE responses SET response_data = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND field_name = @param4',
             [JSON.stringify(gridData), datapackId, documentId, fieldName]
         );
         triggerRecalculation();
@@ -502,7 +509,7 @@ const QuestionnaireForm = ({ user, eventDetails, documentDetails, openSignatureM
 
             for (const [field, gridData] of finalUpdates.entries()) {
                 await window.db.run(
-                    'UPDATE responses SET response_data = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?',
+                    'UPDATE responses SET response_data = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND field_name = @param4',
                     [JSON.stringify(gridData), datapackId, documentId, field]
                 );
             }

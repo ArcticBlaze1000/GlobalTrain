@@ -55,7 +55,7 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
 
                 const progressPlaceholders = applicableDocIds.map((_, i) => `@param${i + 2}`).join(',');
                 const docProgress = await window.db.query(
-                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND document_id IN (${progressPlaceholders})`,
+                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND document_id IN (${progressPlaceholders}) AND trainee_id IS NULL`,
                     [register.id, ...applicableDocIds]
                 );
 
