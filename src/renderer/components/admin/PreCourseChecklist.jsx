@@ -29,13 +29,13 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
             setActiveEvent(null);
 
             try {
-                const fullEventData = await window.db.query('SELECT * FROM datapack WHERE id = ?', [register.id]);
+                const fullEventData = await window.db.query('SELECT * FROM datapack WHERE id = @param1', [register.id]);
                 if (fullEventData.length > 0) {
                     const eventData = { ...register, ...fullEventData[0] };
                     if (eventData.trainee_ids) {
                         const traineeIds = eventData.trainee_ids.split(',');
                         if (traineeIds.length > 0) {
-                            const fetchedTrainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map(() => '?').join(',')})`, traineeIds);
+                            const fetchedTrainees = await window.db.query(`SELECT * FROM trainees WHERE id IN (${traineeIds.map((_, i) => `@param${i+1}`).join(',')})`, traineeIds);
                             eventData.trainees = fetchedTrainees;
                         } else {
                             eventData.trainees = [];
@@ -47,15 +47,15 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
                     setActiveEvent(eventData);
                 }
 
-                const docPlaceholders = applicableDocIds.map(() => '?').join(',');
+                const docPlaceholders = applicableDocIds.map((_, i) => `@param${i + 1}`).join(',');
                 const docDetails = await window.db.query(
-                    `SELECT * FROM documents WHERE id IN (${docPlaceholders}) ORDER BY INSTR(',${applicableDocIds.join(',')},', ',' || id || ',')`,
+                    `SELECT * FROM documents WHERE id IN (${docPlaceholders}) ORDER BY CHARINDEX(',' + CAST(id AS VARCHAR(MAX)) + ',', ',${applicableDocIds.join(',')},')`,
                     applicableDocIds
                 );
 
-                const progressPlaceholders = applicableDocIds.map(() => '?').join(',');
+                const progressPlaceholders = applicableDocIds.map((_, i) => `@param${i + 2}`).join(',');
                 const docProgress = await window.db.query(
-                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND document_id IN (${progressPlaceholders})`,
+                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND document_id IN (${progressPlaceholders})`,
                     [register.id, ...applicableDocIds]
                 );
 
@@ -112,9 +112,9 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
             const applicableDocIds = register.applicableDocIds || [];
             if (applicableDocIds.length === 0) return;
 
-            const progressPlaceholders = applicableDocIds.map(() => '?').join(',');
+            const progressPlaceholders = applicableDocIds.map((_, i) => `@param${i + 2}`).join(',');
             const docProgress = await window.db.query(
-                `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ? AND document_id IN (${progressPlaceholders})`,
+                `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1 AND document_id IN (${progressPlaceholders})`,
                 [register.id, ...applicableDocIds]
             );
     
@@ -140,7 +140,7 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         if (!register || !allDocumentsCompleted) return;
         try {
             await window.db.run(
-                "UPDATE datapack SET status = 'live' WHERE id = ?",
+                "UPDATE datapack SET status = 'live' WHERE id = @param1",
                 [register.id]
             );
             setAlertInfo({
@@ -162,7 +162,7 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         if (!register) return;
         try {
             await window.db.run(
-                "UPDATE datapack SET status = 'incomplete' WHERE id = ?",
+                "UPDATE datapack SET status = 'incomplete' WHERE id = @param1",
                 [register.id]
             );
             setAlertInfo({

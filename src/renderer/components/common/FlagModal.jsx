@@ -37,7 +37,7 @@ const FlagModal = ({ show, onClose, user, page }) => {
         try {
             const query = `
                 INSERT INTO flags (title, datapack_id, document_id, trainee_id, user_id, user_sent_to_id, message, page)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (@param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8)
             `;
             const params = [
                 title,

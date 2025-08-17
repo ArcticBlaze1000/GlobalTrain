@@ -12,7 +12,7 @@ const LoginScreen = ({ onLogin }) => {
         setError('');
         try {
             const users = await window.db.query(
-                'SELECT * FROM users WHERE username = ? AND password = ?',
+                'SELECT * FROM users WHERE username = @param1 AND password = @param2',
                 [username, password]
             );
 

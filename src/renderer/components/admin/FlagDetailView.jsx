@@ -109,7 +109,7 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal
 
         try {
             await window.db.query(
-                "UPDATE flags SET status = 'in-progress', attempted_by = ?, picked_up_at = ? WHERE id = ?",
+                "UPDATE flags SET status = 'in-progress', attempted_by = @param1, picked_up_at = @param2 WHERE id = @param3",
                 [JSON.stringify(newAttemptedBy), JSON.stringify(newPickedUpAt), currentFlag.id]
             );
             const updatedFlag = {
@@ -131,7 +131,7 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal
 
         try {
             await window.db.query(
-                "UPDATE flags SET status = 'open', dropped_at = ? WHERE id = ?",
+                "UPDATE flags SET status = 'open', dropped_at = @param1 WHERE id = @param2",
                 [JSON.stringify(newDroppedAt), currentFlag.id]
             );
             const updatedFlag = { ...currentFlag, status: 'open', dropped_at: JSON.stringify(newDroppedAt) };

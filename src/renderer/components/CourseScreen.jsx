@@ -45,17 +45,18 @@ const CourseScreen = ({ user, openSignatureModal }) => {
 
             // If user is a trainer, only fetch their events. Admins/devs see all.
             if (user.role === 'trainer') {
-                query += ' WHERE d.trainer_id = ? AND d.status = "live"';
-                params.push(user.id);
+                query += ' WHERE d.trainer_id = @param1 AND d.status = @param2';
+                params.push(user.id, 'live');
             } else {
-                query += ' WHERE d.status = "live"';
+                query += ' WHERE d.status = @param1';
+                params.push('live');
             }
 
             query += ' ORDER BY d.start_date ASC';
 
             const [datapacks, trainerDetails] = await Promise.all([
                 window.db.query(query, params),
-                window.db.query('SELECT id, forename, surname FROM users WHERE role = "trainer"')
+                window.db.query('SELECT id, forename, surname FROM users WHERE role = @param1', ['trainer'])
             ]);
             
             const trainersMap = trainerDetails.reduce((acc, trainer) => {
@@ -102,21 +103,21 @@ const CourseScreen = ({ user, openSignatureModal }) => {
             }
 
             // 1. Fetch the course to get the list of document IDs.
-            const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = ?', [activeEvent.course_id]);
+            const course = await window.db.query('SELECT doc_ids FROM courses WHERE id = @param1', [activeEvent.course_id]);
             const docIds = course[0]?.doc_ids?.split(',');
 
             if (docIds && docIds[0] !== '') {
                 // 2. Fetch the actual document details, filtered by scope and user role visibility.
-                const placeholders = docIds.map(() => '?').join(',');
+                const placeholders = docIds.map((_, i) => `@param${i+1}`).join(',');
                 const docs = await window.db.query(
-                    `SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = 'course' AND visible LIKE ?`,
-                    [...docIds, `%${user.role}%`]
+                    `SELECT * FROM documents WHERE id IN (${placeholders}) AND scope = @param${docIds.length+1} AND visible LIKE @param${docIds.length+2}`,
+                    [...docIds, 'course', `%${user.role}%`]
                 );
                 setDocuments(docs);
                 
                 // 3. Fetch all progress for this event's documents directly from the `document_progress` table.
                 const progressResults = await window.db.query(
-                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = ?`,
+                    `SELECT document_id, completion_percentage FROM document_progress WHERE datapack_id = @param1`,
                     [activeEvent.id]
                 );
 

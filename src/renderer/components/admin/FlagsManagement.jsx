@@ -29,35 +29,32 @@ const FlagTable = ({ title, flags, onFlagSelect, children }) => {
                 {children}
             </div>
             {!isCollapsed && (
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <table className="min-w-full leading-normal">
-                        <thead>
+                <div className="overflow-x-auto bg-white rounded-lg shadow">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Raised By</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sent To</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raised By</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent To</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+                                <th className="px-6 py-3 text-right text-sm font-medium"></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white divide-y divide-gray-200">
                             {flags.length > 0 ? flags.map((flag) => (
-                                <tr key={flag.id}>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.title}</td>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.raised_by}</td>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{flag.sent_to}</td>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                        <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${statusStyles[flag.status]?.text || ''}`}>
-                                            <span aria-hidden className={`absolute inset-0 ${statusStyles[flag.status]?.bg || ''} opacity-50 rounded-full`}></span>
-                                            <span className="relative">{flag.status}</span>
+                                <tr key={flag.id} className="hover:bg-gray-100">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{flag.course_name || flag.title}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{flag.raiser_name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{flag.handler_name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[flag.status]?.bg} ${statusStyles[flag.status]?.text}`}>
+                                            {flag.status}
                                         </span>
                                     </td>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{formatDate(flag.created_at)}</td>
-                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
-                                        <button onClick={() => onFlagSelect(flag)} className="text-indigo-600 hover:text-indigo-900">
-                                            View
-                                        </button>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(flag.created_at)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button onClick={() => onFlagSelect(flag)} className="text-blue-600 hover:text-blue-900">View</button>
                                     </td>
                                 </tr>
                             )) : (
@@ -90,25 +87,19 @@ const FlagsManagement = ({ user, openSignatureModal }) => {
             }
             setIsLoading(true);
             try {
-                let query = `
+                const fetchedFlags = await window.db.query(`
                     SELECT 
                         f.*, 
-                        raiser.forename || ' ' || raiser.surname AS raised_by,
-                        receiver.forename || ' ' || receiver.surname AS sent_to
+                        raiser.forename + ' ' + raiser.surname as raiser_name,
+                        handler.forename + ' ' + handler.surname as handler_name,
+                        c.name as course_name
                     FROM flags f
-                    JOIN users raiser ON f.user_id = raiser.id
-                    JOIN users receiver ON f.user_sent_to_id = receiver.id
-                `;
-                if (user.role === 'admin') {
-                    query += ` WHERE receiver.role = 'admin'`;
-                } else if (user.role !== 'dev') {
-                    setFlags([]);
-                    setIsLoading(false);
-                    return;
-                }
-                query += ' ORDER BY f.created_at DESC';
-                const result = await window.db.query(query);
-                setFlags(result);
+                    LEFT JOIN users raiser ON f.user_id = raiser.id
+                    LEFT JOIN users handler ON f.user_sent_to_id = handler.id
+                    LEFT JOIN datapack dp ON f.datapack_id = dp.id
+                    LEFT JOIN courses c ON dp.course_id = c.id
+                `);
+                setFlags(fetchedFlags);
             } catch (error) {
                 console.error("Failed to fetch flags:", error);
             } finally {

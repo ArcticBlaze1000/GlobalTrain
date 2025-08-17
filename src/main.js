@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const sql = require('mssql');
 const fs = require('fs');
 const puppeteer = require('puppeteer');
 require('dotenv').config();
@@ -11,6 +11,21 @@ if (!AZURE_STORAGE_CONNECTION_STRING) {
     console.error("Azure Storage Connection String is not set. Please create a .env file and set AZURE_STORAGE_CONNECTION_STRING.");
     // We don't want the app to run without this, but we also don't want to crash it immediately.
     // The upload function will handle the error gracefully.
+}
+
+let pool;
+const AZURE_DB_CONNECTION_STRING = process.env.AZURE_DB_CONNECTION_STRING;
+if (!AZURE_DB_CONNECTION_STRING) {
+    console.error("Azure DB Connection String is not set. Please create a .env file and set AZURE_DB_CONNECTION_STRING.");
+} else {
+    const poolPromise = new sql.ConnectionPool(AZURE_DB_CONNECTION_STRING)
+        .connect()
+        .then(p => {
+            console.log('Connected to Azure SQL Database');
+            pool = p;
+            return p;
+        })
+        .catch(err => console.error('Database Connection Failed! Bad Config: ', err));
 }
 
 function createWindow () {
@@ -32,71 +47,53 @@ function createWindow () {
   // mainWindow.webContents.openDevTools();
 }
 
-const dbPath = path.resolve(__dirname, '../database.db');
-const db = new sqlite3.Database(dbPath);
-
-ipcMain.handle('db-query', async (event, sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(rows);
-            }
-        });
+async function executeQuery(sqlQuery, params = []) {
+    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
+    const request = pool.request();
+    params.forEach((param, i) => {
+        request.input(`param${i+1}`, param);
     });
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+}
+
+ipcMain.handle('db-query', (event, sqlQuery, params) => executeQuery(sqlQuery, params));
+
+ipcMain.handle('db-get', async (event, sqlQuery, params = []) => {
+    const recordset = await executeQuery(sqlQuery, params);
+    return recordset[0] || null;
 });
 
-ipcMain.handle('db-get', async (event, sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(row);
-            }
-        });
-    });
-});
-
-ipcMain.handle('db-run', async (event, sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) { // Must use function() to get 'this' scope
-            if (err) {
-                reject(err);
-            } else {
-                // 'this' contains properties like 'lastID' and 'changes'
-                resolve({ lastID: this.lastID, changes: this.changes });
-            }
-        });
-    });
+ipcMain.handle('db-run', async (event, sqlQuery, params = []) => {
+    if (sqlQuery.trim().toUpperCase().startsWith('INSERT')) {
+        sqlQuery += '; SELECT SCOPE_IDENTITY() AS lastID;';
+    }
+    const recordset = await executeQuery(sqlQuery, params);
+    if (recordset && recordset.length > 0 && recordset[0].lastID !== undefined) {
+        return { lastID: recordset[0].lastID, changes: 1 };
+    }
+    return { lastID: null, changes: 1 };
 });
 
 ipcMain.handle('db-transaction', async (event, queries) => {
-    return new Promise((resolve, reject) => {
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION', (err) => {
-                if (err) return reject(err);
-
-                for (const [sql, params] of queries) {
-                    db.run(sql, params, function(err) {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            return reject(err);
-                        }
-                    });
-                }
-
-                db.run('COMMIT', (err) => {
-                    if (err) {
-                        db.run('ROLLBACK');
-                        return reject(err);
-                    }
-                    resolve();
-                });
+    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
+    const transaction = new sql.Transaction(pool);
+    try {
+        await transaction.begin();
+        const requests = queries.map(([sqlQuery, params]) => {
+            const request = new sql.Request(transaction);
+            params.forEach((param, i) => {
+                request.input(`param${i+1}`, param);
             });
+            return request.query(sqlQuery);
         });
-    });
+        const results = await Promise.all(requests);
+        await transaction.commit();
+        return results.map(r => r.recordset);
+    } catch (err) {
+        await transaction.rollback();
+        throw err;
+    }
 });
 
 ipcMain.handle('get-css-path', async () => {
@@ -117,10 +114,10 @@ const debouncedRecalculation = {};
 ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, documentId, traineeId = null }) => {
     // 1. Fetch all necessary data in parallel
     const [datapack, questions, allResponses, document] = await Promise.all([
-        new Promise((resolve, reject) => db.get('SELECT trainee_ids, duration, course_id FROM datapack WHERE id = ?', [datapackId], (err, row) => err ? reject(err) : resolve(row))),
-        new Promise((resolve, reject) => db.all('SELECT * FROM questionnaires WHERE document_id = ?', [documentId], (err, rows) => err ? reject(err) : resolve(rows))),
-        new Promise((resolve, reject) => db.all('SELECT field_name, response_data FROM responses WHERE datapack_id = ? AND document_id = ?', [datapackId, documentId], (err, rows) => err ? reject(err) : resolve(rows))),
-        new Promise((resolve, reject) => db.get('SELECT name FROM documents WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row)))
+        executeQuery('SELECT trainee_ids, duration, course_id FROM datapack WHERE id = @param1', [datapackId]).then(rows => rows[0] || null),
+        executeQuery('SELECT * FROM questionnaires WHERE document_id = @param1', [documentId]),
+        executeQuery('SELECT field_name, response_data FROM responses WHERE datapack_id = @param1 AND document_id = @param2', [datapackId, documentId]),
+        executeQuery('SELECT name FROM documents WHERE id = @param1', [documentId]).then(rows => rows[0] || null)
     ]);
 
     const traineeIds = datapack?.trainee_ids ? datapack.trainee_ids.split(',').filter(id => id) : [];
@@ -160,14 +157,11 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
 
     // B. For the Register, manually add competency grid checks based on the course
     if (document.name === 'Register' && datapack.course_id) {
-        const course = await new Promise((resolve, reject) => db.get('SELECT competency_ids FROM courses WHERE id = ?', [datapack.course_id], (err, row) => err ? reject(err) : resolve(row)));
+        const course = await executeQuery('SELECT competency_ids FROM courses WHERE id = @param1', [datapack.course_id]).then(rows => rows[0] || null);
         const courseCompetencyIds = course?.competency_ids ? course.competency_ids.split(',').filter(id => id) : [];
-        
+
         if (courseCompetencyIds.length > 0) {
-            const courseCompetencies = await new Promise((resolve, reject) => {
-                const sql = `SELECT id, name FROM competencies WHERE id IN (${courseCompetencyIds.map(() => '?').join(',')})`;
-                db.all(sql, courseCompetencyIds, (err, rows) => err ? reject(err) : resolve(rows));
-            });
+            const courseCompetencies = await executeQuery(`SELECT id, name FROM competencies WHERE id IN (${courseCompetencyIds.map((_, i) => `@param${i+1}`).join(',')})`, courseCompetencyIds);
 
             for (const competency of courseCompetencies) {
                 const fieldName = `competency_${competency.name.toLowerCase().replace(/[\s/]+/g, '_')}`;
@@ -178,7 +172,7 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
             }
         }
     }
-    
+
     if (activeQuestions.length === 0) return 0; // Nothing to complete
 
     // 3. Count how many active questions are actually complete
@@ -187,7 +181,7 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     for (const q of activeQuestions) {
         const responseData = responseMap[q.field_name];
         let isComplete = false;
-        
+
         switch (q.input_type) {
             case 'checkbox':
                 isComplete = responseData === 'true' || responseData === 1 || responseData === '1';
@@ -199,8 +193,8 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
                 try {
                     const gridData = JSON.parse(responseData || '{}');
                     // Check that every required competency for THIS course has a non-empty value for every trainee
-                    isComplete = traineeIds.every(t_id => 
-                        q.required_ids.every(c_id => 
+                    isComplete = traineeIds.every(t_id =>
+                        q.required_ids.every(c_id =>
                             gridData[t_id] && gridData[t_id][c_id] !== undefined && gridData[t_id][c_id] !== ''
                         )
                     );
@@ -231,34 +225,19 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     const percentage = Math.round((completedCount / activeQuestions.length) * 100);
 
     const dbQueries = [];
-    
-    // Check if a progress record already exists
-    const existingProgress = await new Promise((resolve, reject) => {
-        let sql = 'SELECT id FROM document_progress WHERE datapack_id = ? AND document_id = ?';
-        const params = [datapackId, documentId];
 
-        if (traineeId) {
-            sql += ' AND trainee_id = ?';
-            params.push(traineeId);
-        } else {
-            sql += ' AND trainee_id IS NULL';
-        }
-        
-        db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-        });
-    });
+    // Check if a progress record already exists
+    const existingProgress = await executeQuery('SELECT id FROM document_progress WHERE datapack_id = @param1 AND document_id = @param2', [datapackId, documentId]).then(rows => rows[0] || null);
 
     // If it exists, update it. Otherwise, insert a new record.
     if (existingProgress) {
         dbQueries.push([
-            `UPDATE document_progress SET completion_percentage = ? WHERE id = ?`,
+            `UPDATE document_progress SET completion_percentage = @param1 WHERE id = @param2`,
             [percentage, existingProgress.id]
         ]);
     } else {
         dbQueries.push([
-            `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO document_progress (datapack_id, document_id, trainee_id, completion_percentage) VALUES (@param1, @param2, @param3, @param4)`,
             [datapackId, documentId, traineeId, percentage]
         ]);
     }
@@ -266,58 +245,34 @@ ipcMain.handle('recalculate-and-update-progress', async (event, { datapackId, do
     // Queries to update the 'completed' flag for each individual response
     for (const [fieldName, isComplete] of completionStatusMap.entries()) {
         dbQueries.push([
-            `UPDATE responses SET completed = ? WHERE datapack_id = ? AND document_id = ? AND field_name = ?`,
+            `UPDATE responses SET completed = @param1 WHERE datapack_id = @param2 AND document_id = @param3 AND field_name = @param4`,
             [isComplete ? 1 : 0, datapackId, documentId, fieldName]
         ]);
     }
 
     // Execute all updates in a single transaction
     await new Promise((resolve, reject) => {
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION', err => { if (err) return reject(err); });
-            for (const [sql, params] of dbQueries) {
-                db.run(sql, params, function(err) { if (err) { db.run('ROLLBACK'); return reject(err); }});
+        ipcMain.handle('db-query', event, 'BEGIN TRANSACTION', (err) => { if (err) return reject(err); });
+        for (const [sql, params] of dbQueries) {
+            ipcMain.handle('db-query', event, sql, params, (err) => { if (err) { ipcMain.handle('db-query', event, 'ROLLBACK'); return reject(err); }});
+        }
+        ipcMain.handle('db-query', event, 'COMMIT', (err) => {
+            if (err) { ipcMain.handle('db-query', event, 'ROLLBACK'); return reject(err); }
+
+            const window = BrowserWindow.getFocusedWindow();
+            if (window) {
+                window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
             }
-            db.run('COMMIT', err => {
-                if (err) { db.run('ROLLBACK'); return reject(err); }
-                
-                const window = BrowserWindow.getFocusedWindow();
-                if (window) {
-                    window.webContents.send('progress-updated', { datapackId, documentId, traineeId, progress: percentage });
-                }
-                resolve();
-            });
+            resolve();
         });
     });
 
     return percentage;
   });
 
-const queryDb = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) {
-                console.error('DB Query Error:', err.message);
-                reject(err);
-            } else {
-                resolve(rows);
-            }
-        });
-    });
-};
+const queryDb = (sqlQuery, params = []) => executeQuery(sqlQuery, params);
 
-const runDb = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
-            if (err) {
-                console.error('DB Run Error:', err.message);
-                reject(err);
-            } else {
-                resolve({ lastID: this.lastID, changes: this.changes });
-            }
-        });
-    });
-};
+const runDb = (sqlQuery, params = []) => executeQuery(sqlQuery, params);
 
 ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, options = {}) => {
     // Save to a temporary directory to avoid cluttering the user's documents
@@ -329,7 +284,7 @@ ipcMain.handle('generate-pdf-from-html', async (event, htmlContent, datapackId, 
     try {
         browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
-        
+
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
         await page.pdf({
@@ -413,7 +368,7 @@ ipcMain.handle('generateAndUploadPdf', async (event, { htmlContent, fileName, co
         const blobPath = `${basePath}${fileName}`;
 
         const blockBlobClient = containerClient.getBlockBlobClient(blobPath);
-        
+
         await blockBlobClient.uploadData(pdfBuffer, {
             blobHTTPHeaders: { blobContentType: contentType }
         });
@@ -434,7 +389,7 @@ ipcMain.handle('get-logo-base64', async () => {
             ? path.join(process.resourcesPath, 'dist', logoFileName)
             // In dev mode, the 'public' folder is at the project root.
             : path.join(app.getAppPath(), 'public', logoFileName);
-            
+
         const logoBuffer = await fs.promises.readFile(logoPath);
         return `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
     } catch (error) {
@@ -461,9 +416,9 @@ const formatDateForPath = (date, format) => {
 
 const buildBlobPath = async (eventDetails, documentDetails, traineeDetails, fileName) => {
     const monthFolderName = formatDateForPath(eventDetails.start_date, 'mm. month yyyy');
-    
+
     // Fetch trainer details from the database using trainer_id from eventDetails
-    const trainerRows = await queryDb('SELECT forename, surname FROM users WHERE id = ?', [eventDetails.trainer_id]);
+    const trainerRows = await queryDb('SELECT forename, surname FROM users WHERE id = @param1', [eventDetails.trainer_id]);
     const trainer = trainerRows[0] || {};
     const trainerInitial = trainer.forename ? trainer.forename.charAt(0) : '';
     const trainerSurname = trainer.surname || '';
@@ -480,7 +435,7 @@ const buildBlobPath = async (eventDetails, documentDetails, traineeDetails, file
             const forename = nameParts[0];
             const surname = nameParts[1];
             // Find the trainee in the event's trainee list
-            const allTrainees = await queryDb(`SELECT * FROM trainees WHERE id IN (${eventDetails.trainee_ids})`);
+            const allTrainees = await queryDb(`SELECT * FROM trainees WHERE id IN (${eventDetails.trainee_ids.split(',').map((_, i) => `@param${i+1}`).join(',')})`, eventDetails.trainee_ids.split(','));
             targetTrainee = allTrainees.find(t => t.forename === forename && t.surname === surname);
         }
     }
@@ -491,7 +446,7 @@ const buildBlobPath = async (eventDetails, documentDetails, traineeDetails, file
         const candidateFolderName = `${traineeIndex}_${targetTrainee.forename}_${targetTrainee.surname}`;
         finalSubPath = `Candidates/${candidateFolderName}/`;
     }
-    
+
     return `Training/${monthFolderName}/${eventFolderName}/${finalSubPath}`;
 };
 
@@ -502,7 +457,7 @@ ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, conten
 
     try {
         const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-        
+
         const containerName = 'documents'; // All documents will go into this single container
         const containerClient = blobServiceClient.getContainerClient(containerName);
         await containerClient.createIfNotExists();
@@ -511,9 +466,9 @@ ipcMain.handle('upload-file-to-blob', async (event, { fileData, fileName, conten
         const blobPath = `${basePath}${fileName}`;
 
         const blockBlobClient = containerClient.getBlockBlobClient(blobPath);
-        
+
         const buffer = Buffer.from(fileData, 'base64');
-        
+
         await blockBlobClient.uploadData(buffer, {
             blobHTTPHeaders: { blobContentType: contentType }
         });
@@ -535,12 +490,12 @@ ipcMain.handle('app-quit', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   ipcMain.handle('get-documents-path', () => app.getPath('documents'));
-  
+
   ipcMain.handle('initialize-user-session', async (event, user) => {
     if (!user || !user.id) return;
     // Removed folder generation logic as per instructions.
   });
-  
+
   ipcMain.handle('get-courses', async () => {
     return queryDb('SELECT * FROM courses ORDER BY name');
   });
@@ -554,41 +509,26 @@ app.on('ready', () => {
   });
 
   ipcMain.handle('add-course', async (event, { name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids }) => {
-    const sql = `INSERT INTO courses (name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (?, ?, ?, ?, ?)`;
-    return new Promise((resolve, reject) => {
-        db.run(sql, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids], function(err) {
-            if (err) reject(err);
-            else resolve({ id: this.lastID });
-        });
-    });
+    const sqlQuery = `INSERT INTO courses (name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids) VALUES (@param1, @param2, @param3, @param4, @param5)`;
+    return runDb(sqlQuery, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids]);
   });
 
   ipcMain.handle('update-course', async (event, { id, name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids }) => {
-    const sql = `UPDATE courses SET name = ?, doc_ids = ?, competency_ids = ?, course_length = ?, non_mandatory_doc_ids = ? WHERE id = ?`;
-    return new Promise((resolve, reject) => {
-        db.run(sql, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids, id], function(err) {
-            if (err) reject(err);
-            else resolve({ changes: this.changes });
-        });
-    });
+    const sqlQuery = `UPDATE courses SET name = @param1, doc_ids = @param2, competency_ids = @param3, course_length = @param4, non_mandatory_doc_ids = @param5 WHERE id = @param6`;
+    return runDb(sqlQuery, [name, doc_ids, competency_ids, course_length, non_mandatory_doc_ids, id]);
   });
 
   ipcMain.handle('delete-course', async (event, id) => {
     // Optional: Check if the course is used in any datapacks before deleting
-    const datapacks = await queryDb('SELECT id FROM datapack WHERE course_id = ?', [id]);
+    const datapacks = await queryDb('SELECT id FROM datapack WHERE course_id = @param1', [id]);
     if (datapacks.length > 0) {
         throw new Error('Cannot delete this course because it is currently used in one or more events.');
     }
     
-    const sql = `DELETE FROM courses WHERE id = ?`;
-    return new Promise((resolve, reject) => {
-        db.run(sql, [id], function(err) {
-            if (err) reject(err);
-            else resolve({ changes: this.changes });
-        });
-    });
+    const sqlQuery = `DELETE FROM courses WHERE id = @param1`;
+    return runDb(sqlQuery, [id]);
   });
-  
+
   createWindow();
 
   app.on('activate', function () {

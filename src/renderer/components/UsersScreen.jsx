@@ -123,7 +123,7 @@ const UsersScreen = ({ currentUser }) => {
 
         try {
             await window.db.query(
-                'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO users (forename, surname, role, username, password) VALUES (@param1, @param2, @param3, @param4, @param5)',
                 [forename, surname, role, username, password]
             );
             // Reset form and refetch users
@@ -151,7 +151,7 @@ const UsersScreen = ({ currentUser }) => {
 
         if (window.confirm(`Are you sure you want to delete ${userToDelete.forename} ${userToDelete.surname}?`)) {
             try {
-                await window.db.query('DELETE FROM users WHERE id = ?', [userToDelete.id]);
+                await window.db.query('DELETE FROM users WHERE id = @param1', [userToDelete.id]);
                 fetchUsers();
             } catch (error) {
                 console.error('Failed to delete user:', error);
@@ -174,7 +174,7 @@ const UsersScreen = ({ currentUser }) => {
                     return;
                 }
                 
-                await window.db.query('DELETE FROM trainees WHERE id = ?', [traineeToDelete.id]);
+                await window.db.query('DELETE FROM trainees WHERE id = @param1', [traineeToDelete.id]);
                 fetchTrainees();
             } catch (error) {
                 console.error('Failed to delete trainee:', error);

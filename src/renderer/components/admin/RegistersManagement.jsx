@@ -85,8 +85,8 @@ const RegistersManagement = ({ user, openSignatureModal }) => {
                     const progressResult = await window.db.get(
                         `SELECT AVG(dp.completion_percentage) as avg_completion
                          FROM document_progress dp 
-                         WHERE dp.datapack_id = ? AND dp.document_id IN (${applicableDocIds.join(',')})`,
-                        [reg.id]
+                         WHERE dp.datapack_id = @param1 AND dp.document_id IN (${applicableDocIds.map((_, i) => `@param${i+2}`).join(',')})`,
+                        [reg.id, ...applicableDocIds]
                     );
                     completion = progressResult.avg_completion || 0;
                 }

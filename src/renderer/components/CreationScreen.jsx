@@ -115,12 +115,12 @@ const CreationScreen = () => {
 
     const handleLoadDatapack = async (datapackId) => {
         try {
-            const dp = (await window.db.query('SELECT * FROM datapack WHERE id = ?', [datapackId]))[0];
+            const dp = (await window.db.query('SELECT * FROM datapack WHERE id = @param1', [datapackId]))[0];
             if (!dp) return;
 
             // When loading an incomplete datapack, we need to fetch associated trainees
             const fetchedTrainees = dp.trainee_ids
-                ? await window.db.query(`SELECT id, forename, surname, sponsor, sentry_number, additional_comments, sub_sponsor FROM trainees WHERE datapack = ?`, [datapackId])
+                ? await window.db.query(`SELECT id, forename, surname, sponsor, sentry_number, additional_comments, sub_sponsor FROM trainees WHERE datapack = @param1`, [datapackId])
                 : [];
 
             setFormState({
@@ -148,7 +148,7 @@ const CreationScreen = () => {
             // Step 1: Insert or get the datapack ID
             if (!datapackId) {
                 const result = await window.db.run(
-                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (@param1, @param2, @param3, @param4, @param5)',
                     [courseId, trainerId, startDate, duration, 'incomplete']
                 );
                 datapackId = result.lastID;
@@ -156,20 +156,20 @@ const CreationScreen = () => {
             } else {
                 // Update basic datapack info if it's already active
                 await window.db.run(
-                    'UPDATE datapack SET course_id = ?, trainer_id = ?, start_date = ?, duration = ? WHERE id = ?',
+                    'UPDATE datapack SET course_id = @param1, trainer_id = @param2, start_date = @param3, duration = @param4 WHERE id = @param5',
                     [courseId, trainerId, startDate, duration, datapackId]
                 );
             }
 
             // Step 2: Synchronize trainees
-            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = ?', [datapackId]);
+            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = @param1', [datapackId]);
             const dbTraineeIds = dbTrainees.map(t => t.id);
             const formTraineeIds = trainees.map(t => t.id).filter(Boolean);
 
             // Trainees to delete
             const traineesToDelete = dbTraineeIds.filter(id => !formTraineeIds.includes(id));
             if (traineesToDelete.length > 0) {
-                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.join(',')})`);
+                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.map((_, i) => `@param${i+1}`).join(',')})`, traineesToDelete);
             }
 
             const allTraineeIds = [];
@@ -180,13 +180,13 @@ const CreationScreen = () => {
 
                 if (trainee.id) { // Existing trainee -> UPDATE
                     await window.db.run(
-                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ?, sub_sponsor = ? WHERE id = ?',
+                        'UPDATE trainees SET forename = @param1, surname = @param2, sponsor = @param3, sentry_number = @param4, additional_comments = @param5, sub_sponsor = @param6 WHERE id = @param7',
                         [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.sub_sponsor, trainee.id]
                     );
                     allTraineeIds.push(trainee.id);
                 } else { // New trainee -> INSERT
                     const result = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (@param1, @param2, @param3, @param4, @param5, @param6, @param7)',
                         [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId, trainee.sub_sponsor]
                     );
                     allTraineeIds.push(result.lastID);
@@ -195,7 +195,7 @@ const CreationScreen = () => {
 
             // Step 3: Update the datapack with the final list of trainee IDs and count
             await window.db.run(
-                'UPDATE datapack SET trainee_ids = ?, total_trainee_count = ? WHERE id = ?',
+                'UPDATE datapack SET trainee_ids = @param1, total_trainee_count = @param2 WHERE id = @param3',
                 [allTraineeIds.join(','), allTraineeIds.length, datapackId]
             );
 
@@ -205,6 +205,24 @@ const CreationScreen = () => {
 
         } catch (error) {
             console.error("Failed to save incomplete datapack:", error);
+        }
+    };
+
+    const handleDeleteIncomplete = async () => {
+        if (!activeDatapackId) return;
+
+        try {
+            // First, delete all trainees associated with the datapack
+            await window.db.run('DELETE FROM trainees WHERE datapack = @param1', [activeDatapackId]);
+            
+            // Then, delete the datapack itself
+            await window.db.run('DELETE FROM datapack WHERE id = @param1', [activeDatapackId]);
+
+            // Finally, reset the form and refetch the list
+            resetForm();
+            fetchIncompleteDatapacks();
+        } catch (error) {
+            console.error("Failed to delete incomplete datapack:", error);
         }
     };
 
@@ -222,25 +240,25 @@ const CreationScreen = () => {
             // Step 1: Insert or update the datapack
             if (datapackId) {
                 await window.db.run(
-                    'UPDATE datapack SET course_id = ?, trainer_id = ?, start_date = ?, duration = ? WHERE id = ?',
+                    'UPDATE datapack SET course_id = @param1, trainer_id = @param2, start_date = @param3, duration = @param4 WHERE id = @param5',
                     [courseId, trainerId, startDate, duration, datapackId]
                 );
             } else {
                 const datapackResult = await window.db.run(
-                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO datapack (course_id, trainer_id, start_date, duration, status) VALUES (@param1, @param2, @param3, @param4, @param5)',
                     [courseId, trainerId, startDate, duration, 'pre course']
                 );
                 datapackId = datapackResult.lastID;
             }
 
             // Step 2: Synchronize trainees and create user accounts
-            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = ?', [datapackId]);
+            const dbTrainees = await window.db.query('SELECT id FROM trainees WHERE datapack = @param1', [datapackId]);
             const dbTraineeIds = dbTrainees.map(t => t.id);
             const formTraineeIds = trainees.map(t => t.id).filter(Boolean);
 
             const traineesToDelete = dbTraineeIds.filter(id => !formTraineeIds.includes(id));
             if (traineesToDelete.length > 0) {
-                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.join(',')})`);
+                await window.db.run(`DELETE FROM trainees WHERE id IN (${traineesToDelete.map((_, i) => `@param${i+1}`).join(',')})`, traineesToDelete);
             }
 
             const allTraineeIds = [];
@@ -250,13 +268,13 @@ const CreationScreen = () => {
 
                 if (trainee.id) {
                     await window.db.run(
-                        'UPDATE trainees SET forename = ?, surname = ?, sponsor = ?, sentry_number = ?, additional_comments = ?, sub_sponsor = ? WHERE id = ?',
+                        'UPDATE trainees SET forename = @param1, surname = @param2, sponsor = @param3, sentry_number = @param4, additional_comments = @param5, sub_sponsor = @param6 WHERE id = @param7',
                         [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, trainee.sub_sponsor, trainee.id]
                     );
                     allTraineeIds.push(trainee.id);
                 } else {
                     const traineeResult = await window.db.run(
-                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO trainees (forename, surname, sponsor, sentry_number, additional_comments, datapack, sub_sponsor) VALUES (@param1, @param2, @param3, @param4, @param5, @param6, @param7)',
                         [forename, surname, trainee.sponsor, trainee.sentry_number, trainee.additional_comments, datapackId, trainee.sub_sponsor]
                     );
                     const newTraineeId = traineeResult.lastID;
@@ -269,7 +287,7 @@ const CreationScreen = () => {
                     while (!userCreated) {
                         try {
                             await window.db.run(
-                                'INSERT INTO users (forename, surname, role, username, password) VALUES (?, ?, ?, ?, ?)',
+                                'INSERT INTO users (forename, surname, role, username, password) VALUES (@param1, @param2, @param3, @param4, @param5)',
                                 [forename, surname, 'candidate', username, password]
                             );
                             userCreated = true;
@@ -288,7 +306,7 @@ const CreationScreen = () => {
 
             // Step 3: Finalize datapack
             await window.db.run(
-                'UPDATE datapack SET trainee_ids = ?, total_trainee_count = ?, status = ? WHERE id = ?',
+                'UPDATE datapack SET trainee_ids = @param1, total_trainee_count = @param2, status = @param3 WHERE id = @param4',
                 [allTraineeIds.join(','), allTraineeIds.length, 'pre course', datapackId]
             );
 
@@ -460,6 +478,14 @@ const CreationScreen = () => {
                 >
                     {activeDatapackId ? 'Update Incomplete' : 'Save Incomplete'}
                 </button>
+                {activeDatapackId && (
+                    <button
+                        onClick={handleDeleteIncomplete}
+                        className="px-6 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700"
+                    >
+                        Delete
+                    </button>
+                )}
                 <button 
                     onClick={handleCreateEvent} 
                     className={`px-6 py-2 bg-blue-600 text-white font-semibold rounded-md ${!isSubmittable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
