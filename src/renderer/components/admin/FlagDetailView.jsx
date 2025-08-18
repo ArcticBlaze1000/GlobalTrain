@@ -76,11 +76,11 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal
             if (isCurrentUserAssignee() && currentFlag.datapack_id && currentFlag.document_id) {
                 setFormData(prev => ({ ...prev, isLoading: true }));
                 try {
-                    const eventDetails = await window.db.query('SELECT * FROM datapack WHERE id = ?', [currentFlag.datapack_id]);
-                    const documentDetails = await window.db.query('SELECT * FROM documents WHERE id = ?', [currentFlag.document_id]);
+                    const eventDetails = await window.db.query('SELECT * FROM datapack WHERE id = @param1', [currentFlag.datapack_id]);
+                    const documentDetails = await window.db.query('SELECT * FROM documents WHERE id = @param1', [currentFlag.document_id]);
                     let traineeDetails = null;
                     if (currentFlag.trainee_id) {
-                        traineeDetails = await window.db.query('SELECT * FROM trainees WHERE id = ?', [currentFlag.trainee_id]);
+                        traineeDetails = await window.db.query('SELECT * FROM trainees WHERE id = @param1', [currentFlag.trainee_id]);
                     }
 
                     setFormData({
@@ -145,7 +145,7 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal
         const now = new Date().toISOString();
         try {
             await window.db.query(
-                "UPDATE flags SET status = 'rejected', resolved_at = ?, resolved_by = ?, resolution_notes = ? WHERE id = ?",
+                "UPDATE flags SET status = 'rejected', resolved_at = @param1, resolved_by = @param2, resolution_notes = @param3 WHERE id = @param4",
                 [now, user.id, resolutionNotes, currentFlag.id]
             );
             const updatedFlag = { ...currentFlag, status: 'rejected', resolved_at: now, resolved_by: user.id, resolution_notes: resolutionNotes };
@@ -159,7 +159,7 @@ const FlagDetailView = ({ flag, user, onBackToList, onUpdate, openSignatureModal
         const now = new Date().toISOString();
         try {
             await window.db.query(
-                "UPDATE flags SET status = 'resolved', resolved_at = ?, resolved_by = ?, resolution_notes = ?, signature = ? WHERE id = ?",
+                "UPDATE flags SET status = 'resolved', resolved_at = @param1, resolved_by = @param2, resolution_notes = @param3, signature = @param4 WHERE id = @param5",
                 [now, user.id, resolutionNotes, signature, currentFlag.id]
             );
             const updatedFlag = { ...currentFlag, status: 'resolved', resolved_at: now, resolved_by: user.id, resolution_notes: resolutionNotes, signature: signature };
