@@ -41,7 +41,7 @@ function createWindow () {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../dist', 'index.html'));
     // Optional in production; comment out if you don’t want it
     mainWindow.webContents.openDevTools();
   }
