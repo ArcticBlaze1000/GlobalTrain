@@ -32,23 +32,22 @@ function createWindow () {
   const mainWindow = new BrowserWindow({
     fullscreen: true,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
 
-  // In production, load the a file. In development, load a url
-    if (process.env.NODE_ENV === 'production') {
-        mainWindow.loadFile('dist/index.html')
-    } else {
-        mainWindow.loadURL('http://localhost:5173');
-    }
+  // and load the index.html of the app.
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  }
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
-}
+  mainWindow.webContents.openDevTools();
+};
 
 async function executeQuery(sqlQuery, params = []) {
-    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
     const request = pool.request();
     params.forEach((param, i) => {
         request.input(`param${i+1}`, param);
@@ -58,7 +57,6 @@ async function executeQuery(sqlQuery, params = []) {
 }
 
 async function executeTransaction(queries) {
-    if (!pool) await sql.connect(AZURE_DB_CONNECTION_STRING);
     const transaction = new sql.Transaction(pool);
     try {
         await transaction.begin();
