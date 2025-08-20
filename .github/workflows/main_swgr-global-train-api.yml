@@ -27,7 +27,6 @@ jobs:
         run: |
           npm install
           npm run build
-          node server.js
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -61,5 +60,5 @@ jobs:
         with:
           app-name: 'swgr-global-train-api'
           slot-name: 'Production'
-          package: .
+          package: ./dist
           

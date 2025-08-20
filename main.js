@@ -1,12 +1,20 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const path = require('path');
-const sql = require('mssql');
 const fs = require('fs');
+const path = require('path');
+
+const configPath = path.join(__dirname, 'config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+
+const AZURE_DB_CONNECTION_STRING = config.AZURE_DB_CONNECTION_STRING;
+const AZURE_STORAGE_CONNECTION_STRING = config.AZURE_STORAGE_CONNECTION_STRING;
+const NODE_ENV = config.NODE_ENV || 'production';
+
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const sql = require('mssql');
 const puppeteer = require('puppeteer');
 require('dotenv').config();
 const { BlobServiceClient } = require('@azure/storage-blob');
 
-const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
+//const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 if (!AZURE_STORAGE_CONNECTION_STRING) {
     console.error("Azure Storage Connection String is not set. Please create a .env file and set AZURE_STORAGE_CONNECTION_STRING.");
     // We don't want the app to run without this, but we also don't want to crash it immediately.
@@ -14,7 +22,7 @@ if (!AZURE_STORAGE_CONNECTION_STRING) {
 }
 
 let pool;
-const AZURE_DB_CONNECTION_STRING = process.env.AZURE_DB_CONNECTION_STRING;
+//const AZURE_DB_CONNECTION_STRING = process.env.AZURE_DB_CONNECTION_STRING;
 if (!AZURE_DB_CONNECTION_STRING) {
     console.error("Azure DB Connection String is not set. Please create a .env file and set AZURE_DB_CONNECTION_STRING.");
 } else {
@@ -37,11 +45,11 @@ function createWindow () {
     },
   });
 
-  const isDev = !app.isPackaged;
-  if (isDev) {
+  // Load your app (dev or prod)
+  if (NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
     // Optional in production; comment out if you don’t want it
     mainWindow.webContents.openDevTools();
   }
@@ -98,7 +106,7 @@ ipcMain.handle('db-run', async (event, sqlQuery, params = []) => {
 ipcMain.handle('db-transaction', (event, queries) => executeTransaction(queries));
 
 ipcMain.handle('get-css-path', async () => {
-    if (!app.isPackaged) {
+    if (NODE_ENV === 'development') {
         return 'http://localhost:5173/src/renderer/index.css';
     } else {
         const cssPath = path.join(app.getAppPath(), 'dist', 'index.css');
