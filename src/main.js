@@ -33,18 +33,18 @@ function createWindow () {
     fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true
     },
   });
 
-  // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  const isDev = !app.isPackaged;
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    // Optional in production; comment out if you don’t want it
+    mainWindow.webContents.openDevTools();
   }
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
 };
 
 async function executeQuery(sqlQuery, params = []) {
@@ -98,13 +98,10 @@ ipcMain.handle('db-run', async (event, sqlQuery, params = []) => {
 ipcMain.handle('db-transaction', (event, queries) => executeTransaction(queries));
 
 ipcMain.handle('get-css-path', async () => {
-    if (process.env.NODE_ENV !== 'production') {
-        // In development, point to the Vite server
+    if (!app.isPackaged) {
         return 'http://localhost:5173/src/renderer/index.css';
     } else {
-        // In production, point to the bundled CSS file
-        // Note: The exact path might need adjustment based on your build output structure
-        const cssPath = path.join(app.getAppPath(), 'dist/index.css');
+        const cssPath = path.join(app.getAppPath(), 'dist', 'index.css');
         return `file://${cssPath}`;
     }
 });
