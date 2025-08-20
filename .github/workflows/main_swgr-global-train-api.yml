@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - swgr-global-train-api
 on:
   push:
     branches:
-      - main
+      - azure-release
   workflow_dispatch:
 
 jobs:
