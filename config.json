@@ -1,6 +1,6 @@
 {
     "AZURE_DB_CONNECTION_STRING": "Server=tcp:global-train-server.database.windows.net,1433;Initial Catalog=global-train-db;Persist Security Info=False;User ID=gt-sql-admin;Password=iUUVeu7d5HG@BcD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
     "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=globaltrainstorage;AccountKey=RmmPuolWtzkfr54TDOiUgc6RQQ6Kz5ZMsU0eGSOSi/Xgp63IbYPmJ8XwxoTMaKP+C8e7zMPCw3O1+AStrCEZzw==;EndpointSuffix=core.windows.net",
-    "NODE_ENV": "development"
+    "NODE_ENV": "production"
 }
   

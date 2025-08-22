@@ -289,7 +289,7 @@ const CreationScreen = () => {
                     const newTraineeId = traineeResult.lastID;
                     allTraineeIds.push(newTraineeId);
 
-                    const username = `${forename.toLowerCase()}.${surname.toLowerCase()}`;
+                    let username = `${forename.toLowerCase()}.${surname.toLowerCase()}`;
                     const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
                     const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
                     const password = `${forename.charAt(0).toUpperCase() + forename.slice(1)}${Math.floor(1000 + Math.random() * 9000)}${randomSymbol}`;
