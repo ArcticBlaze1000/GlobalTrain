@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import QuestionnaireForm from '../Common/QuestionnaireForm';
 import AlertModal from '../Common/AlertModal';
-import { useEvent } from '../../context/EventContext';
 
 const POST_COURSE_DOC_IDS = [31, 32]; // Sentinel Notification of Results, Sponsors Notification of Results
 
 const PostCourseChecklist = ({ register, user, onBackToList, openSignatureModal }) => {
-    const { setActiveEvent } = useEvent();
     const [documents, setDocuments] = useState([]);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +25,6 @@ const PostCourseChecklist = ({ register, user, onBackToList, openSignatureModal 
             }
 
             setIsLoading(true);
-            setActiveEvent(null);
 
             try {
                 const fullEventData = await window.db.query('SELECT * FROM datapack WHERE id = @param1', [register.id]);
@@ -45,7 +42,6 @@ const PostCourseChecklist = ({ register, user, onBackToList, openSignatureModal 
                         eventData.trainees = [];
                     }
                     setEventDetails(eventData);
-                    setActiveEvent(eventData);
                 }
 
                 const docPlaceholders = applicableDocIds.map((_, i) => `@param${i + 1}`).join(',');
@@ -83,7 +79,7 @@ const PostCourseChecklist = ({ register, user, onBackToList, openSignatureModal 
         };
 
         fetchChecklistData();
-    }, [register, setActiveEvent, selectedDocument]);
+    }, [register, selectedDocument]);
     
     useEffect(() => {
         const handleProgressUpdate = (event, { datapackId, documentId, progress }) => {

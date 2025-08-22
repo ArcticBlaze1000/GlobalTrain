@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import QuestionnaireForm from '../Common/QuestionnaireForm';
 import AlertModal from '../Common/AlertModal'; // Import the new modal
-import { useEvent } from '../../context/EventContext';
 
 const PRE_COURSE_DOC_IDS = [27, 28, 29, 30]; // Booking Form, Joining Instructions, Email Confirmation, Sentinel Pre-Checks, Sub-Sponsor Paperwork
 
 const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }) => {
-    const { setActiveEvent } = useEvent();
     const [documents, setDocuments] = useState([]);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +24,6 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
             }
 
             setIsLoading(true);
-            setActiveEvent(null);
 
             try {
                 const fullEventData = await window.db.query('SELECT * FROM datapack WHERE id = @param1', [register.id]);
@@ -44,7 +41,6 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
                         eventData.trainees = [];
                     }
                     setEventDetails(eventData);
-                    setActiveEvent(eventData);
                 }
 
                 const docPlaceholders = applicableDocIds.map((_, i) => `@param${i + 1}`).join(',');
@@ -82,7 +78,7 @@ const PreCourseChecklist = ({ register, user, onBackToList, openSignatureModal }
         };
 
         fetchChecklistData();
-    }, [register, setActiveEvent, selectedDocument]);
+    }, [register, selectedDocument]);
     
     useEffect(() => {
         const handleProgressUpdate = (event, { datapackId, documentId, progress }) => {
