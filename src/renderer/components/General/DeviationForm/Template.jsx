@@ -60,6 +60,9 @@ const Template = ({
                 <div className="label">Trainer Signature:</div>
                 {signature && <img src={signature} alt="Trainer Signature" className="sig-img" />}
             </div>
+             <div style={{ position: 'fixed', bottom: '20px', width: '100%', textAlign: 'center', fontSize: '10px', fontFamily: 'Arial, sans-serif' }}>
+                GT22 12 V1 March 2024
+            </div>
         </body>
         </html>
     );

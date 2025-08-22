@@ -253,7 +253,9 @@ const Template = ({ course, trainer, datapack, trainees, competencies, cssPath, 
                         </div>
                     </div>
 
-                    {/* Version footer is now empty */}
+                    <div style={{ position: 'fixed', bottom: '20px', width: '100%', textAlign: 'center', fontSize: '10px', fontFamily: 'Arial, sans-serif' }}>
+                        GT19 02 V3 August 2025
+                    </div>
                 </div>
             </body>
         </html>

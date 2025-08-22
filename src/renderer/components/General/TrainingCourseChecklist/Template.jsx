@@ -69,7 +69,9 @@ const Template = ({ courseName, trainerName, courseDate, cssPath, logoBase64, qu
                         </tbody>
                     </table>
                 </main>
-
+                <footer style={{ position: 'fixed', bottom: '20px', width: '100%', textAlign: 'center', fontSize: '10px', fontFamily: 'Arial, sans-serif' }}>
+                    GT19 03 V1 March 2024
+                </footer>
             </body>
         </html>
     );
