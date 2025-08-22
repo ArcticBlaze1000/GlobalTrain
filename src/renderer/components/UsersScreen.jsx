@@ -19,7 +19,7 @@ const SortableHeader = ({ children, sortKey, currentSort, onSort }) => {
     );
 };
 
-const UsersScreen = ({ currentUser }) => {
+const UsersScreen = ({ currentUser, onUserSelect }) => {
     const [users, setUsers] = useState([]);
     const [forename, setForename] = useState('');
     const [surname, setSurname] = useState('');
@@ -118,8 +118,10 @@ const UsersScreen = ({ currentUser }) => {
             return;
         }
 
-        const username = forename.toLowerCase();
-        const password = surname.toLowerCase();
+        const username = `${forename.toLowerCase()}.${surname.toLowerCase()}`;
+        const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+        const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+        const password = `${forename.charAt(0).toUpperCase() + forename.slice(1)}${Math.floor(1000 + Math.random() * 9000)}${randomSymbol}`;
 
         try {
             await window.db.query(
@@ -202,7 +204,7 @@ const UsersScreen = ({ currentUser }) => {
                     </thead>
                     <tbody>
                         {sortedUsers.map((user) => (
-                            <tr key={user.id} className="border-b hover:bg-gray-50">
+                            <tr key={user.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onUserSelect(user)}>
                                 <td className="px-4 py-2">{user.id}</td>
                                 <td className="px-4 py-2">{user.forename}</td>
                                 <td className="px-4 py-2">{user.surname}</td>

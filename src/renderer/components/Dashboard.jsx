@@ -7,6 +7,7 @@ import SignatureModal from './Common/SignatureModal';
 import { useEvent } from '../context/EventContext';
 import AdminScreen from './AdminScreen';
 import FlagModal from './Common/FlagModal';
+import UserModal from './common/UserModal';
 
 // A local component for rendering tab buttons to reduce repetition
 const TabButton = ({ name, activeTab, setActiveTab }) => {
@@ -70,6 +71,7 @@ const Dashboard = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState(getDefaultTab());
     const [signatureState, setSignatureState] = useState({ isOpen: false, onSave: null, initialData: null });
     const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     const openSignatureModal = (onSave, initialData = null) => {
         setSignatureState({
@@ -84,6 +86,15 @@ const Dashboard = ({ user, onLogout }) => {
 
     const closeSignatureModal = () => {
         setSignatureState({ isOpen: false, onSave: null, initialData: null });
+    };
+
+    const openUserModal = async (user) => {
+        const fullUserDetails = await window.db.query('SELECT * FROM users WHERE id = @param1', [user.id]);
+        setSelectedUser(fullUserDetails[0] || null);
+    };
+
+    const closeUserModal = () => {
+        setSelectedUser(null);
     };
 
     const renderHeader = () => (
@@ -151,7 +162,7 @@ const Dashboard = ({ user, onLogout }) => {
         <div className="flex flex-col h-screen">
             {renderHeader()}
             <div className="flex-grow overflow-y-auto">
-                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} />}
+                {(user.role === 'dev' || user.role === 'admin') && activeTab === 'users' && <UsersScreen currentUser={user} onUserSelect={openUserModal} />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'creation' && <CreationScreen />}
                 {(user.role === 'dev' || user.role === 'admin') && activeTab === 'admin' && <AdminScreen user={user} openSignatureModal={openSignatureModal} />}
                 {user.role !== 'candidate' && activeTab === 'course' && <CourseScreen user={user} openSignatureModal={openSignatureModal} />}
@@ -169,6 +180,7 @@ const Dashboard = ({ user, onLogout }) => {
                 user={user}
                 page={activeTab}
             />
+            <UserModal user={selectedUser} onClose={closeUserModal} />
         </div>
     );
 };

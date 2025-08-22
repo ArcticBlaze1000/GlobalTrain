@@ -289,8 +289,11 @@ const CreationScreen = () => {
                     const newTraineeId = traineeResult.lastID;
                     allTraineeIds.push(newTraineeId);
 
-                    let username = forename.toLowerCase();
-                    const password = surname.toLowerCase();
+                    const username = `${forename.toLowerCase()}.${surname.toLowerCase()}`;
+                    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+                    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    const password = `${forename.charAt(0).toUpperCase() + forename.slice(1)}${Math.floor(1000 + Math.random() * 9000)}${randomSymbol}`;
+                    
                     let userCreated = false;
                     let attempt = 0;
                     while (!userCreated) {
@@ -303,7 +306,7 @@ const CreationScreen = () => {
                         } catch (userError) {
                             if (userError.message.includes('SQLITE_CONSTRAINT') && userError.message.includes('users.username')) {
                                 attempt++;
-                                username = `${forename.toLowerCase()}${attempt}`;
+                                username = `${forename.toLowerCase()}.${surname.toLowerCase()}${attempt}`;
                             } else {
                                 console.error(`Failed to create user for ${forename} ${surname} due to an unexpected error:`, userError);
                                 break;
