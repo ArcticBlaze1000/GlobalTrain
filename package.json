@@ -1,6 +1,6 @@
 {
-  "name": "global-train",
-  "version": "1.0.0",
+  "name": "ADI System",
+  "version": "1.0.13",
   "description": "Global Train Application",
   "main": "main.js",
   "scripts": {

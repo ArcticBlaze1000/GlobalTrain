@@ -39,6 +39,7 @@ if (!AZURE_DB_CONNECTION_STRING) {
 function createWindow () {
   const mainWindow = new BrowserWindow({
     fullscreen: true,
+    title: "ADI System",
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true
