@@ -141,13 +141,7 @@ global-train/
     npm install
     ```
 
-3.  **Initialize the database:**
-    This script creates `database.db` and populates it with the necessary schema and initial data.
-    ```bash
-    npm run db:init
-    ```
-
-4.  **Run the application in development mode:**
+3.  **Run the application in development mode:**
     This command starts the Vite dev server and launches the Electron application.
     ```bash
     npm run dev
